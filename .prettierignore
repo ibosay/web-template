@@ -1,6 +1,8 @@
 build/
 coverage/
 node_modules/
+# Eigenständiger Prototyp ohne Build-Schritt, eigene Formatierung
+ibo/
 public/
 src/components/index.js
 src/containers/index.js

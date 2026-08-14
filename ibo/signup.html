@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Betrieb eintragen – Servano</title>
+    <meta
+      name="description"
+      content="Tragen Sie Ihren Wiener Betrieb bei Servano ein. Wir prüfen UID und Gewerbeberechtigung vor der Freischaltung – ohne Abo und ohne versteckte Kosten."
+    />
+    <meta name="theme-color" content="#21384f" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2321384f'/%3E%3Ctext x='16' y='23' font-family='Segoe UI,Arial' font-size='20' font-weight='700' fill='%232f7fd1' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <script>
+      try {
+        var savedTheme = JSON.parse(localStorage.getItem('servano.theme'));
+        if (savedTheme === 'dark' || savedTheme === 'light') {
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body data-page="signup">
+    <div data-header></div>
+
+    <main id="main" class="container">
+      <div class="page-head">
+        <h1>Betrieb bei Servano eintragen</h1>
+        <p>
+          Werden Sie Teil eines Verzeichnisses, in dem Sichtbarkeit nicht käuflich ist. Kein Abo, keine
+          Provision pro Anfrage, keine gekauften Bewertungen.
+        </p>
+      </div>
+
+      <section class="form-card" id="signup-card">
+        <ol class="steps" aria-label="Ablauf">
+          <li class="is-active">1. Antrag ausfüllen</li>
+          <li>2. Manuelle Prüfung</li>
+          <li>3. Freischaltung</li>
+        </ol>
+
+        <div class="notice notice--info" id="draftNote" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-info"></use></svg>
+          <p>
+            Ein gespeicherter Entwurf wurde geladen.
+            <button type="button" class="btn btn--ghost btn--sm" id="clearDraftBtn">Entwurf verwerfen</button>
+          </p>
+        </div>
+
+        <form id="signupForm" novalidate>
+          <fieldset class="fieldset">
+            <legend>Betrieb</legend>
+
+            <div class="form-group">
+              <label for="companyName">Firmenwortlaut</label>
+              <input
+                type="text"
+                id="companyName"
+                name="companyName"
+                autocomplete="organization"
+                placeholder="z. B. Muster Meisterbetrieb GmbH"
+                required
+              />
+              <span class="field-error" data-error-for="companyName" hidden></span>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="atuInput">UID-Nummer (ATU)</label>
+                <input
+                  type="text"
+                  id="atuInput"
+                  name="atu"
+                  placeholder="ATU12345678"
+                  inputmode="text"
+                  autocapitalize="characters"
+                  required
+                />
+                <span class="hint">Wird inklusive Prüfziffer kontrolliert.</span>
+                <span class="field-error" data-error-for="atuInput" hidden></span>
+              </div>
+              <div class="form-group">
+                <label for="gisaInput">GISA-Zahl <span class="muted">(optional)</span></label>
+                <input type="text" id="gisaInput" name="gisa" placeholder="12345678" inputmode="numeric" />
+                <span class="hint">Beschleunigt die Prüfung der Gewerbeberechtigung.</span>
+                <span class="field-error" data-error-for="gisaInput" hidden></span>
+              </div>
+            </div>
+
+            <button type="button" class="btn btn--secondary btn--block" id="checkBtn">
+              <svg class="icon" aria-hidden="true"><use href="#i-shield"></use></svg>
+              <span>Gewerbedaten vorab prüfen</span>
+            </button>
+            <p class="check-result" id="checkResult" role="status" aria-live="polite"></p>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <legend>Kontakt</legend>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="emailInput">E-Mail für Rückfragen</label>
+                <input type="email" id="emailInput" name="email" autocomplete="email" placeholder="office@firma.at" required />
+                <span class="field-error" data-error-for="emailInput" hidden></span>
+              </div>
+              <div class="form-group">
+                <label for="phoneInput">Telefon</label>
+                <input type="tel" id="phoneInput" name="phone" autocomplete="tel" placeholder="+43 1 234 56 78" required />
+                <span class="field-error" data-error-for="phoneInput" hidden></span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset class="fieldset">
+            <legend>Eintrag</legend>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="districtSelect">Standort-Bezirk</label>
+                <!-- Die 23 Bezirke werden aus data.js befüllt, damit sie nur an
+                     einer Stelle gepflegt werden müssen. -->
+                <select id="districtSelect" name="district" required>
+                  <option value="">Bitte wählen…</option>
+                </select>
+                <span class="field-error" data-error-for="districtSelect" hidden></span>
+              </div>
+              <div class="form-group">
+                <label for="categorySelect">Kategorie</label>
+                <select id="categorySelect" name="category" required>
+                  <option value="">Bitte wählen…</option>
+                </select>
+                <span class="field-error" data-error-for="categorySelect" hidden></span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="descriptionInput">Kurzbeschreibung Ihres Angebots</label>
+              <textarea
+                id="descriptionInput"
+                name="description"
+                placeholder="Welche Leistungen bieten Sie an, in welchem Gebiet arbeiten Sie, was unterscheidet Sie?"
+                required
+              ></textarea>
+              <span class="hint">Mindestens 30 Zeichen. Erscheint später auf Ihrem Profil.</span>
+              <span class="field-error" data-error-for="descriptionInput" hidden></span>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox">
+                <input type="checkbox" id="consentInput" name="consent" required />
+                <span>
+                  Ich bestätige, dass ich zur Vertretung des Betriebs berechtigt bin, und stimme zu, dass die
+                  Angaben manuell geprüft und erst nach Freigabe veröffentlicht werden.
+                  (<a href="datenschutz.html">Datenschutzerklärung</a>)
+                </span>
+              </label>
+              <span class="field-error" data-error-for="consentInput" hidden></span>
+            </div>
+          </fieldset>
+
+          <div class="form-actions">
+            <a class="btn btn--secondary" href="index.html">Abbrechen</a>
+            <button type="submit" class="btn btn--primary">
+              <svg class="icon" aria-hidden="true"><use href="#i-check"></use></svg>
+              <span>Eintrag beantragen</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section class="form-card">
+        <h2>Was Sie erwartet</h2>
+        <div class="step-cards" style="margin-top: 14px">
+          <div class="step-card">
+            <h3>Kostenloser Basiseintrag</h3>
+            <p>Profil, Leistungen, Öffnungszeiten und Kontaktdaten – dauerhaft ohne Gebühr.</p>
+          </div>
+          <div class="step-card">
+            <h3>Anfragen direkt an Sie</h3>
+            <p>Kundinnen und Kunden erreichen Sie direkt. Keine Vermittlungsprovision pro Auftrag.</p>
+          </div>
+          <div class="step-card">
+            <h3>Anzeigen bleiben Anzeigen</h3>
+            <p>Bezahlte Platzierungen sind gekennzeichnet und verändern die Reihung der Treffer nicht.</p>
+          </div>
+          <div class="step-card">
+            <h3>Prüfung statt Sternchen</h3>
+            <p>Statt Bewertungen prüfen wir Gewerbeberechtigung und UID – nachvollziehbar und fälschungssicher.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div data-footer></div>
+
+    <script src="assets/js/icons.js"></script>
+    <script src="assets/js/util.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/signup.js"></script>
+  </body>
+</html>

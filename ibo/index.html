@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Servano – geprüfte Dienstleister in Wien finden</title>
+    <meta
+      name="description"
+      content="Servano ist das Verzeichnis für geprüfte Dienstleistungsbetriebe in Wien: Installateur, Elektriker, Reinigung, Entrümpelung und mehr – ohne gekaufte Bewertungen."
+    />
+    <meta name="theme-color" content="#21384f" />
+    <meta name="robots" content="index, follow" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Servano – geprüfte Dienstleister in Wien" />
+    <meta
+      property="og:description"
+      content="Fair, transparent und ohne Fake-Bewertungen: Handwerk und Dienstleistung in allen 23 Wiener Bezirken."
+    />
+    <meta property="og:locale" content="de_AT" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2321384f'/%3E%3Ctext x='16' y='23' font-family='Segoe UI,Arial' font-size='20' font-weight='700' fill='%232f7fd1' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <script>
+      // Farbschema vor dem ersten Rendern setzen, damit es nicht kurz aufblitzt.
+      try {
+        var savedTheme = JSON.parse(localStorage.getItem('servano.theme'));
+        if (savedTheme === 'dark' || savedTheme === 'light') {
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+      } catch (e) {
+        /* Speicher nicht verfügbar – Systemeinstellung greift */
+      }
+    </script>
+  </head>
+  <body data-page="home">
+    <div data-header></div>
+
+    <main id="main" class="container">
+      <!-- Wird von app.js befüllt: Startseite, Suchergebnisse, Anbieterprofil
+           und Merkliste. Der Zustand steht jeweils in der URL (#/suche?…). -->
+      <div id="app" aria-live="polite">
+        <noscript>
+          <div class="notice notice--warning">
+            <p>
+              Für die Suche wird JavaScript benötigt. Die Seiten
+              <a href="info.html">So funktioniert's</a>, <a href="impressum.html">Impressum</a> und
+              <a href="datenschutz.html">Datenschutz</a> funktionieren auch ohne.
+            </p>
+          </div>
+        </noscript>
+      </div>
+    </main>
+
+    <div data-footer></div>
+
+    <script src="assets/js/icons.js"></script>
+    <script src="assets/js/util.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/app.js"></script>
+  </body>
+</html>

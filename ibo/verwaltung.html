@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Verwaltung – Servano Admin</title>
+    <meta name="description" content="Interner Bereich zur Freigabe von Betrieben und zur Bearbeitung von Anfragen." />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#21384f" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2321384f'/%3E%3Ctext x='16' y='23' font-family='Segoe UI,Arial' font-size='20' font-weight='700' fill='%232f7fd1' text-anchor='middle'%3ES%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="assets/css/style.css" />
+    <script>
+      try {
+        var savedTheme = JSON.parse(localStorage.getItem('servano.theme'));
+        if (savedTheme === 'dark' || savedTheme === 'light') {
+          document.documentElement.setAttribute('data-theme', savedTheme);
+        }
+      } catch (e) {}
+    </script>
+  </head>
+  <body data-page="admin">
+    <div data-header></div>
+
+    <main id="main" class="container">
+      <div class="page-head">
+        <h1>Verwaltung</h1>
+        <p>Anträge prüfen, Betriebe freischalten und Kundenanfragen bearbeiten.</p>
+      </div>
+
+      <div class="notice notice--warning">
+        <svg class="icon" aria-hidden="true"><use href="#i-warning"></use></svg>
+        <p>
+          <strong>Prototyp ohne Server.</strong> Die Anmeldung ist eine reine Anzeige-Schranke im Browser und
+          schützt keine Daten. Alle Änderungen liegen ausschließlich im lokalen Speicher dieses Geräts.
+          Produktiv gehört dieser Bereich hinter eine serverseitige Authentifizierung mit Rollen und
+          Protokollierung.
+        </p>
+      </div>
+
+      <!-- Demo-Anmeldung -->
+      <section class="form-card" id="admin-login">
+        <h2>Anmeldung</h2>
+        <p class="muted" style="font-size: 0.9rem">
+          Demo-Kennwort: <code>servano-demo</code>
+        </p>
+        <form id="loginForm" novalidate>
+          <div class="form-group">
+            <label for="adminPassword">Kennwort</label>
+            <input type="password" id="adminPassword" autocomplete="current-password" required />
+            <span class="field-error" id="loginError" hidden>Kennwort stimmt nicht.</span>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary btn--block">
+              <svg class="icon" aria-hidden="true"><use href="#i-lock"></use></svg>
+              <span>Anmelden</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- Wird von admin.js befüllt -->
+      <section id="admin-panel" hidden></section>
+    </main>
+
+    <div data-footer></div>
+
+    <script src="assets/js/icons.js"></script>
+    <script src="assets/js/util.js"></script>
+    <script src="assets/js/layout.js"></script>
+    <script src="assets/js/data.js"></script>
+    <script src="assets/js/admin.js"></script>
+  </body>
+</html>
