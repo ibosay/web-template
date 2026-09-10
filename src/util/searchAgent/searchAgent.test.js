@@ -119,6 +119,31 @@ describe('searchAgent intent parsing', () => {
     expect(intent.price.max).toBe(300);
   });
 
+  it('reads a named budget as an upper bound', () => {
+    expect(parseIntent('iPhone 17 Pro Max für 500 Euro').price).toEqual({
+      min: null,
+      max: 500,
+      currency: 'EUR',
+    });
+    expect(parseIntent('Fahrrad um 300 €').price.max).toBe(300);
+    expect(parseIntent('Kamera ca. 250 Euro').price.max).toBe(250);
+    expect(parseIntent('laptop for 500 eur').price.max).toBe(500);
+  });
+
+  it('does not read a budget without a currency', () => {
+    expect(parseIntent('Kinderwagen für Zwillinge').price).toBeNull();
+    expect(parseIntent('Buch für 3 Jahre').price).toBeNull();
+  });
+
+  it('parses a whole country named as "ganz <Land>"', () => {
+    const intent = parseIntent('suche nach iPhone 17 Pro Max für 500 Euro ganz Österreich');
+
+    expect(intent.keywords).toBe('iPhone 17 Pro Max');
+    expect(intent.country.code).toBe('AT');
+    expect(intent.city).toBeNull();
+    expect(intent.price.max).toBe(500);
+  });
+
   it('does not read a year as a price', () => {
     const intent = parseIntent('Golf ab 2015 in Köln');
     expect(intent.price).toBeNull();

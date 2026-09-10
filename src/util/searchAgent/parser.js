@@ -190,6 +190,29 @@ const parsePrice = (text, fallbackCurrency) => {
         return min != null ? { min, max: null } : null;
       },
     },
+    {
+      // A budget: "für 500 Euro", "um 500 Euro" (AT/CH), "ca. 500 €", "for 500 eur".
+      // Read as an upper bound - that is what someone naming a budget means. A currency is
+      // required on one side, so "für Kinder ab 3" or "iPhone 13 für zuhause" is not a price.
+      pattern: new RegExp(
+        `\\b(?:f(?:ue|ü)r|um|circa|ca\\.?|rund|etwa|about|for)\\s+(?:${CURRENCY})\\s*(${NUM})\\b`,
+        'i'
+      ),
+      read: m => {
+        const max = readAmount(m[1], m[0]);
+        return max != null ? { min: null, max } : null;
+      },
+    },
+    {
+      pattern: new RegExp(
+        `\\b(?:f(?:ue|ü)r|um|circa|ca\\.?|rund|etwa|about|for)\\s+(${NUM})\\s*(?:${CURRENCY})`,
+        'i'
+      ),
+      read: m => {
+        const max = readAmount(m[1], m[0]);
+        return max != null ? { min: null, max } : null;
+      },
+    },
   ];
 
   const { value, text: rest } = applyFirstMatch(text, rules);
@@ -247,6 +270,11 @@ const parseCondition = text => {
 const PLACE_PREPOSITIONS = [
   'in',
   'im',
+  'ganz',
+  'ganze',
+  'ganzen',
+  'whole',
+  'entire',
   'aus',
   'bei',
   'nahe',
