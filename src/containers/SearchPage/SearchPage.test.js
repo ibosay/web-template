@@ -342,6 +342,10 @@ describe('SearchPage', () => {
 
       // Has filter column
       expect(screen.getByTestId('filterColumnAside')).toBeInTheDocument();
+
+      // Has the search agent
+      expect(screen.getByTestId('search-agent-query')).toBeInTheDocument();
+
       // Does not have search map container
       expect(screen.queryByTestId('searchMapContainer')).not.toBeInTheDocument();
 
@@ -436,6 +440,9 @@ describe('SearchPage', () => {
       expect(screen.queryByTestId('filterColumnAside')).not.toBeInTheDocument();
       // Has search map container
       expect(screen.getByTestId('searchMapContainer')).toBeInTheDocument();
+
+      // Has the search agent
+      expect(screen.getByTestId('search-agent-query')).toBeInTheDocument();
 
       // Has SortBy component
       expect(getByText('MainPanelHeader.sortBy')).toBeInTheDocument();

@@ -1,0 +1,157 @@
+@import '../../../styles/customMediaQueries.css';
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0 8px 0;
+  border-bottom: 1px solid var(--colorGrey100);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  composes: h5 from global;
+  font-weight: var(--fontWeightSemiBold);
+  margin: 0;
+  padding: 0;
+}
+
+.inputRow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  @media (--viewportMedium) {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.input {
+  composes: marketplaceInputStyles from global;
+  flex-grow: 1;
+}
+
+.submitButton {
+  composes: buttonDefault from global;
+  min-height: 48px;
+  padding: 0 24px;
+
+  @media (--viewportMedium) {
+    width: auto;
+    min-height: 48px;
+  }
+}
+
+.toggleFilters {
+  composes: h5 from global;
+  font-weight: var(--fontWeightMedium);
+  color: var(--marketplaceColor);
+
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: none;
+  outline: none;
+  cursor: pointer;
+
+  &:focus,
+  &:hover {
+    color: var(--colorGrey700);
+  }
+}
+
+.filters {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+
+  @media (--viewportMedium) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.filtersHidden {
+  display: none;
+}
+
+.filter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.filterLabel {
+  composes: marketplaceTinyFontStyles from global;
+  font-weight: var(--fontWeightMedium);
+  color: var(--colorGrey700);
+  margin: 0;
+  padding: 0;
+}
+
+/* The global `select` rule already carries the marketplace styling. */
+.select {
+  width: 100%;
+}
+
+.feedback {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  composes: marketplaceTinyFontStyles from global;
+  background-color: var(--colorGrey50);
+  border: 1px solid var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  color: var(--colorGrey700);
+  margin: 0;
+  padding: 4px 10px;
+}
+
+.warning {
+  composes: marketplaceTinyFontStyles from global;
+  background-color: var(--colorAttentionSubtle);
+  border-left: 3px solid var(--colorAttention);
+  color: var(--colorGrey700);
+  margin: 0;
+  padding: 8px 12px;
+}
+
+.blocked {
+  background-color: var(--colorFailSubtle);
+  border-left: 3px solid var(--colorFail);
+  padding: 8px 12px;
+}
+
+.blockedTitle {
+  composes: h5 from global;
+  font-weight: var(--fontWeightSemiBold);
+  color: var(--colorFailDark);
+  margin: 0;
+  padding: 0;
+}
+
+.reasonList,
+.tips {
+  composes: marketplaceTinyFontStyles from global;
+  color: var(--colorGrey700);
+  margin: 4px 0 0 0;
+  padding-left: 18px;
+}

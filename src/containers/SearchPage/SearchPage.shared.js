@@ -901,6 +901,36 @@ export const onSortBy = ({
   history.push(createResourceLocatorString(routeName, routeConfiguration, pathParams, queryParams));
 };
 
+// Query params the search agent owns. They are replaced wholesale on every agent search, so
+// that a new agent query never inherits a stale location or price from the previous one.
+const AGENT_MANAGED_PARAMS = ['keywords', 'address', 'bounds', 'origin', 'price', 'sort'];
+
+/**
+ * Apply the query params derived by the search agent and navigate.
+ *
+ * Filters the user set by hand are kept, except the ones the agent manages itself.
+ *
+ * @param {Object} ctx
+ * @param {Object} ctx.agentParams query params from `buildSearchParams`
+ */
+export const onAgentSearch = ({
+  history,
+  routeConfiguration,
+  location,
+  urlQueryParams,
+  agentParams,
+}) => {
+  const agentOwnedKeys = [...AGENT_MANAGED_PARAMS, ...Object.keys(agentParams)];
+  const queryParams = { ...omit(urlQueryParams, agentOwnedKeys), ...agentParams };
+
+  const { routeName, pathParams } = getSearchPageResourceLocatorStringParams(
+    routeConfiguration,
+    location
+  );
+
+  history.push(createResourceLocatorString(routeName, routeConfiguration, pathParams, queryParams));
+};
+
 export const getDatesAndSeatsMaybe = (currentParams, newParams) => {
   const { seats, dates: newDates } = newParams;
   const { dates: currentDates } = currentParams;

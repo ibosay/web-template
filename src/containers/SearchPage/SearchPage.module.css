@@ -222,6 +222,19 @@
   }
 }
 
+/* Search agent: shown above the results in both layout variants. */
+.searchAgentGridVariant {
+  padding: 0 24px;
+
+  @media (--viewportLarge) {
+    padding: 0 36px;
+  }
+}
+
+.searchAgentMapVariant {
+  composes: searchAgentGridVariant;
+}
+
 .searchFiltersMobileMap {
   padding: 16px 24px;
 

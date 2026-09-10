@@ -23,11 +23,13 @@ import {
   onApplyFilters,
   createFilterValueChangeHandler,
   onSortBy,
+  onAgentSearch,
 } from './SearchPage.shared';
 
 import FilterComponent from './FilterComponent';
 import SearchMap from './SearchMap/SearchMap';
 import MainPanelHeader from './MainPanelHeader/MainPanelHeader';
+import SearchAgentPanel from './SearchAgentPanel/SearchAgentPanel';
 import SearchFiltersSecondary from './SearchFiltersSecondary/SearchFiltersSecondary';
 import SearchFiltersPrimary from './SearchFiltersPrimary/SearchFiltersPrimary';
 import SearchFiltersMobile from './SearchFiltersMobile/SearchFiltersMobile';
@@ -69,6 +71,9 @@ export class SearchPageComponent extends Component {
 
     // SortBy
     this.handleSortBy = this.handleSortBy.bind(this);
+
+    // Search agent
+    this.handleAgentSearch = this.handleAgentSearch.bind(this);
   }
 
   // Callback to determine if new search is needed
@@ -206,6 +211,18 @@ export class SearchPageComponent extends Component {
       urlQueryParams: validUrlQueryParamsFromProps(this.props),
       urlParam,
       values,
+    });
+  }
+
+  // Apply the query params that the search agent derived from a free-text query
+  handleAgentSearch(agentParams) {
+    const { history, routeConfiguration, location } = this.props;
+    onAgentSearch({
+      history,
+      routeConfiguration,
+      location,
+      urlQueryParams: validUrlQueryParamsFromProps(this.props),
+      agentParams,
     });
   }
 
@@ -366,6 +383,11 @@ export class SearchPageComponent extends Component {
                 );
               })}
             </SearchFiltersMobile>
+            <SearchAgentPanel
+              className={css.searchAgentMapVariant}
+              config={config}
+              onSubmit={this.handleAgentSearch}
+            />
             <MainPanelHeader
               className={css.mainPanelMapVariant}
               sortByComponent={sortBy('desktop')}

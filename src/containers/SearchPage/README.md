@@ -71,6 +71,35 @@ live-edit mode: chaning the values immediately fires a new search.
 SearchMap listens to 'idle' event and SearchPage function `onIndle` can create a new location search
 if SearchMap's bounds have changed enough.
 
+## SearchAgentPanel (search agent)
+
+_SearchAgentPanel_ is shown above the results in both layout variants. It lets the user describe a
+search in one sentence ("Handy iPhone 13 in Berlin unter 300 Euro, günstigste zuerst") instead of
+setting the filters one by one.
+
+The logic lives in _src/util/searchAgent/_ and is split in four files:
+
+- **safety.js**: sanitizes the raw query (control characters, markup, injected URLs, length cap) and
+  classifies it. Queries for illegal goods, stolen goods, payment credentials or the whereabouts of
+  a private person are _blocked_ - the agent does not run them. Queries that match a known scam
+  pattern are run, but the panel shows matching safety tips.
+- **locations.js**: the country and city dictionary. Locations are resolved from this local
+  dictionary rather than from a geocoding service, so the same query always produces the same search
+  area and the query never leaves the app. Countries carry a bounding box, cities a center point and
+  a radius. Extend the `COUNTRY_DATA` / `CITY_DATA` tables to cover more places.
+- **parser.js**: turns the sanitized query into an intent: keywords, city, country, radius, price
+  range, condition and sort order. It understands German and English phrasings. Anything it does not
+  recognize stays in the keywords, so nothing is silently dropped.
+- **index.js**: `runSearchAgent(query, options)` ties it together and returns the SearchPage query
+  parameters. It only produces parameters for filters the marketplace actually has: the options are
+  read from the app configuration in `agentOptionsFromConfig` (keywords filter, price filter range,
+  origin, sort, and the marketplace's own `condition` listing field).
+
+Applying an agent search is a normal SearchPage navigation (`onAgentSearch` in
+_SearchPage.shared.js_), so the existing filters, validation and access rules still apply. Country,
+city and radius stay editable as dropdowns in the panel: the sentence is a shortcut, not the only
+way in.
+
 ## Other things to consider
 
 ### Search filters
