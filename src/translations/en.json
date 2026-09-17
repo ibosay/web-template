@@ -808,6 +808,7 @@
   "PaymentMethodsForm.submitPaymentInfo": "Save payment card",
   "PaymentMethodsPage.heading": "Payment methods",
   "PaymentMethodsPage.title": "Payment methods",
+  "PixelSword.screenreader.label": "Pixel art sword surrounded by flames",
   "PriceFilter.labelSelectedButton": "{minPrice} - {maxPrice}",
   "PriceFilter.screenreader.rangeHandle": "{handle, select, min {{formattedPrice} {currency} minimum price} other {{formattedPrice} {currency} maximum price}}",
   "PriceVariantPicker.onePriceVariantOnly": "{priceVariantName}",

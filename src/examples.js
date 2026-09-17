@@ -76,6 +76,7 @@ import * as FieldDateAndTimeInput from './components/OrderPanel/BookingTimeForm/
 import * as OrderPanel from './components/OrderPanel/OrderPanel.example';
 import * as OutsideClickHandler from './components/OutsideClickHandler/OutsideClickHandler.example';
 import * as PaginationLinks from './components/PaginationLinks/PaginationLinks.example';
+import * as PixelSword from './components/PixelSword/PixelSword.example';
 import * as PropertyGroup from './components/PropertyGroup/PropertyGroup.example';
 import * as RangeSlider from './components/RangeSlider/RangeSlider.example';
 import * as ResponsiveImage from './components/ResponsiveImage/ResponsiveImage.example';
@@ -228,6 +229,7 @@ export {
   PanelHeading,
   PasswordRecoveryForm,
   PasswordResetForm,
+  PixelSword,
   PriceFilter,
   PropertyGroup,
   RangeSlider,

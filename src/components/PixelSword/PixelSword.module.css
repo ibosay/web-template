@@ -1,0 +1,124 @@
+.root {
+  display: block;
+
+  /* The fire spills over the edges of the sprite as a warm glow. */
+  filter: drop-shadow(0 0 2px rgba(255, 140, 32, 0.9)) drop-shadow(0 0 8px rgba(255, 64, 0, 0.55));
+  animation: pixelSwordGlow 1.8s ease-in-out infinite alternate;
+}
+
+/* Sizes keep the 13:23 aspect ratio of the pixel canvas. */
+.small {
+  width: 52px;
+  height: 92px;
+}
+
+.medium {
+  width: 104px;
+  height: 184px;
+}
+
+.large {
+  width: 156px;
+  height: 276px;
+}
+
+/* The flame frames are stacked on top of each other and shown in turn,
+   which animates the fire the way a pixel art sprite sheet would. */
+.flameFrame {
+  opacity: 0;
+  animation: pixelSwordFlicker 0.48s steps(1, end) infinite;
+}
+
+.flameFrame1 {
+  animation-delay: 0s;
+}
+
+.flameFrame2 {
+  animation-delay: -0.36s;
+}
+
+.flameFrame3 {
+  animation-delay: -0.24s;
+}
+
+.flameFrame4 {
+  animation-delay: -0.12s;
+}
+
+/* Heat tint on top of the steel. */
+.ember {
+  opacity: 0.1;
+  animation: pixelSwordEmber 1.8s ease-in-out infinite alternate;
+}
+
+/* A still version of the same art: the first flame frame and a steady glow. */
+.motionless {
+  animation: none;
+}
+
+.motionless .flameFrame {
+  animation: none;
+  opacity: 0;
+}
+
+.motionless .flameFrame1 {
+  opacity: 1;
+}
+
+.motionless .ember {
+  animation: none;
+  opacity: 0.22;
+}
+
+@keyframes pixelSwordFlicker {
+  0%,
+  24.99% {
+    opacity: 1;
+  }
+
+  25%,
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pixelSwordGlow {
+  from {
+    filter: drop-shadow(0 0 2px rgba(255, 140, 32, 0.75))
+      drop-shadow(0 0 6px rgba(255, 64, 0, 0.45));
+  }
+
+  to {
+    filter: drop-shadow(0 0 3px rgba(255, 170, 60, 1)) drop-shadow(0 0 14px rgba(255, 64, 0, 0.7));
+  }
+}
+
+@keyframes pixelSwordEmber {
+  from {
+    opacity: 0.1;
+  }
+
+  to {
+    opacity: 0.34;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+  }
+
+  .flameFrame {
+    animation: none;
+    opacity: 0;
+  }
+
+  .flameFrame1 {
+    opacity: 1;
+  }
+
+  .ember {
+    animation: none;
+    opacity: 0.22;
+  }
+}

@@ -808,6 +808,7 @@
   "PaymentMethodsForm.submitPaymentInfo": "Guardar tarjeta",
   "PaymentMethodsPage.heading": "Formas de pago",
   "PaymentMethodsPage.title": "Formas de pago",
+  "PixelSword.screenreader.label": "Espada de pixel art envuelta en llamas",
   "PriceFilter.labelSelectedButton": "{minPrice} - {maxPrice}",
   "PriceFilter.screenreader.rangeHandle": "{handle, select, min {{formattedPrice} {currency} precio mínimo} other {{formattedPrice} {currency} precio máximo}}",
   "PriceVariantPicker.onePriceVariantOnly": "{priceVariantName}",

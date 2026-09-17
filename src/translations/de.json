@@ -808,6 +808,7 @@
   "PaymentMethodsForm.submitPaymentInfo": "Zahlungskarte speichern",
   "PaymentMethodsPage.heading": "Zahlungsarten",
   "PaymentMethodsPage.title": "Zahlungsarten",
+  "PixelSword.screenreader.label": "Pixel-Schwert, das in Flammen steht",
   "PriceFilter.labelSelectedButton": "{minPrice} - {maxPrice}",
   "PriceFilter.screenreader.rangeHandle": "{handle, select, min {{formattedPrice} {currency}} Mindestpreis other {{formattedPrice} {currency} Höchstpreis}}",
   "PriceVariantPicker.onePriceVariantOnly": "{priceVariantName}",

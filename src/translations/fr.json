@@ -808,6 +808,7 @@
   "PaymentMethodsForm.submitPaymentInfo": "Enregistrer la carte bancaire",
   "PaymentMethodsPage.heading": "Modes de paiement",
   "PaymentMethodsPage.title": "Modes de paiement",
+  "PixelSword.screenreader.label": "Épée en pixel art entourée de flammes",
   "PriceFilter.labelSelectedButton": "{minPrice} - {maxPrice}",
   "PriceFilter.screenreader.rangeHandle": "{handle, select, min {{formattedPrice} prix minimum {currency}} other {{formattedPrice} prix maximum {currency}}}",
   "PriceVariantPicker.onePriceVariantOnly": "{priceVariantName}",
