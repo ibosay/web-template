@@ -32,6 +32,7 @@ const PaymentMethodsPage = loadable(() => import(/* webpackChunkName: "PaymentMe
 const PrivacyPolicyPage = loadable(() => import(/* webpackChunkName: "PrivacyPolicyPage" */ '../containers/PrivacyPolicyPage/PrivacyPolicyPage'));
 const ProfilePage = loadable(() => import(/* webpackChunkName: "ProfilePage" */ '../containers/ProfilePage/ProfilePage'));
 const ProfileSettingsPage = loadable(() => import(/* webpackChunkName: "ProfileSettingsPage" */ '../containers/ProfileSettingsPage/ProfileSettingsPage'));
+const QuizGamePage = loadable(() => import(/* webpackChunkName: "QuizGamePage" */ '../containers/QuizGamePage/QuizGamePage'));
 const RequestQuotePage = loadable(() => import(/* webpackChunkName: "RequestQuotePage" */ '../containers/RequestQuotePage/RequestQuotePage'));
 const SearchPageWithMap = loadable(() => import(/* webpackChunkName: "SearchPageWithMap" */ /* webpackPrefetch: true */  '../containers/SearchPage/SearchPageWithMap'));
 const SearchPageWithGrid = loadable(() => import(/* webpackChunkName: "SearchPageWithGrid" */ /* webpackPrefetch: true */  '../containers/SearchPage/SearchPageWithGrid'));
@@ -369,6 +370,11 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       name: 'PrivacyPolicyPage',
       component: PrivacyPolicyPage,
       loadData: pageDataLoadingAPI.PrivacyPolicyPage.loadData,
+    },
+    {
+      path: '/quiz',
+      name: 'QuizGamePage',
+      component: QuizGamePage,
     },
     {
       path: '/styleguide',
