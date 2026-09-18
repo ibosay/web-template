@@ -1,0 +1,107 @@
+@import '../../../styles/customMediaQueries.css';
+
+.root {
+  padding: 24px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+
+  @media (--viewportMedium) {
+    padding: 32px;
+  }
+}
+
+.heading {
+  margin: 0;
+}
+
+.rules {
+  composes: p from global;
+  margin: 6px 0 24px 0;
+  color: var(--colorGrey700);
+
+  @media (--viewportMedium) {
+    margin: 8px 0 32px 0;
+  }
+}
+
+.categories {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.categoriesLegend {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 0 0 6px 0;
+  padding: 0;
+  color: var(--colorGrey700);
+
+  @media (--viewportMedium) {
+    margin: 0 0 8px 0;
+  }
+}
+
+.categoryButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  @media (--viewportMedium) {
+    gap: 8px;
+  }
+}
+
+.categoryButton {
+  composes: marketplaceDefaultFontStyles from global;
+  min-height: 36px;
+  margin: 0;
+  padding: 6px 12px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+  color: var(--colorGrey700);
+  cursor: pointer;
+  transition: all var(--transitionStyleButton);
+
+  &:hover,
+  &:focus {
+    border-color: var(--marketplaceColor);
+    outline: none;
+  }
+
+  @media (--viewportMedium) {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+}
+
+.categoryButtonSelected {
+  border-color: var(--marketplaceColor);
+  background-color: var(--marketplaceColor);
+  color: var(--colorWhite);
+
+  &:hover,
+  &:focus {
+    background-color: var(--marketplaceColorDark);
+    border-color: var(--marketplaceColorDark);
+  }
+}
+
+.highScore {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 18px 0 0 0;
+  color: var(--colorGrey700);
+
+  @media (--viewportMedium) {
+    margin: 24px 0 0 0;
+  }
+}
+
+.startButton {
+  margin-top: 24px;
+
+  @media (--viewportMedium) {
+    margin-top: 32px;
+  }
+}

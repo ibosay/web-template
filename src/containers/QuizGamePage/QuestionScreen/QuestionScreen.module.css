@@ -1,0 +1,191 @@
+@import '../../../styles/customMediaQueries.css';
+
+.root {
+  padding: 24px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+
+  @media (--viewportMedium) {
+    padding: 32px;
+  }
+}
+
+.statusRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.progress,
+.score,
+.streak {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 0;
+  color: var(--colorGrey700);
+}
+
+.score {
+  color: var(--colorGrey900);
+  font-weight: var(--fontWeightBold);
+}
+
+.streak {
+  color: var(--colorAttentionDark);
+  font-weight: var(--fontWeightBold);
+}
+
+.timer {
+  height: 6px;
+  margin-top: 12px;
+  border-radius: 3px;
+  background-color: var(--colorGrey100);
+  overflow: hidden;
+}
+
+.timerBar {
+  height: 100%;
+  background-color: var(--marketplaceColor);
+  transition: width 1s linear;
+}
+
+.timerBarLow {
+  background-color: var(--colorFail);
+}
+
+.timerLabel {
+  composes: marketplaceTinyFontStyles from global;
+  display: block;
+  margin: 0;
+  color: var(--colorGrey700);
+}
+
+.timerLabelLow {
+  color: var(--colorFail);
+  font-weight: var(--fontWeightBold);
+}
+
+.question {
+  margin: 12px 0 24px 0;
+
+  @media (--viewportMedium) {
+    margin: 16px 0 32px 0;
+  }
+}
+
+.options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.optionItem {
+  margin-bottom: 12px;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 12px 18px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--transitionStyleButton);
+
+  &:hover:enabled,
+  &:focus:enabled {
+    border-color: var(--marketplaceColor);
+    outline: none;
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+
+  @media (--viewportMedium) {
+    min-height: 64px;
+    padding: 16px 24px;
+  }
+}
+
+.optionKey {
+  composes: marketplaceTinyFontStyles from global;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  border-radius: 50%;
+  background-color: var(--colorGrey50);
+  color: var(--colorGrey700);
+}
+
+.optionLabel {
+  composes: marketplaceDefaultFontStyles from global;
+  flex-grow: 1;
+  margin: 0;
+  color: var(--colorGrey900);
+}
+
+.optionIcon {
+  flex-shrink: 0;
+}
+
+.optionCorrect {
+  border-color: var(--colorSuccess);
+  background-color: var(--colorSuccessSubtle);
+
+  & .optionIcon {
+    stroke: var(--colorSuccess);
+    fill: var(--colorSuccess);
+  }
+}
+
+.optionIncorrect {
+  border-color: var(--colorFail);
+  background-color: var(--colorFailSubtle);
+
+  & .optionIcon {
+    stroke: var(--colorFail);
+    fill: var(--colorFail);
+  }
+}
+
+.optionDimmed {
+  opacity: 0.6;
+}
+
+.feedback {
+  composes: marketplaceDefaultFontStyles from global;
+  min-height: 24px;
+  margin: 12px 0 0 0;
+
+  @media (--viewportMedium) {
+    margin: 16px 0 0 0;
+  }
+}
+
+.feedbackCorrect {
+  color: var(--colorSuccess);
+  font-weight: var(--fontWeightBold);
+}
+
+.feedbackIncorrect {
+  color: var(--colorGrey700);
+}
+
+.nextButton {
+  margin-top: 12px;
+
+  @media (--viewportMedium) {
+    margin-top: 16px;
+  }
+}

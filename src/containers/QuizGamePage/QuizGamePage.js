@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { compose } from 'redux';
 import { connect } from 'react-redux';
-import classNames from 'classnames';
 
 // Contexts, configs, and util modules
 import { useConfiguration } from '../../context/configurationContext';
@@ -9,97 +8,35 @@ import { useIntl } from '../../util/reactIntl';
 import { isScrollingDisabled } from '../../ducks/ui.duck';
 
 // Shared components
-import {
-  H1,
-  H2,
-  IconCheckmark,
-  IconClose,
-  LayoutSingleColumn,
-  Page,
-  PrimaryButton,
-  SecondaryButton,
-} from '../../components';
+import { H1, LayoutSingleColumn, Page } from '../../components';
 
 // Modules from parent directory
 import TopbarContainer from '../TopbarContainer/TopbarContainer';
 import FooterContainer from '../FooterContainer/FooterContainer';
 
 // Modules from the same directory
-import {
-  QUIZ_QUESTIONS,
-  OPTIONS_PER_QUESTION,
-  questionOptionId,
-  questionTextId,
-  shuffle,
-} from './quizQuestions';
+import { CATEGORY_ALL, drawQuestions } from './quizQuestions';
+import { calculateAnswerPoints, loadHighScores, saveHighScore } from './quizScoring';
+import StartScreen from './StartScreen/StartScreen';
+import QuestionScreen from './QuestionScreen/QuestionScreen';
+import ResultScreen from './ResultScreen/ResultScreen';
 import css from './QuizGamePage.module.css';
 
-// The share of correct answers that is needed for the different result messages.
-const GREAT_RESULT_THRESHOLD = 0.8;
-const GOOD_RESULT_THRESHOLD = 0.5;
+// The screens the game moves through.
+const SCREEN_START = 'start';
+const SCREEN_QUESTION = 'question';
+const SCREEN_RESULT = 'result';
 
 /**
- * Returns the translation key of the feedback message that matches the given result.
+ * Quiz game page.
  *
- * @param {number} score - Number of correct answers
- * @param {number} total - Number of questions
- * @returns {string} translation key
- */
-const resultFeedbackId = (score, total) => {
-  const ratio = total > 0 ? score / total : 0;
-  return ratio >= GREAT_RESULT_THRESHOLD
-    ? 'QuizGamePage.resultFeedbackGreat'
-    : ratio >= GOOD_RESULT_THRESHOLD
-    ? 'QuizGamePage.resultFeedbackGood'
-    : 'QuizGamePage.resultFeedbackTryAgain';
-};
-
-/**
- * A single answer option. After the player has answered, the correct option is always highlighted
- * and a wrong selection is marked as such.
+ * The player picks a category on the start screen and then answers a round of questions. Every
+ * question has 4 answer options and a countdown: a correct answer is worth a base score plus a
+ * bonus for the remaining time and for correct answers in a row. The result screen shows the score,
+ * a summary of the round, and the best score of the category.
  *
- * @param {Object} props
- * @param {string} props.label - The text of the option
- * @param {boolean} props.isSelected - Whether the player picked this option
- * @param {boolean} props.isCorrect - Whether this is the correct option
- * @param {boolean} props.hasAnswered - Whether the current question is already answered
- * @param {Function} props.onSelect - Called when the player picks this option
- * @returns {JSX.Element} answer option button
- */
-const AnswerOption = props => {
-  const { label, isSelected, isCorrect, hasAnswered, onSelect } = props;
-
-  const showAsCorrect = hasAnswered && isCorrect;
-  const showAsIncorrect = hasAnswered && isSelected && !isCorrect;
-
-  const classes = classNames(css.option, {
-    [css.optionCorrect]: showAsCorrect,
-    [css.optionIncorrect]: showAsIncorrect,
-  });
-
-  return (
-    <li className={css.optionItem}>
-      <button
-        className={classes}
-        type="button"
-        disabled={hasAnswered}
-        aria-pressed={isSelected}
-        onClick={onSelect}
-      >
-        <span className={css.optionLabel}>{label}</span>
-        {showAsCorrect ? <IconCheckmark className={css.optionIcon} size="small" /> : null}
-        {showAsIncorrect ? <IconClose className={css.optionIcon} size="small" /> : null}
-      </button>
-    </li>
-  );
-};
-
-/**
- * Quiz game page: the player gets a question with 4 answer options, picks one, gets immediate
- * feedback, and sees the final score after the last question.
- *
- * This page renders its content on the client side only (no data is loaded from the API),
- * so the game state is kept in component state instead of a Redux duck.
+ * This page renders its content on the client side only (no data is loaded from the Marketplace
+ * API), so the game state is kept in component state instead of a Redux duck.
  *
  * @param {Object} props
  * @param {boolean} props.scrollingDisabled - Whether the scrolling is disabled
@@ -110,44 +47,85 @@ export const QuizGamePageComponent = props => {
   const intl = useIntl();
   const { scrollingDisabled } = props;
 
-  // The question order is randomized only when a new round is started, because randomizing on the
-  // first render would cause a server-side rendering mismatch.
-  const [questions, setQuestions] = useState(QUIZ_QUESTIONS);
+  const [screen, setScreen] = useState(SCREEN_START);
+  const [categoryId, setCategoryId] = useState(CATEGORY_ALL);
+  const [questions, setQuestions] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState([]);
   const [selectedOptionIndex, setSelectedOptionIndex] = useState(null);
-  const [score, setScore] = useState(0);
-  const [isFinished, setIsFinished] = useState(false);
+  const [isTimedOut, setIsTimedOut] = useState(false);
+  const [lastPoints, setLastPoints] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [highScores, setHighScores] = useState({});
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
 
-  const totalQuestions = questions.length;
+  // The high scores are stored in the browser of the player, so they can only be read after mount.
+  useEffect(() => {
+    setHighScores(loadHighScores());
+  }, []);
+
   const currentQuestion = questions[currentIndex];
-  const hasAnswered = selectedOptionIndex !== null;
-  const isLastQuestion = currentIndex === totalQuestions - 1;
+  const hasAnswered = selectedOptionIndex !== null || isTimedOut;
+  const isLastQuestion = currentIndex === questions.length - 1;
+  const totalPoints = answers.reduce((sum, answer) => sum + answer.points, 0);
 
-  const handleSelectOption = optionIndex => {
+  const startRound = () => {
+    setQuestions(drawQuestions(categoryId));
+    setCurrentIndex(0);
+    setAnswers([]);
+    setSelectedOptionIndex(null);
+    setIsTimedOut(false);
+    setLastPoints(0);
+    setStreak(0);
+    setIsNewHighScore(false);
+    setScreen(SCREEN_QUESTION);
+  };
+
+  const handleAnswer = (optionIndex, secondsLeft) => {
     if (hasAnswered) {
       return;
     }
+    const isCorrect = optionIndex === currentQuestion.correctOptionIndex;
+    const newStreak = isCorrect ? streak + 1 : 0;
+    const points = isCorrect ? calculateAnswerPoints({ secondsLeft, streak: newStreak }) : 0;
+
     setSelectedOptionIndex(optionIndex);
-    if (optionIndex === currentQuestion.correctOptionIndex) {
-      setScore(score + 1);
+    setStreak(newStreak);
+    setLastPoints(points);
+    setAnswers([...answers, { questionId: currentQuestion.id, isCorrect, points }]);
+  };
+
+  const handleTimeout = () => {
+    if (hasAnswered) {
+      return;
     }
+    setIsTimedOut(true);
+    setStreak(0);
+    setLastPoints(0);
+    setAnswers([...answers, { questionId: currentQuestion.id, isCorrect: false, points: 0 }]);
+  };
+
+  const finishRound = () => {
+    const previousHighScore = highScores[categoryId] || 0;
+    setHighScores(saveHighScore(highScores, categoryId, totalPoints));
+    setIsNewHighScore(totalPoints > previousHighScore);
+    setScreen(SCREEN_RESULT);
   };
 
   const handleNextQuestion = () => {
     if (isLastQuestion) {
-      setIsFinished(true);
-    } else {
-      setCurrentIndex(currentIndex + 1);
+      finishRound();
+      return;
     }
+    setCurrentIndex(currentIndex + 1);
     setSelectedOptionIndex(null);
+    setIsTimedOut(false);
+    setLastPoints(0);
   };
 
-  const handleRestart = () => {
-    setQuestions(shuffle(QUIZ_QUESTIONS));
-    setCurrentIndex(0);
-    setSelectedOptionIndex(null);
-    setScore(0);
-    setIsFinished(false);
+  const handleSelectCategory = newCategoryId => {
+    setCategoryId(newCategoryId);
+    setIsNewHighScore(false);
   };
 
   const title = intl.formatMessage(
@@ -155,78 +133,41 @@ export const QuizGamePageComponent = props => {
     { marketplaceName: config.marketplaceName }
   );
 
-  const gameContent = isFinished ? (
-    <section className={css.card}>
-      <H2 className={css.resultTitle}>{intl.formatMessage({ id: 'QuizGamePage.resultTitle' })}</H2>
-      <p className={css.resultScore}>
-        {intl.formatMessage({ id: 'QuizGamePage.resultScore' }, { score, totalQuestions })}
-      </p>
-      <p className={css.resultFeedback}>
-        {intl.formatMessage({ id: resultFeedbackId(score, totalQuestions) })}
-      </p>
-      <PrimaryButton className={css.actionButton} type="button" onClick={handleRestart}>
-        {intl.formatMessage({ id: 'QuizGamePage.playAgain' })}
-      </PrimaryButton>
-    </section>
-  ) : (
-    <section className={css.card}>
-      <div className={css.progressRow}>
-        <span className={css.progress}>
-          {intl.formatMessage(
-            { id: 'QuizGamePage.progress' },
-            { current: currentIndex + 1, totalQuestions }
-          )}
-        </span>
-        <span className={css.score}>
-          {intl.formatMessage({ id: 'QuizGamePage.score' }, { score })}
-        </span>
-      </div>
-
-      <H2 className={css.question}>
-        {intl.formatMessage({ id: questionTextId(currentQuestion.id) })}
-      </H2>
-
-      <ul className={css.options}>
-        {Array.from({ length: OPTIONS_PER_QUESTION }, (_, optionIndex) => (
-          <AnswerOption
-            key={questionOptionId(currentQuestion.id, optionIndex)}
-            label={intl.formatMessage({ id: questionOptionId(currentQuestion.id, optionIndex) })}
-            isSelected={selectedOptionIndex === optionIndex}
-            isCorrect={currentQuestion.correctOptionIndex === optionIndex}
-            hasAnswered={hasAnswered}
-            onSelect={() => handleSelectOption(optionIndex)}
-          />
-        ))}
-      </ul>
-
-      <div className={css.feedback} role="status">
-        {hasAnswered
-          ? selectedOptionIndex === currentQuestion.correctOptionIndex
-            ? intl.formatMessage({ id: 'QuizGamePage.feedbackCorrect' })
-            : intl.formatMessage(
-                { id: 'QuizGamePage.feedbackIncorrect' },
-                {
-                  correctAnswer: intl.formatMessage({
-                    id: questionOptionId(currentQuestion.id, currentQuestion.correctOptionIndex),
-                  }),
-                }
-              )
-          : null}
-      </div>
-
-      {hasAnswered ? (
-        <PrimaryButton className={css.actionButton} type="button" onClick={handleNextQuestion}>
-          {isLastQuestion
-            ? intl.formatMessage({ id: 'QuizGamePage.showResult' })
-            : intl.formatMessage({ id: 'QuizGamePage.nextQuestion' })}
-        </PrimaryButton>
-      ) : currentIndex > 0 ? (
-        <SecondaryButton className={css.actionButton} type="button" onClick={handleRestart}>
-          {intl.formatMessage({ id: 'QuizGamePage.restart' })}
-        </SecondaryButton>
-      ) : null}
-    </section>
-  );
+  const gameContent =
+    screen === SCREEN_QUESTION && currentQuestion ? (
+      <QuestionScreen
+        key={currentQuestion.id}
+        question={currentQuestion}
+        questionNumber={currentIndex + 1}
+        totalQuestions={questions.length}
+        totalPoints={totalPoints}
+        streak={streak}
+        selectedOptionIndex={selectedOptionIndex}
+        isTimedOut={isTimedOut}
+        lastPoints={lastPoints}
+        isLastQuestion={isLastQuestion}
+        onAnswer={handleAnswer}
+        onTimeout={handleTimeout}
+        onNext={handleNextQuestion}
+      />
+    ) : screen === SCREEN_RESULT ? (
+      <ResultScreen
+        categoryId={categoryId}
+        answers={answers}
+        totalPoints={totalPoints}
+        highScore={highScores[categoryId]}
+        isNewHighScore={isNewHighScore}
+        onPlayAgain={startRound}
+        onBackToStart={() => setScreen(SCREEN_START)}
+      />
+    ) : (
+      <StartScreen
+        categoryId={categoryId}
+        highScores={highScores}
+        onSelectCategory={handleSelectCategory}
+        onStart={startRound}
+      />
+    );
 
   return (
     <Page title={title} scrollingDisabled={scrollingDisabled}>
