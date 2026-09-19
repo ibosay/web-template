@@ -27,6 +27,27 @@ import Routes from './routing/Routes';
 
 // Sharetribe Web Template uses English translations as default translations.
 import defaultMessages from './translations/en.json';
+import germanMessages from './translations/de.json';
+import spanishMessages from './translations/es.json';
+import frenchMessages from './translations/fr.json';
+import russianMessages from './translations/ru.json';
+
+const QUIZ_LANGUAGE_STORAGE_KEY = 'quizGameLanguage';
+const quizLocaleMessages = {
+  de: germanMessages,
+  en: defaultMessages,
+  es: spanishMessages,
+  fr: frenchMessages,
+  ru: russianMessages,
+};
+
+const getQuizLanguage = () => {
+  if (typeof window === 'undefined') return null;
+  const stored = window.localStorage.getItem(QUIZ_LANGUAGE_STORAGE_KEY);
+  if (quizLocaleMessages[stored]) return stored;
+  const browserLanguage = (window.navigator.language || '').split('-')[0];
+  return quizLocaleMessages[browserLanguage] ? browserLanguage : 'en';
+};
 
 // If you want to change the language of default (fallback) translations,
 // change the imports to match the wanted locale:
@@ -211,6 +232,12 @@ const EnvironmentVariableWarning = props => {
 export const ClientApp = props => {
   const { store, hostedTranslations = {}, hostedConfig = {} } = props;
   const appConfig = mergeConfig(hostedConfig, defaultConfig);
+  const isQuizPath = window.location.pathname.startsWith('/quiz');
+  const quizLanguage = isQuizPath ? getQuizLanguage() : null;
+  const activeLocale = quizLanguage || appConfig.localization.locale;
+  const activeMessages = quizLanguage
+    ? addMissingTranslations(defaultMessages, quizLocaleMessages[quizLanguage])
+    : localeMessages;
 
   // Show warning on the localhost:3000, if the environment variable key contains "SECRET"
   if (appSettings.dev) {
@@ -247,10 +274,10 @@ export const ClientApp = props => {
   const logLoadDataCalls = appSettings?.env !== 'test';
 
   return (
-    <Configurations appConfig={appConfig}>
+    <Configurations appConfig={{ ...appConfig, localization: { ...appConfig.localization, locale: activeLocale } }}>
       <IntlProvider
-        locale={appConfig.localization.locale}
-        messages={{ ...localeMessages, ...hostedTranslations }}
+        locale={activeLocale}
+        messages={{ ...activeMessages, ...hostedTranslations }}
         textComponent="span"
       >
         <Provider store={store}>
