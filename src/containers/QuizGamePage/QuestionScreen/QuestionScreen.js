@@ -125,6 +125,7 @@ const QuestionScreen = props => {
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
   const [isAppActive, setIsAppActive] = useState(true);
   const wasInactiveRef = useRef(false);
+  const answeredRef = useRef(false);
 
   const hasAnswered = selectedOptionIndex !== null || isTimedOut;
   const isCorrect = selectedOptionIndex === question.correctOptionIndex;
@@ -188,7 +189,8 @@ const QuestionScreen = props => {
       const optionIndex = Number(event.key) - 1;
       const isOptionKey =
         Number.isInteger(optionIndex) && optionIndex >= 0 && optionIndex < OPTIONS_PER_QUESTION;
-      if (isOptionKey && !hasAnswered) {
+      if (isOptionKey && !hasAnswered && !answeredRef.current) {
+        answeredRef.current = true;
         callbacksRef.current.onAnswer(optionIndex, secondsLeft);
       }
     };
@@ -265,7 +267,11 @@ const QuestionScreen = props => {
             isSelected={selectedOptionIndex === optionIndex}
             isCorrect={question.correctOptionIndex === optionIndex}
             hasAnswered={hasAnswered}
-            onSelect={() => onAnswer(optionIndex, secondsLeft)}
+            onSelect={() => {
+              if (answeredRef.current || hasAnswered) return;
+              answeredRef.current = true;
+              onAnswer(optionIndex, secondsLeft);
+            }}
           />
         ))}
       </ul>
