@@ -5,6 +5,9 @@ export const ACHIEVEMENTS = [
   { id: 'perfectRound', icon: '★', labelId: 'QuizGamePage.achievement.perfectRound' },
   { id: 'streak3', icon: '⚡', labelId: 'QuizGamePage.achievement.streak3' },
   { id: 'tenRounds', icon: '✦', labelId: 'QuizGamePage.achievement.tenRounds' },
+  { id: 'fiftyCorrect', icon: '✓', labelId: 'QuizGamePage.achievement.fiftyCorrect' },
+  { id: 'streak5', icon: '⚡', labelId: 'QuizGamePage.achievement.streak5' },
+  { id: 'level5', icon: '⬟', labelId: 'QuizGamePage.achievement.level5' },
 ];
 
 const validAchievementIds = new Set(ACHIEVEMENTS.map(item => item.id));
@@ -31,10 +34,17 @@ export const unlockAchievements = ({ unlocked, progression, correctCount, totalQ
   const safeCorrectCount = Number.isFinite(correctCount) ? Math.max(0, correctCount) : 0;
   const safeTotalQuestions = Number.isFinite(totalQuestions) ? Math.max(0, totalQuestions) : 0;
   const safeBestStreak = Number.isFinite(bestStreak) ? Math.max(0, bestStreak) : 0;
+  const correctAnswers = Number.isFinite(safeProgression.correctAnswers)
+    ? Math.max(0, safeProgression.correctAnswers)
+    : 0;
+  const totalXp = Number.isFinite(safeProgression.totalXp) ? Math.max(0, safeProgression.totalXp) : 0;
   if (roundsPlayed >= 1) next.add('firstRound');
   if (safeTotalQuestions > 0 && safeCorrectCount === safeTotalQuestions) next.add('perfectRound');
   if (safeBestStreak >= 3) next.add('streak3');
   if (roundsPlayed >= 10) next.add('tenRounds');
+  if (correctAnswers >= 50) next.add('fiftyCorrect');
+  if (safeBestStreak >= 5) next.add('streak5');
+  if (totalXp >= 2000) next.add('level5');
   const ids = Array.from(next);
   if (typeof window !== 'undefined') {
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(ids)); } catch (e) {}
