@@ -61,7 +61,8 @@
     "unified": "^9.2.2",
     "@capacitor/core": "^8.0.0",
     "@capacitor/splash-screen": "^8.0.0",
-    "@capacitor/haptics": "^8.0.0"
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/app": "^8.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
