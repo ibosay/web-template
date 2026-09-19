@@ -29,10 +29,23 @@ const StartScreen = props => {
   const { categoryId, highScores, onSelectCategory, onStart } = props;
 
   const highScore = highScores[categoryId];
+  const categoryIcons = {
+    all: '✦',
+    geography: '◎',
+    science: '⚗',
+    art: '◆',
+    history: '⌛',
+  };
 
   return (
     <section className={css.root}>
-      <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.startHeading' })}</H2>
+      <div className={css.hero}>
+        <div className={css.logoMark}>Q</div>
+        <div>
+          <span className={css.eyebrow}>QUIZ ARENA</span>
+          <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.startHeading' })}</H2>
+        </div>
+      </div>
       <p className={css.rules}>
         {intl.formatMessage(
           { id: 'QuizGamePage.startRules' },
@@ -55,17 +68,27 @@ const StartScreen = props => {
               aria-pressed={category === categoryId}
               onClick={() => onSelectCategory(category)}
             >
-              {intl.formatMessage({ id: categoryLabelId(category) })}
+              <span className={css.categoryIcon}>{categoryIcons[category] || '•'}</span>
+              <span>{intl.formatMessage({ id: categoryLabelId(category) })}</span>
             </button>
           ))}
         </div>
       </fieldset>
 
-      {highScore ? (
-        <p className={css.highScore}>
-          {intl.formatMessage({ id: 'QuizGamePage.highScore' }, { points: highScore })}
-        </p>
-      ) : null}
+      <div className={css.stats}>
+        <div>
+          <span className={css.statLabel}>BEST SCORE</span>
+          <strong className={css.statValue}>{highScore || 0}</strong>
+        </div>
+        <div>
+          <span className={css.statLabel}>ROUND</span>
+          <strong className={css.statValue}>{QUESTIONS_PER_ROUND}</strong>
+        </div>
+        <div>
+          <span className={css.statLabel}>TIME</span>
+          <strong className={css.statValue}>{SECONDS_PER_QUESTION}s</strong>
+        </div>
+      </div>
 
       <PrimaryButton className={css.startButton} type="button" onClick={onStart}>
         {intl.formatMessage({ id: 'QuizGamePage.startGame' })}
