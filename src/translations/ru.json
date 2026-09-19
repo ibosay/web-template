@@ -1595,5 +1595,6 @@
   "QuizGamePage.timeLabel": "ВРЕМЯ",
   "QuizGamePage.correctLabel": "ВЕРНО",
   "QuizGamePage.accuracyLabel": "ТОЧНОСТЬ",
-  "QuizGamePage.xpLabel": "XP"
+  "QuizGamePage.xpLabel": "XP",
+  "QuizGamePage.levelUp": "Новый уровень! Теперь у вас уровень {level}."
 }
