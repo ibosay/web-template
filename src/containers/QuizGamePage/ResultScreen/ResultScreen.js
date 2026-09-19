@@ -62,6 +62,7 @@ const ResultScreen = props => {
     progression,
     newAchievements = [],
     xpEarned,
+    roundDurationSeconds = 0,
     onPlayAgain,
     onBackToStart,
   } = props;
@@ -75,6 +76,9 @@ const ResultScreen = props => {
   const previousLevel = levelFromXp(previousXp);
   const leveledUp = level > previousLevel;
   const xpPercent = Math.min(100, (levelXp / XP_PER_LEVEL) * 100);
+  const minutes = Math.floor(roundDurationSeconds / 60);
+  const seconds = roundDurationSeconds % 60;
+  const durationLabel = `${minutes}:${String(seconds).padStart(2, '0')}`;
   const shareResult = async () => {
     setShareStatus(null);
     const text = intl.formatMessage(
@@ -115,6 +119,7 @@ const ResultScreen = props => {
         <div><span>{intl.formatMessage({ id: 'QuizGamePage.correctLabel' })}</span><strong>{correctCount}/{totalQuestions}</strong></div>
         <div><span>{intl.formatMessage({ id: 'QuizGamePage.accuracyLabel' })}</span><strong>{accuracy}%</strong></div>
         <div><span>{intl.formatMessage({ id: 'QuizGamePage.xpLabel' })}</span><strong>+{xpEarned}</strong></div>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.durationLabel' })}</span><strong>{durationLabel}</strong></div>
       </div>
       <div className={css.levelCard}>
         <div className={css.levelBadge}>{level}</div>
