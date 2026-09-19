@@ -1611,5 +1611,8 @@
   "QuizGamePage.shareCopied": "Resultado copiado al portapapeles.",
   "QuizGamePage.shareUnavailable": "Compartir no está disponible en este dispositivo.",
   "QuizGamePage.hapticsSetting": "Vibración",
-  "QuizGamePage.soundSetting": "Sonido"
+  "QuizGamePage.soundSetting": "Sonido",
+  "QuizGamePage.achievement.fiftyCorrect": "50 correctas",
+  "QuizGamePage.achievement.streak5": "Racha de 5",
+  "QuizGamePage.achievement.level5": "Nivel 5"
 }
