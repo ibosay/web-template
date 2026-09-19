@@ -1609,5 +1609,7 @@
   "QuizGamePage.shareText": "J'ai obtenu {points} points au quiz et répondu correctement à {correct} questions sur {total}.",
   "QuizGamePage.achievementUnlocked": "Succès débloqué !",
   "QuizGamePage.shareCopied": "Résultat copié dans le presse-papiers.",
-  "QuizGamePage.shareUnavailable": "Le partage n’est pas disponible sur cet appareil."
+  "QuizGamePage.shareUnavailable": "Le partage n’est pas disponible sur cet appareil.",
+  "QuizGamePage.hapticsSetting": "Vibrations",
+  "QuizGamePage.soundSetting": "Son"
 }
