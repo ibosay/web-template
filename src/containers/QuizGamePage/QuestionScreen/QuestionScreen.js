@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Capacitor } from '@capacitor/core';
 import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { App } from '@capacitor/app';
 
 // Contexts, configs, and util modules
 import { useIntl } from '../../../util/reactIntl';
@@ -122,6 +123,7 @@ const QuestionScreen = props => {
   } = props;
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
+  const [isAppActive, setIsAppActive] = useState(true);
 
   const hasAnswered = selectedOptionIndex !== null || isTimedOut;
   const isCorrect = selectedOptionIndex === question.correctOptionIndex;
@@ -133,9 +135,20 @@ const QuestionScreen = props => {
     callbacksRef.current = { onAnswer, onTimeout, onNext };
   });
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    let listener;
+    App.addListener('appStateChange', ({ isActive }) => setIsAppActive(isActive)).then(handle => {
+      listener = handle;
+    });
+    return () => {
+      if (listener) listener.remove();
+    };
+  }, []);
+
   // Countdown: tick once a second until the question is answered or the time runs out.
   useEffect(() => {
-    if (hasAnswered) {
+    if (hasAnswered || !isAppActive) {
       return undefined;
     }
     if (secondsLeft <= 0) {
@@ -144,7 +157,7 @@ const QuestionScreen = props => {
     }
     const timeoutId = setTimeout(() => setSecondsLeft(seconds => seconds - 1), 1000);
     return () => clearTimeout(timeoutId);
-  }, [secondsLeft, hasAnswered]);
+  }, [secondsLeft, hasAnswered, isAppActive]);
 
   // Keyboard shortcuts: 1–4 pick an answer, Enter moves on.
   useEffect(() => {
