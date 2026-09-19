@@ -8,13 +8,14 @@ export const defaultProgression = {
   bestStreak: 0,
 };
 
-export const levelFromXp = xp => Math.floor(Math.max(0, xp) / XP_PER_LEVEL) + 1;
-export const xpIntoLevel = xp => Math.max(0, xp) % XP_PER_LEVEL;
-export const xpForRound = (correctCount, totalPoints) =>
-  Math.max(0, correctCount) * 50 + Math.floor(Math.max(0, totalPoints) / 20);
-
 const safeNonNegativeNumber = value =>
   typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
+
+export const levelFromXp = xp => Math.floor(safeNonNegativeNumber(xp) / XP_PER_LEVEL) + 1;
+export const xpIntoLevel = xp => safeNonNegativeNumber(xp) % XP_PER_LEVEL;
+export const xpForRound = (correctCount, totalPoints) =>
+  Math.floor(safeNonNegativeNumber(correctCount)) * 50 +
+  Math.floor(safeNonNegativeNumber(totalPoints) / 20);
 
 const normalizeProgression = value => ({
   totalXp: safeNonNegativeNumber(value?.totalXp),
