@@ -75,6 +75,7 @@ export const QuizGamePageComponent = props => {
   const [newAchievements, setNewAchievements] = useState([]);
   const [confirmExitRound, setConfirmExitRound] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
+  const [roundStartedAt, setRoundStartedAt] = useState(null);
   const exitDialogRef = useRef(null);
   const continueButtonRef = useRef(null);
 
@@ -165,6 +166,7 @@ export const QuizGamePageComponent = props => {
     setIsNewHighScore(false);
     setNewAchievements([]);
     setConfirmExitRound(false);
+    setRoundStartedAt(Date.now());
     setScreen(SCREEN_QUESTION);
   };
 
@@ -215,6 +217,7 @@ export const QuizGamePageComponent = props => {
     });
     setNewAchievements(nextAchievements.filter(id => !achievements.includes(id)));
     setAchievements(nextAchievements);
+    setRoundStartedAt(null);
     setScreen(SCREEN_RESULT);
   };
 
@@ -270,6 +273,9 @@ export const QuizGamePageComponent = props => {
         achievements={achievements}
         newAchievements={newAchievements}
         xpEarned={roundXp}
+        roundDurationSeconds={
+          roundStartedAt ? Math.max(0, Math.round((Date.now() - roundStartedAt) / 1000)) : 0
+        }
         onPlayAgain={startRound}
         onBackToStart={() => setScreen(SCREEN_START)}
       />
@@ -325,7 +331,7 @@ export const QuizGamePageComponent = props => {
                   >
                     {intl.formatMessage({ id: 'QuizGamePage.continueRound' })}
                   </button>
-                  <button type="button" onClick={() => { setConfirmExitRound(false); setScreen(SCREEN_START); }}>
+                  <button type="button" onClick={() => { setConfirmExitRound(false); setRoundStartedAt(null); setScreen(SCREEN_START); }}>
                     {intl.formatMessage({ id: 'QuizGamePage.leaveRound' })}
                   </button>
                 </div>
