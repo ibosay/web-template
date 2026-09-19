@@ -11,6 +11,7 @@ import { H2, PrimaryButton } from '../../../components';
 import { categoryLabelId, QUESTIONS_PER_ROUND, QUIZ_CATEGORIES } from '../quizQuestions';
 import { SECONDS_PER_QUESTION } from '../quizScoring';
 import { levelFromXp, xpIntoLevel } from '../quizProgression';
+import { ACHIEVEMENTS } from '../quizAchievements';
 
 // Modules from the same directory
 import css from './StartScreen.module.css';
@@ -27,7 +28,7 @@ import css from './StartScreen.module.css';
  */
 const StartScreen = props => {
   const intl = useIntl();
-  const { categoryId, highScores, progression, onSelectCategory, onStart } = props;
+  const { categoryId, highScores, progression, achievements, onSelectCategory, onStart } = props;
   const level = levelFromXp(progression.totalXp);
   const levelXp = xpIntoLevel(progression.totalXp);
 
@@ -89,6 +90,15 @@ const StartScreen = props => {
           <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${(levelXp / 500) * 100}%` }} /></div>
           <span className={css.playerMeta}>{intl.formatMessage({ id: 'QuizGamePage.playerMeta' }, { rounds: progression.roundsPlayed, correct: progression.correctAnswers, streak: progression.bestStreak })}</span>
         </div>
+      </div>
+
+      <div className={css.achievements}>
+        {ACHIEVEMENTS.map(item => (
+          <div key={item.id} className={classNames(css.achievement, { [css.achievementUnlocked]: achievements.includes(item.id) })}>
+            <span>{item.icon}</span>
+            <small>{intl.formatMessage({ id: item.labelId })}</small>
+          </div>
+        ))}
       </div>
 
       <p className={css.rules}>
