@@ -76,6 +76,7 @@ export const QuizGamePageComponent = props => {
   const [confirmExitRound, setConfirmExitRound] = useState(false);
   const [settings, setSettings] = useState(defaultSettings);
   const [roundStartedAt, setRoundStartedAt] = useState(null);
+  const [roundDurationSeconds, setRoundDurationSeconds] = useState(0);
   const exitDialogRef = useRef(null);
   const continueButtonRef = useRef(null);
 
@@ -167,6 +168,7 @@ export const QuizGamePageComponent = props => {
     setNewAchievements([]);
     setConfirmExitRound(false);
     setRoundStartedAt(Date.now());
+    setRoundDurationSeconds(0);
     setScreen(SCREEN_QUESTION);
   };
 
@@ -196,6 +198,10 @@ export const QuizGamePageComponent = props => {
   };
 
   const finishRound = () => {
+    const finishedDuration = roundStartedAt
+      ? Math.max(0, Math.round((Date.now() - roundStartedAt) / 1000))
+      : 0;
+    setRoundDurationSeconds(finishedDuration);
     const previousHighScore = highScores[categoryId] || 0;
     setHighScores(saveHighScore(highScores, categoryId, totalPoints));
     setIsNewHighScore(totalPoints > previousHighScore);
@@ -273,9 +279,7 @@ export const QuizGamePageComponent = props => {
         achievements={achievements}
         newAchievements={newAchievements}
         xpEarned={roundXp}
-        roundDurationSeconds={
-          roundStartedAt ? Math.max(0, Math.round((Date.now() - roundStartedAt) / 1000)) : 0
-        }
+        roundDurationSeconds={roundDurationSeconds}
         onPlayAgain={startRound}
         onBackToStart={() => setScreen(SCREEN_START)}
       />
