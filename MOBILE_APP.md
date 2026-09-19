@@ -22,6 +22,9 @@ The quiz is prepared as a Capacitor app for iOS and Android.
 - Web sharing fallback with clipboard confirmation when the Web Share API is unavailable
 - Five quiz languages: German, English, Russian, Spanish and French
 - Local achievements and persistent player progression
+- Seven achievements: first round, perfect round, 3/5-answer streaks, 10 rounds, 50 correct answers and level 5
+- Result screen shows round duration and includes it in shared results
+- Achievement counters are normalized defensively before unlock checks
 
 ## First native setup
 
@@ -72,4 +75,4 @@ Whenever native dependencies change, run `yarn install` and then `yarn app:prepa
 
 ## Current verification status
 
-Unit tests now exist for scoring, question selection, XP progression, achievements and persistent settings. XP helpers and stored settings include defensive handling for invalid, damaged or non-finite values. They still need to be executed after installing the branch dependencies. Do not treat the native app as release-ready until the production web build, unit tests, Capacitor sync and real-device checks in the release checklist have completed successfully.
+Unit tests now exist for scoring, question selection, XP progression, achievements, persistent settings and the protected active-round exit flow. XP helpers and stored settings include defensive handling for invalid, damaged or non-finite values. They still need to be executed after installing the branch dependencies. GitHub currently has no automated check runs configured for this branch. Do not treat the native app as release-ready until the production web build, unit tests, Capacitor sync and real-device checks in the release checklist have completed successfully.
