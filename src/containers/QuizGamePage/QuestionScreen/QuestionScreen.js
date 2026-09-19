@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
 
 // Contexts, configs, and util modules
 import { useIntl } from '../../../util/reactIntl';
@@ -16,6 +18,21 @@ import css from './QuestionScreen.module.css';
 
 // When fewer seconds than this are left, the countdown is highlighted.
 const LOW_TIME_SECONDS = 5;
+
+const nativeHaptic = async (type, isCorrect = false) => {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    if (type === 'answer') {
+      await Haptics.notification({
+        type: isCorrect ? NotificationType.Success : NotificationType.Error,
+      });
+    } else {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    }
+  } catch (e) {
+    // Haptics are optional and should never interrupt gameplay.
+  }
+};
 
 /**
  * A single answer option. After the player has answered, the correct option is always highlighted
@@ -49,7 +66,10 @@ const AnswerOption = props => {
         type="button"
         disabled={hasAnswered}
         aria-pressed={isSelected}
-        onClick={onSelect}
+        onClick={() => {
+          nativeHaptic('tap');
+          onSelect();
+        }}
       >
         <span className={css.optionKey} aria-hidden="true">
           {optionIndex + 1}
@@ -148,6 +168,12 @@ const QuestionScreen = props => {
   const correctAnswer = intl.formatMessage({
     id: questionOptionId(question.id, question.correctOptionIndex),
   });
+
+  useEffect(() => {
+    if (hasAnswered) {
+      nativeHaptic('answer', isCorrect);
+    }
+  }, [hasAnswered, isCorrect]);
 
   const feedback = !hasAnswered ? null : isCorrect ? (
     <span className={css.feedbackCorrect}>
