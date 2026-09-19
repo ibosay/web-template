@@ -19,6 +19,7 @@ const messages = {
   'QuizGamePage.resultCorrectCount': '{correctCount} of {totalQuestions} correct',
   'QuizGamePage.highScore': 'Best score {points}',
   'QuizGamePage.newHighScore': 'New best score in {category}',
+  'QuizGamePage.secondsLeft': '{seconds}s',
 };
 
 const renderQuizGamePage = () =>
@@ -178,25 +179,27 @@ describe('QuizGamePageComponent', () => {
         fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.startGame' }));
       });
 
-      expect(screen.getByText(`QuizGamePage.secondsLeft`)).toBeInTheDocument();
+      expect(screen.getByText(`${SECONDS_PER_QUESTION}s`)).toBeInTheDocument();
       await act(async () => {
         jest.advanceTimersByTime(3000);
       });
 
+      const secondsBeforePause = SECONDS_PER_QUESTION - 3;
+      expect(screen.getByText(`${secondsBeforePause}s`)).toBeInTheDocument();
+
       fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
       expect(screen.getByRole('dialog')).toBeInTheDocument();
-      const timerBeforePause = screen.getByText(/QuizGamePage.secondsLeft/).textContent;
 
       await act(async () => {
         jest.advanceTimersByTime(5000);
       });
-      expect(screen.getByText(/QuizGamePage.secondsLeft/).textContent).toBe(timerBeforePause);
+      expect(screen.getByText(`${secondsBeforePause}s`)).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
       await act(async () => {
         jest.advanceTimersByTime(1000);
       });
-      expect(screen.getByText(/QuizGamePage.secondsLeft/).textContent).not.toBe(timerBeforePause);
+      expect(screen.getByText(`${secondsBeforePause - 1}s`)).toBeInTheDocument();
     } finally {
       jest.useRealTimers();
     }
