@@ -183,6 +183,7 @@ export const QuizGamePageComponent = props => {
       <StartScreen
         categoryId={categoryId}
         highScores={highScores}
+        progression={progression}
         onSelectCategory={handleSelectCategory}
         onStart={startRound}
       />
