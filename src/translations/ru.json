@@ -1606,7 +1606,7 @@
   "QuizGamePage.continueRound": "Продолжить",
   "QuizGamePage.leaveRound": "Выйти из раунда",
   "QuizGamePage.shareResult": "Поделиться результатом",
-  "QuizGamePage.shareText": "Я набрал(а) {points} очков в викторине и правильно ответил(а) на {correct} из {total} вопросов.",
+  "QuizGamePage.shareText": "Я набрал(а) {points} очков, правильно ответил(а) на {correct} из {total} вопросов и завершил(а) раунд за {time}.",
   "QuizGamePage.achievementUnlocked": "Достижение разблокировано!",
   "QuizGamePage.shareCopied": "Результат скопирован в буфер обмена.",
   "QuizGamePage.shareUnavailable": "На этом устройстве функция «Поделиться» недоступна.",
