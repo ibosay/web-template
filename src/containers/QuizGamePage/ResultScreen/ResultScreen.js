@@ -8,6 +8,7 @@ import { H2, PrimaryButton, SecondaryButton } from '../../../components';
 
 // Modules from parent directory
 import { categoryLabelId, questionTextId } from '../quizQuestions';
+import { levelFromXp, xpIntoLevel } from '../quizProgression';
 
 // Modules from the same directory
 import css from './ResultScreen.module.css';
@@ -54,6 +55,8 @@ const ResultScreen = props => {
     totalPoints,
     highScore,
     isNewHighScore,
+    progression,
+    xpEarned,
     onPlayAgain,
     onBackToStart,
   } = props;
@@ -61,8 +64,8 @@ const ResultScreen = props => {
   const totalQuestions = answers.length;
   const correctCount = answers.filter(answer => answer.isCorrect).length;
   const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
-  const xpEarned = correctCount * 50 + Math.floor(totalPoints / 20);
-  const level = Math.floor(totalPoints / 500) + 1;
+  const level = levelFromXp(progression.totalXp);
+  const levelXp = xpIntoLevel(progression.totalXp);
 
   return (
     <section className={css.root}>
@@ -85,7 +88,7 @@ const ResultScreen = props => {
       </div>
       <div className={css.levelCard}>
         <div className={css.levelBadge}>{level}</div>
-        <div className={css.levelText}><span>LEVEL {level}</span><strong>{xpEarned} XP verdient</strong></div>
+        <div className={css.levelText}><span>LEVEL {level}</span><strong>{levelXp}/500 XP · {progression.roundsPlayed} Runden</strong></div>
       </div>
 
       <p className={css.feedback}>
