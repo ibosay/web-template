@@ -124,6 +124,7 @@ const QuestionScreen = props => {
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
   const [isAppActive, setIsAppActive] = useState(true);
+  const wasInactiveRef = useRef(false);
 
   const hasAnswered = selectedOptionIndex !== null || isTimedOut;
   const isCorrect = selectedOptionIndex === question.correctOptionIndex;
@@ -138,13 +139,25 @@ const QuestionScreen = props => {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
     let listener;
-    App.addListener('appStateChange', ({ isActive }) => setIsAppActive(isActive)).then(handle => {
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) {
+        wasInactiveRef.current = true;
+      }
+      setIsAppActive(isActive);
+    }).then(handle => {
       listener = handle;
     });
     return () => {
       if (listener) listener.remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (isAppActive && wasInactiveRef.current) {
+      wasInactiveRef.current = false;
+      setSecondsLeft(previous => Math.max(0, previous));
+    }
+  }, [isAppActive]);
 
   // Countdown: tick once a second until the question is answered or the time runs out.
   useEffect(() => {
