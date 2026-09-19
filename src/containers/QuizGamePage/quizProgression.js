@@ -13,23 +13,38 @@ export const xpIntoLevel = xp => Math.max(0, xp) % XP_PER_LEVEL;
 export const xpForRound = (correctCount, totalPoints) =>
   Math.max(0, correctCount) * 50 + Math.floor(Math.max(0, totalPoints) / 20);
 
+const safeNonNegativeNumber = value =>
+  typeof value === 'number' && Number.isFinite(value) ? Math.max(0, value) : 0;
+
+const normalizeProgression = value => ({
+  totalXp: safeNonNegativeNumber(value?.totalXp),
+  roundsPlayed: Math.floor(safeNonNegativeNumber(value?.roundsPlayed)),
+  correctAnswers: Math.floor(safeNonNegativeNumber(value?.correctAnswers)),
+  bestStreak: Math.floor(safeNonNegativeNumber(value?.bestStreak)),
+});
+
 export const loadProgression = () => {
-  if (typeof window === 'undefined') return defaultProgression;
+  if (typeof window === 'undefined') return { ...defaultProgression };
   try {
     const value = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
-    return value && typeof value === 'object' ? { ...defaultProgression, ...value } : defaultProgression;
+    return value && typeof value === 'object'
+      ? normalizeProgression({ ...defaultProgression, ...value })
+      : { ...defaultProgression };
   } catch (e) {
-    return defaultProgression;
+    return { ...defaultProgression };
   }
 };
 
 export const saveRoundProgression = ({ progression, correctCount, totalPoints, bestStreak }) => {
-  const xpEarned = xpForRound(correctCount, totalPoints);
+  const current = normalizeProgression(progression || defaultProgression);
+  const safeCorrectCount = Math.floor(safeNonNegativeNumber(correctCount));
+  const safeBestStreak = Math.floor(safeNonNegativeNumber(bestStreak));
+  const xpEarned = xpForRound(safeCorrectCount, totalPoints);
   const next = {
-    totalXp: progression.totalXp + xpEarned,
-    roundsPlayed: progression.roundsPlayed + 1,
-    correctAnswers: progression.correctAnswers + correctCount,
-    bestStreak: Math.max(progression.bestStreak, bestStreak),
+    totalXp: current.totalXp + xpEarned,
+    roundsPlayed: current.roundsPlayed + 1,
+    correctAnswers: current.correctAnswers + safeCorrectCount,
+    bestStreak: Math.max(current.bestStreak, safeBestStreak),
   };
   if (typeof window !== 'undefined') {
     try { window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch (e) {}
