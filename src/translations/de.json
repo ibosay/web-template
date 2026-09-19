@@ -1585,5 +1585,15 @@
   "UserNav.accountSettings": "Kontoeinstellungen",
   "UserNav.profileSettings": "Profileinstellungen",
   "UserNav.screenreader.userNav": "Navigation zum Benutzerprofil",
-  "UserNav.yourListings": "Deine Einträge"
+  "UserNav.yourListings": "Deine Einträge",
+  "QuizGamePage.arena": "QUIZ ARENA",
+  "QuizGamePage.level": "LEVEL {level}",
+  "QuizGamePage.rounds": "{count} Runden",
+  "QuizGamePage.playerMeta": "{rounds} Runden · {correct} richtige Antworten · Bester Streak {streak}",
+  "QuizGamePage.bestScoreLabel": "BESTWERT",
+  "QuizGamePage.roundLabel": "RUNDE",
+  "QuizGamePage.timeLabel": "ZEIT",
+  "QuizGamePage.correctLabel": "RICHTIG",
+  "QuizGamePage.accuracyLabel": "GENAUIGKEIT",
+  "QuizGamePage.xpLabel": "XP"
 }
