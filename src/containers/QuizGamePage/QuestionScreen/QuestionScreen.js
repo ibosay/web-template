@@ -13,6 +13,7 @@ import { H2, IconCheckmark, IconClose, PrimaryButton } from '../../../components
 // Modules from parent directory
 import { OPTIONS_PER_QUESTION, questionOptionId, questionTextId } from '../quizQuestions';
 import { SECONDS_PER_QUESTION } from '../quizScoring';
+import { playQuizSound } from '../quizSounds';
 
 // Modules from the same directory
 import css from './QuestionScreen.module.css';
@@ -69,6 +70,7 @@ const AnswerOption = props => {
         aria-pressed={isSelected}
         onClick={() => {
           nativeHaptic('tap', false, hapticsEnabled);
+          playQuizSound('tap', soundEnabled);
           onSelect();
         }}
       >
@@ -123,6 +125,7 @@ const QuestionScreen = props => {
     onNext,
     onQuit,
     hapticsEnabled = true,
+    soundEnabled = true,
   } = props;
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
@@ -209,8 +212,9 @@ const QuestionScreen = props => {
   useEffect(() => {
     if (hasAnswered) {
       nativeHaptic('answer', isCorrect, hapticsEnabled);
+      playQuizSound(isTimedOut ? 'timeout' : isCorrect ? 'correct' : 'incorrect', soundEnabled);
     }
-  }, [hasAnswered, isCorrect, hapticsEnabled]);
+  }, [hasAnswered, isCorrect, isTimedOut, hapticsEnabled, soundEnabled]);
 
   const feedback = !hasAnswered ? null : isCorrect ? (
     <span className={css.feedbackCorrect}>
