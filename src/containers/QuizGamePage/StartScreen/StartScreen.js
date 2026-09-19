@@ -10,7 +10,7 @@ import { H2, PrimaryButton } from '../../../components';
 // Modules from parent directory
 import { categoryLabelId, QUESTIONS_PER_ROUND, QUIZ_CATEGORIES } from '../quizQuestions';
 import { SECONDS_PER_QUESTION } from '../quizScoring';
-import { levelFromXp, xpIntoLevel } from '../quizProgression';
+import { levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../quizProgression';
 import { ACHIEVEMENTS } from '../quizAchievements';
 
 // Modules from the same directory
@@ -85,9 +85,9 @@ const StartScreen = props => {
         <div className={css.playerProgress}>
           <div className={css.playerProgressTop}>
             <strong>{intl.formatMessage({ id: 'QuizGamePage.level' }, { level })}</strong>
-            <span>{levelXp}/500 XP</span>
+            <span>{levelXp}/{XP_PER_LEVEL} XP</span>
           </div>
-          <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${(levelXp / 500) * 100}%` }} /></div>
+          <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${(levelXp / XP_PER_LEVEL) * 100}%` }} /></div>
           <span className={css.playerMeta}>{intl.formatMessage({ id: 'QuizGamePage.playerMeta' }, { rounds: progression.roundsPlayed, correct: progression.correctAnswers, streak: progression.bestStreak })}</span>
         </div>
       </div>
