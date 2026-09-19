@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Share } from '@capacitor/share';
 
@@ -52,6 +52,7 @@ const resultFeedbackId = (correctCount, totalQuestions) => {
  */
 const ResultScreen = props => {
   const intl = useIntl();
+  const [shareStatus, setShareStatus] = useState(null);
   const {
     categoryId,
     answers,
@@ -75,6 +76,7 @@ const ResultScreen = props => {
   const leveledUp = level > previousLevel;
   const xpPercent = Math.min(100, (levelXp / XP_PER_LEVEL) * 100);
   const shareResult = async () => {
+    setShareStatus(null);
     const text = intl.formatMessage(
       { id: 'QuizGamePage.shareText' },
       { points: totalPoints, correct: correctCount, total: totalQuestions }
@@ -86,6 +88,9 @@ const ResultScreen = props => {
         await navigator.share({ text });
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(text);
+        setShareStatus('copied');
+      } else {
+        setShareStatus('unavailable');
       }
     } catch (e) {
       // Closing the native share sheet is not an error for the player.
@@ -180,6 +185,16 @@ const ResultScreen = props => {
         <SecondaryButton className={css.actionButton} type="button" onClick={shareResult}>
           {intl.formatMessage({ id: 'QuizGamePage.shareResult' })}
         </SecondaryButton>
+        {shareStatus ? (
+          <p className={css.shareStatus} role="status">
+            {intl.formatMessage({
+              id:
+                shareStatus === 'copied'
+                  ? 'QuizGamePage.shareCopied'
+                  : 'QuizGamePage.shareUnavailable',
+            })}
+          </p>
+        ) : null}
         <SecondaryButton className={css.actionButton} type="button" onClick={onBackToStart}>
           {intl.formatMessage({ id: 'QuizGamePage.backToStart' })}
         </SecondaryButton>
