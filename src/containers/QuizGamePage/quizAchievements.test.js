@@ -57,6 +57,19 @@ describe('quizAchievements', () => {
     expect(unlocked).toEqual(expect.arrayContaining(['firstRound', 'tenRounds']));
   });
 
+  it('unlocks advanced long-term achievements', () => {
+    const unlocked = unlockAchievements({
+      unlocked: [],
+      progression: { roundsPlayed: 12, correctAnswers: 55, totalXp: 2100 },
+      correctCount: 4,
+      totalQuestions: 6,
+      bestStreak: 5,
+    });
+    expect(unlocked).toEqual(
+      expect.arrayContaining(['firstRound', 'tenRounds', 'fiftyCorrect', 'streak5', 'level5'])
+    );
+  });
+
   it('sanitizes invalid unlock inputs', () => {
     const unlocked = unlockAchievements({
       unlocked: ['unknown', 'firstRound'],
