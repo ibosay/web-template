@@ -1607,5 +1607,7 @@
   "QuizGamePage.leaveRound": "Quitter la manche",
   "QuizGamePage.shareResult": "Partager le résultat",
   "QuizGamePage.shareText": "J'ai obtenu {points} points au quiz et répondu correctement à {correct} questions sur {total}.",
-  "QuizGamePage.achievementUnlocked": "Succès débloqué !"
+  "QuizGamePage.achievementUnlocked": "Succès débloqué !",
+  "QuizGamePage.shareCopied": "Résultat copié dans le presse-papiers.",
+  "QuizGamePage.shareUnavailable": "Le partage n’est pas disponible sur cet appareil."
 }
