@@ -12,6 +12,12 @@ The quiz is prepared as a Capacitor app for iOS and Android.
 - iPhone safe-area support
 - Dark splash-screen configuration
 - Local quiz questions, so gameplay itself does not require a question API
+- Native haptic feedback for taps and correct/wrong answers
+- Native Android back-button handling with round-exit confirmation
+- Quiz timer pauses while the native app is in the background
+- Native result sharing through the iOS/Android share sheet
+- Five quiz languages: German, English, Russian, Spanish and French
+- Local achievements and persistent player progression
 
 ## First native setup
 
@@ -48,3 +54,18 @@ The app uses Capacitor's official `@capacitor/splash-screen` plugin. After insta
 run `yarn app:prepare` so the plugin is synchronized into the generated iOS and Android projects.
 The current splash background is `#080D1C`, the spinner is disabled, and the launch duration is
 1200 ms. Final branded splash artwork still needs to be added before store release.
+
+## Native plugins
+
+The app currently declares these Capacitor 8 plugins:
+
+- `@capacitor/app` for Android back-button and app lifecycle events
+- `@capacitor/haptics` for lightweight gameplay feedback
+- `@capacitor/share` for the native result share sheet
+- `@capacitor/splash-screen` for launch presentation
+
+Whenever native dependencies change, run `yarn install` and then `yarn app:prepare` before testing in Xcode or Android Studio. The repository connector cannot perform that local install/sync step, so a successful native build must be verified on a development machine.
+
+## Current verification status
+
+Unit tests now exist for scoring, question selection, XP progression and achievements. They still need to be executed after installing the branch dependencies. Do not treat the native app as release-ready until the production web build, unit tests, Capacitor sync and real-device checks in the release checklist have completed successfully.
