@@ -60,9 +60,13 @@ const ResultScreen = props => {
 
   const totalQuestions = answers.length;
   const correctCount = answers.filter(answer => answer.isCorrect).length;
+  const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+  const xpEarned = correctCount * 50 + Math.floor(totalPoints / 20);
+  const level = Math.floor(totalPoints / 500) + 1;
 
   return (
     <section className={css.root}>
+      <div className={css.trophy}>★</div>
       <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.resultTitle' })}</H2>
 
       <p className={css.points}>
@@ -74,6 +78,16 @@ const ResultScreen = props => {
           { correctCount, totalQuestions }
         )}
       </p>
+      <div className={css.resultStats}>
+        <div><span>RICHTIG</span><strong>{correctCount}/{totalQuestions}</strong></div>
+        <div><span>GENAUIGKEIT</span><strong>{accuracy}%</strong></div>
+        <div><span>XP</span><strong>+{xpEarned}</strong></div>
+      </div>
+      <div className={css.levelCard}>
+        <div className={css.levelBadge}>{level}</div>
+        <div className={css.levelText}><span>LEVEL {level}</span><strong>{xpEarned} XP verdient</strong></div>
+      </div>
+
       <p className={css.feedback}>
         {intl.formatMessage({ id: resultFeedbackId(correctCount, totalQuestions) })}
       </p>
