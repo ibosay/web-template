@@ -257,6 +257,7 @@ export const QuizGamePageComponent = props => {
         onNext={handleNextQuestion}
         onQuit={() => setConfirmExitRound(true)}
         hapticsEnabled={settings.hapticsEnabled}
+        soundEnabled={settings.soundEnabled}
       />
     ) : screen === SCREEN_RESULT ? (
       <ResultScreen
