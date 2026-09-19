@@ -1,4 +1,6 @@
 import React from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
 
 // Contexts, configs, and util modules
 import { useIntl } from '../../../util/reactIntl';
@@ -70,6 +72,23 @@ const ResultScreen = props => {
   const previousLevel = levelFromXp(previousXp);
   const leveledUp = level > previousLevel;
   const xpPercent = Math.min(100, (levelXp / XP_PER_LEVEL) * 100);
+  const shareResult = async () => {
+    const text = intl.formatMessage(
+      { id: 'QuizGamePage.shareText' },
+      { points: totalPoints, correct: correctCount, total: totalQuestions }
+    );
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Share.share({ title: intl.formatMessage({ id: 'QuizGamePage.title' }), text });
+      } else if (navigator.share) {
+        await navigator.share({ text });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+      }
+    } catch (e) {
+      // Closing the native share sheet is not an error for the player.
+    }
+  };
 
   return (
     <section className={css.root}>
@@ -141,6 +160,9 @@ const ResultScreen = props => {
         <PrimaryButton className={css.actionButton} type="button" onClick={onPlayAgain}>
           {intl.formatMessage({ id: 'QuizGamePage.playAgain' })}
         </PrimaryButton>
+        <SecondaryButton className={css.actionButton} type="button" onClick={shareResult}>
+          {intl.formatMessage({ id: 'QuizGamePage.shareResult' })}
+        </SecondaryButton>
         <SecondaryButton className={css.actionButton} type="button" onClick={onBackToStart}>
           {intl.formatMessage({ id: 'QuizGamePage.backToStart' })}
         </SecondaryButton>
