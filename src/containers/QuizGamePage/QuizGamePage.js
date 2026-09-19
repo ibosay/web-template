@@ -71,6 +71,7 @@ export const QuizGamePageComponent = props => {
   const [roundXp, setRoundXp] = useState(0);
   const [roundBestStreak, setRoundBestStreak] = useState(0);
   const [achievements, setAchievements] = useState([]);
+  const [newAchievements, setNewAchievements] = useState([]);
   const [confirmExitRound, setConfirmExitRound] = useState(false);
 
   useEffect(() => {
@@ -117,6 +118,7 @@ export const QuizGamePageComponent = props => {
     setRoundXp(0);
     setRoundBestStreak(0);
     setIsNewHighScore(false);
+    setNewAchievements([]);
     setConfirmExitRound(false);
     setScreen(SCREEN_QUESTION);
   };
@@ -159,13 +161,15 @@ export const QuizGamePageComponent = props => {
     });
     setProgression(saved.progression);
     setRoundXp(saved.xpEarned);
-    setAchievements(unlockAchievements({
+    const nextAchievements = unlockAchievements({
       unlocked: achievements,
       progression: saved.progression,
       correctCount,
       totalQuestions: answers.length,
       bestStreak: roundBestStreak,
-    }));
+    });
+    setNewAchievements(nextAchievements.filter(id => !achievements.includes(id)));
+    setAchievements(nextAchievements);
     setScreen(SCREEN_RESULT);
   };
 
@@ -216,6 +220,7 @@ export const QuizGamePageComponent = props => {
         isNewHighScore={isNewHighScore}
         progression={progression}
         achievements={achievements}
+        newAchievements={newAchievements}
         xpEarned={roundXp}
         onPlayAgain={startRound}
         onBackToStart={() => setScreen(SCREEN_START)}
