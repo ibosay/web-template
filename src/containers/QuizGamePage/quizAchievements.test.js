@@ -1,7 +1,11 @@
-import { ACHIEVEMENTS, unlockAchievements } from './quizAchievements';
+import { ACHIEVEMENTS, loadAchievements, unlockAchievements } from './quizAchievements';
 
 describe('quizAchievements', () => {
   const ids = ACHIEVEMENTS.map(item => item.id);
+
+  beforeEach(() => {
+    window.localStorage.clear();
+  });
 
   it('has unique achievement ids', () => {
     expect(new Set(ids).size).toBe(ids.length);
@@ -29,6 +33,19 @@ describe('quizAchievements', () => {
     expect(unlocked).toEqual(expect.arrayContaining(['firstRound', 'perfectRound', 'streak3']));
   });
 
+  it('filters unknown and duplicate stored achievements', () => {
+    window.localStorage.setItem(
+      'quizGameAchievements',
+      JSON.stringify(['firstRound', 'firstRound', 'madeUpAchievement', 123])
+    );
+    expect(loadAchievements()).toEqual(['firstRound']);
+  });
+
+  it('handles damaged stored achievement JSON', () => {
+    window.localStorage.setItem('quizGameAchievements', 'not-json');
+    expect(loadAchievements()).toEqual([]);
+  });
+
   it('unlocks ten rounds without removing existing achievements', () => {
     const unlocked = unlockAchievements({
       unlocked: ['firstRound'],
@@ -38,5 +55,16 @@ describe('quizAchievements', () => {
       bestStreak: 1,
     });
     expect(unlocked).toEqual(expect.arrayContaining(['firstRound', 'tenRounds']));
+  });
+
+  it('sanitizes invalid unlock inputs', () => {
+    const unlocked = unlockAchievements({
+      unlocked: ['unknown', 'firstRound'],
+      progression: null,
+      correctCount: NaN,
+      totalQuestions: Infinity,
+      bestStreak: -10,
+    });
+    expect(unlocked).toEqual(['firstRound']);
   });
 });
