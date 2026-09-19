@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { Share } from '@capacitor/share';
 
 // Contexts, configs, and util modules
 import { useIntl } from '../../../util/reactIntl';
@@ -8,6 +10,8 @@ import { H2, PrimaryButton, SecondaryButton } from '../../../components';
 
 // Modules from parent directory
 import { categoryLabelId, questionTextId } from '../quizQuestions';
+import { levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../quizProgression';
+import { ACHIEVEMENTS } from '../quizAchievements';
 
 // Modules from the same directory
 import css from './ResultScreen.module.css';
@@ -48,21 +52,58 @@ const resultFeedbackId = (correctCount, totalQuestions) => {
  */
 const ResultScreen = props => {
   const intl = useIntl();
+  const [shareStatus, setShareStatus] = useState(null);
   const {
     categoryId,
     answers,
     totalPoints,
     highScore,
     isNewHighScore,
+    progression,
+    newAchievements = [],
+    xpEarned,
+    roundDurationSeconds = 0,
     onPlayAgain,
     onBackToStart,
   } = props;
 
   const totalQuestions = answers.length;
   const correctCount = answers.filter(answer => answer.isCorrect).length;
+  const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
+  const level = levelFromXp(progression.totalXp);
+  const levelXp = xpIntoLevel(progression.totalXp);
+  const previousXp = Math.max(0, progression.totalXp - xpEarned);
+  const previousLevel = levelFromXp(previousXp);
+  const leveledUp = level > previousLevel;
+  const xpPercent = Math.min(100, (levelXp / XP_PER_LEVEL) * 100);
+  const minutes = Math.floor(roundDurationSeconds / 60);
+  const seconds = roundDurationSeconds % 60;
+  const durationLabel = `${minutes}:${String(seconds).padStart(2, '0')}`;
+  const shareResult = async () => {
+    setShareStatus(null);
+    const text = intl.formatMessage(
+      { id: 'QuizGamePage.shareText' },
+      { points: totalPoints, correct: correctCount, total: totalQuestions, time: durationLabel }
+    );
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await Share.share({ title: intl.formatMessage({ id: 'QuizGamePage.title' }), text });
+      } else if (navigator.share) {
+        await navigator.share({ text });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setShareStatus('copied');
+      } else {
+        setShareStatus('unavailable');
+      }
+    } catch (e) {
+      // Closing the native share sheet is not an error for the player.
+    }
+  };
 
   return (
     <section className={css.root}>
+      <div className={css.trophy}>★</div>
       <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.resultTitle' })}</H2>
 
       <p className={css.points}>
@@ -74,6 +115,40 @@ const ResultScreen = props => {
           { correctCount, totalQuestions }
         )}
       </p>
+      <div className={css.resultStats}>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.correctLabel' })}</span><strong>{correctCount}/{totalQuestions}</strong></div>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.accuracyLabel' })}</span><strong>{accuracy}%</strong></div>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.xpLabel' })}</span><strong>+{xpEarned}</strong></div>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.durationLabel' })}</span><strong>{durationLabel}</strong></div>
+      </div>
+      <div className={css.levelCard}>
+        <div className={css.levelBadge}>{level}</div>
+        <div className={css.levelText}>
+          <span>{intl.formatMessage({ id: 'QuizGamePage.level' }, { level })}</span>
+          <strong>{levelXp}/{XP_PER_LEVEL} XP · {intl.formatMessage({ id: 'QuizGamePage.rounds' }, { count: progression.roundsPlayed })}</strong>
+          <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${xpPercent}%` }} /></div>
+        </div>
+      </div>
+
+      {leveledUp ? (
+        <div className={css.levelUp}>{intl.formatMessage({ id: 'QuizGamePage.levelUp' }, { level })}</div>
+      ) : null}
+
+      {newAchievements.length > 0 ? (
+        <div className={css.unlocks}>
+          <strong>{intl.formatMessage({ id: 'QuizGamePage.achievementUnlocked' })}</strong>
+          {newAchievements.map(id => {
+            const achievement = ACHIEVEMENTS.find(item => item.id === id);
+            return achievement ? (
+              <div key={id} className={css.unlockItem}>
+                <span>{achievement.icon}</span>
+                <span>{intl.formatMessage({ id: achievement.labelId })}</span>
+              </div>
+            ) : null;
+          })}
+        </div>
+      ) : null}
+
       <p className={css.feedback}>
         {intl.formatMessage({ id: resultFeedbackId(correctCount, totalQuestions) })}
       </p>
@@ -112,6 +187,19 @@ const ResultScreen = props => {
         <PrimaryButton className={css.actionButton} type="button" onClick={onPlayAgain}>
           {intl.formatMessage({ id: 'QuizGamePage.playAgain' })}
         </PrimaryButton>
+        <SecondaryButton className={css.actionButton} type="button" onClick={shareResult}>
+          {intl.formatMessage({ id: 'QuizGamePage.shareResult' })}
+        </SecondaryButton>
+        {shareStatus ? (
+          <p className={css.shareStatus} role="status">
+            {intl.formatMessage({
+              id:
+                shareStatus === 'copied'
+                  ? 'QuizGamePage.shareCopied'
+                  : 'QuizGamePage.shareUnavailable',
+            })}
+          </p>
+        ) : null}
         <SecondaryButton className={css.actionButton} type="button" onClick={onBackToStart}>
           {intl.formatMessage({ id: 'QuizGamePage.backToStart' })}
         </SecondaryButton>

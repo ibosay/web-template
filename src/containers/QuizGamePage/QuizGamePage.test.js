@@ -19,6 +19,7 @@ const messages = {
   'QuizGamePage.resultCorrectCount': '{correctCount} of {totalQuestions} correct',
   'QuizGamePage.highScore': 'Best score {points}',
   'QuizGamePage.newHighScore': 'New best score in {category}',
+  'QuizGamePage.secondsLeft': '{seconds}s',
 };
 
 const renderQuizGamePage = () =>
@@ -125,6 +126,98 @@ describe('QuizGamePageComponent', () => {
     });
 
     expect(screen.getByText(/^Correct! \+\d+$/)).toBeInTheDocument();
+  });
+
+  it('confirms before leaving an active round', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'QuizGamePage.continueRound' })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText(`Question 1 of ${QUESTIONS_PER_ROUND}`)).toBeInTheDocument();
+  });
+
+  it('pauses keyboard answers while the exit confirmation is open', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    const question = getCurrentQuestion();
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: String(question.correctOptionIndex + 1) });
+    });
+
+    expect(screen.queryByText(/^Correct! \\+\\d+$/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: correctOptionName(question) })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
+    await act(async () => {
+      fireEvent.keyDown(window, { key: String(question.correctOptionIndex + 1) });
+    });
+    expect(screen.getByText(/^Correct! \\+\\d+$/)).toBeInTheDocument();
+  });
+
+  it('pauses the question countdown while the exit confirmation is open', async () => {
+    jest.useFakeTimers();
+    try {
+      await act(async () => {
+        renderQuizGamePage();
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.startGame' }));
+      });
+
+      expect(screen.getByText(`${SECONDS_PER_QUESTION}s`)).toBeInTheDocument();
+      await act(async () => {
+        jest.advanceTimersByTime(3000);
+      });
+
+      const secondsBeforePause = SECONDS_PER_QUESTION - 3;
+      expect(screen.getByText(`${secondsBeforePause}s`)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText(`${secondsBeforePause}s`)).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText(`${secondsBeforePause - 1}s`)).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('can leave an active round after confirmation', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+    const dialog = screen.getByRole('dialog');
+    const leaveButtons = screen.getAllByRole('button', { name: 'QuizGamePage.leaveRound' });
+    await userEvent.click(leaveButtons.find(button => dialog.contains(button)));
+
+    expect(screen.getByText('QuizGamePage.startHeading')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('counts a question as wrong when the time runs out', async () => {

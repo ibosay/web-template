@@ -30,6 +30,19 @@ describe('calculateAnswerPoints', () => {
       POINTS_FOR_CORRECT_ANSWER + MAX_STREAK_STEPS * POINTS_PER_STREAK_STEP
     );
   });
+
+  it('caps the time bonus at the question time limit', () => {
+    expect(calculateAnswerPoints({ secondsLeft: 999, streak: 1 })).toEqual(
+      POINTS_FOR_CORRECT_ANSWER + 20 * POINTS_PER_SECOND_LEFT
+    );
+  });
+
+  it('handles invalid scoring input safely', () => {
+    expect(calculateAnswerPoints()).toEqual(POINTS_FOR_CORRECT_ANSWER);
+    expect(calculateAnswerPoints({ secondsLeft: NaN, streak: Infinity })).toEqual(
+      POINTS_FOR_CORRECT_ANSWER
+    );
+  });
 });
 
 describe('high scores', () => {
@@ -56,6 +69,20 @@ describe('high scores', () => {
 
   it('ignores stored data that is not valid JSON', () => {
     window.localStorage.setItem('quizGameHighScores', 'not json');
+    expect(loadHighScores()).toEqual({});
+  });
+
+  it('filters invalid persisted scores', () => {
+    window.localStorage.setItem(
+      'quizGameHighScores',
+      JSON.stringify({ geography: 500.9, science: -10, history: '900' })
+    );
+    expect(loadHighScores()).toEqual({ geography: 500 });
+  });
+
+  it('does not store invalid or negative new scores', () => {
+    expect(saveHighScore({}, 'geography', -10)).toEqual({});
+    expect(saveHighScore({}, 'geography', NaN)).toEqual({});
     expect(loadHighScores()).toEqual({});
   });
 });

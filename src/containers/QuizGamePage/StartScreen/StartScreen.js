@@ -10,6 +10,8 @@ import { H2, PrimaryButton } from '../../../components';
 // Modules from parent directory
 import { categoryLabelId, QUESTIONS_PER_ROUND, QUIZ_CATEGORIES } from '../quizQuestions';
 import { SECONDS_PER_QUESTION } from '../quizScoring';
+import { levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../quizProgression';
+import { ACHIEVEMENTS } from '../quizAchievements';
 
 // Modules from the same directory
 import css from './StartScreen.module.css';
@@ -26,13 +28,115 @@ import css from './StartScreen.module.css';
  */
 const StartScreen = props => {
   const intl = useIntl();
-  const { categoryId, highScores, onSelectCategory, onStart } = props;
+  const {
+    categoryId,
+    highScores,
+    progression,
+    achievements,
+    settings,
+    onSettingsChange,
+    onSelectCategory,
+    onStart,
+  } = props;
+  const level = levelFromXp(progression.totalXp);
+  const levelXp = xpIntoLevel(progression.totalXp);
 
   const highScore = highScores[categoryId];
+  const languageOptions = [
+    ['de', 'DE'],
+    ['en', 'EN'],
+    ['ru', 'RU'],
+    ['es', 'ES'],
+    ['fr', 'FR'],
+  ];
+  const supportedLanguages = languageOptions.map(([code]) => code);
+  const browserLanguage =
+    typeof window !== 'undefined' ? (window.navigator.language || 'en').split('-')[0] : 'en';
+  const storedLanguage =
+    typeof window !== 'undefined' ? window.localStorage.getItem('quizGameLanguage') : null;
+  const activeLanguage = supportedLanguages.includes(storedLanguage)
+    ? storedLanguage
+    : supportedLanguages.includes(browserLanguage)
+    ? browserLanguage
+    : 'en';
+  const changeLanguage = language => {
+    window.localStorage.setItem('quizGameLanguage', language);
+    window.location.reload();
+  };
+  const categoryIcons = {
+    all: '✦',
+    geography: '◎',
+    science: '⚗',
+    art: '◆',
+    history: '⌛',
+  };
 
   return (
     <section className={css.root}>
-      <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.startHeading' })}</H2>
+      <div className={css.languagePicker} aria-label="Language">
+        {languageOptions.map(([code, label]) => (
+          <button
+            key={code}
+            type="button"
+            className={classNames(css.languageButton, {
+              [css.languageButtonActive]: activeLanguage === code,
+            })}
+            onClick={() => changeLanguage(code)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className={css.settingsRow}>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.hapticsEnabled}
+            onChange={event =>
+              onSettingsChange({ ...settings, hapticsEnabled: event.target.checked })
+            }
+          />
+          <span>{intl.formatMessage({ id: 'QuizGamePage.hapticsSetting' })}</span>
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.soundEnabled}
+            onChange={event =>
+              onSettingsChange({ ...settings, soundEnabled: event.target.checked })
+            }
+          />
+          <span>{intl.formatMessage({ id: 'QuizGamePage.soundSetting' })}</span>
+        </label>
+      </div>
+      <div className={css.hero}>
+        <div className={css.logoMark}>Q</div>
+        <div>
+          <span className={css.eyebrow}>{intl.formatMessage({ id: 'QuizGamePage.arena' })}</span>
+          <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.startHeading' })}</H2>
+        </div>
+      </div>
+      <div className={css.playerCard}>
+        <div className={css.playerLevel}>{level}</div>
+        <div className={css.playerProgress}>
+          <div className={css.playerProgressTop}>
+            <strong>{intl.formatMessage({ id: 'QuizGamePage.level' }, { level })}</strong>
+            <span>{levelXp}/{XP_PER_LEVEL} XP</span>
+          </div>
+          <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${(levelXp / XP_PER_LEVEL) * 100}%` }} /></div>
+          <span className={css.playerMeta}>{intl.formatMessage({ id: 'QuizGamePage.playerMeta' }, { rounds: progression.roundsPlayed, correct: progression.correctAnswers, streak: progression.bestStreak })}</span>
+        </div>
+      </div>
+
+      <div className={css.achievements}>
+        {ACHIEVEMENTS.map(item => (
+          <div key={item.id} className={classNames(css.achievement, { [css.achievementUnlocked]: achievements.includes(item.id) })}>
+            <span>{item.icon}</span>
+            <small>{intl.formatMessage({ id: item.labelId })}</small>
+          </div>
+        ))}
+      </div>
+
       <p className={css.rules}>
         {intl.formatMessage(
           { id: 'QuizGamePage.startRules' },
@@ -55,17 +159,27 @@ const StartScreen = props => {
               aria-pressed={category === categoryId}
               onClick={() => onSelectCategory(category)}
             >
-              {intl.formatMessage({ id: categoryLabelId(category) })}
+              <span className={css.categoryIcon}>{categoryIcons[category] || '•'}</span>
+              <span>{intl.formatMessage({ id: categoryLabelId(category) })}</span>
             </button>
           ))}
         </div>
       </fieldset>
 
-      {highScore ? (
-        <p className={css.highScore}>
-          {intl.formatMessage({ id: 'QuizGamePage.highScore' }, { points: highScore })}
-        </p>
-      ) : null}
+      <div className={css.stats}>
+        <div>
+          <span className={css.statLabel}>{intl.formatMessage({ id: 'QuizGamePage.bestScoreLabel' })}</span>
+          <strong className={css.statValue}>{highScore || 0}</strong>
+        </div>
+        <div>
+          <span className={css.statLabel}>{intl.formatMessage({ id: 'QuizGamePage.roundLabel' })}</span>
+          <strong className={css.statValue}>{QUESTIONS_PER_ROUND}</strong>
+        </div>
+        <div>
+          <span className={css.statLabel}>{intl.formatMessage({ id: 'QuizGamePage.timeLabel' })}</span>
+          <strong className={css.statValue}>{SECONDS_PER_QUESTION}s</strong>
+        </div>
+      </div>
 
       <PrimaryButton className={css.startButton} type="button" onClick={onStart}>
         {intl.formatMessage({ id: 'QuizGamePage.startGame' })}
