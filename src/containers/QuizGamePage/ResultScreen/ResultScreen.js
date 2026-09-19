@@ -8,7 +8,7 @@ import { H2, PrimaryButton, SecondaryButton } from '../../../components';
 
 // Modules from parent directory
 import { categoryLabelId, questionTextId } from '../quizQuestions';
-import { levelFromXp, xpIntoLevel } from '../quizProgression';
+import { levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../quizProgression';
 
 // Modules from the same directory
 import css from './ResultScreen.module.css';
@@ -66,6 +66,10 @@ const ResultScreen = props => {
   const accuracy = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0;
   const level = levelFromXp(progression.totalXp);
   const levelXp = xpIntoLevel(progression.totalXp);
+  const previousXp = Math.max(0, progression.totalXp - xpEarned);
+  const previousLevel = levelFromXp(previousXp);
+  const leveledUp = level > previousLevel;
+  const xpPercent = Math.min(100, (levelXp / XP_PER_LEVEL) * 100);
 
   return (
     <section className={css.root}>
@@ -88,8 +92,16 @@ const ResultScreen = props => {
       </div>
       <div className={css.levelCard}>
         <div className={css.levelBadge}>{level}</div>
-        <div className={css.levelText}><span>{intl.formatMessage({ id: 'QuizGamePage.level' }, { level })}</span><strong>{levelXp}/500 XP · {intl.formatMessage({ id: 'QuizGamePage.rounds' }, { count: progression.roundsPlayed })}</strong></div>
+        <div className={css.levelText}>
+          <span>{intl.formatMessage({ id: 'QuizGamePage.level' }, { level })}</span>
+          <strong>{levelXp}/{XP_PER_LEVEL} XP · {intl.formatMessage({ id: 'QuizGamePage.rounds' }, { count: progression.roundsPlayed })}</strong>
+          <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${xpPercent}%` }} /></div>
+        </div>
       </div>
+
+      {leveledUp ? (
+        <div className={css.levelUp}>{intl.formatMessage({ id: 'QuizGamePage.levelUp' }, { level })}</div>
+      ) : null}
 
       <p className={css.feedback}>
         {intl.formatMessage({ id: resultFeedbackId(correctCount, totalQuestions) })}
