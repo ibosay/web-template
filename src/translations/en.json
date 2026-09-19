@@ -1606,7 +1606,7 @@
   "QuizGamePage.continueRound": "Keep playing",
   "QuizGamePage.leaveRound": "Leave round",
   "QuizGamePage.shareResult": "Share result",
-  "QuizGamePage.shareText": "I scored {points} points in the quiz and answered {correct} of {total} questions correctly.",
+  "QuizGamePage.shareText": "I scored {points} points in the quiz, answered {correct} of {total} correctly and finished in {time}.",
   "QuizGamePage.achievementUnlocked": "Achievement unlocked!",
   "QuizGamePage.shareCopied": "Result copied to clipboard.",
   "QuizGamePage.shareUnavailable": "Sharing is not available on this device.",
