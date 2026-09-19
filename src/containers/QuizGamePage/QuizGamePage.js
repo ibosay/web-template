@@ -136,6 +136,19 @@ export const QuizGamePageComponent = props => {
   }, [nativeApp, screen]);
 
   useEffect(() => {
+    if (screen !== SCREEN_QUESTION) return;
+
+    if (confirmExitRound) {
+      if (activeRoundStartedAtRef.current) {
+        activeRoundElapsedMsRef.current += Date.now() - activeRoundStartedAtRef.current;
+        activeRoundStartedAtRef.current = null;
+      }
+    } else if (roundStartedAt && !activeRoundStartedAtRef.current) {
+      activeRoundStartedAtRef.current = Date.now();
+    }
+  }, [confirmExitRound, roundStartedAt, screen]);
+
+  useEffect(() => {
     if (!confirmExitRound) return undefined;
 
     const previousFocus = document.activeElement;
