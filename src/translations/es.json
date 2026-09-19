@@ -1604,5 +1604,7 @@
   "QuizGamePage.exitRoundTitle": "¿Salir de la ronda?",
   "QuizGamePage.exitRoundText": "Perderás el progreso de esta ronda.",
   "QuizGamePage.continueRound": "Seguir jugando",
-  "QuizGamePage.leaveRound": "Salir de la ronda"
+  "QuizGamePage.leaveRound": "Salir de la ronda",
+  "QuizGamePage.shareResult": "Compartir resultado",
+  "QuizGamePage.shareText": "Conseguí {points} puntos en el quiz y acerté {correct} de {total} preguntas."
 }
