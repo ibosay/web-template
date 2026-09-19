@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { compose } from 'redux';
+import { Capacitor } from '@capacitor/core';
 import { connect } from 'react-redux';
 
 // Contexts, configs, and util modules
@@ -16,7 +17,7 @@ import FooterContainer from '../FooterContainer/FooterContainer';
 
 const isNativeApp = () =>
   typeof window !== 'undefined' &&
-  (window.Capacitor?.isNativePlatform?.() || window.location.search.includes('nativeApp=1'));
+  (Capacitor.isNativePlatform() || window.location.search.includes('nativeApp=1'));
 
 // Modules from the same directory
 import { CATEGORY_ALL, drawQuestions } from './quizQuestions';
