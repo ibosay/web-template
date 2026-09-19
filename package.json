@@ -232,7 +232,12 @@
     "translate": "node scripts/translations.js",
     "app:sync": "npx cap sync",
     "app:android": "npx cap open android",
-    "app:ios": "npx cap open ios"
+    "app:ios": "npx cap open ios",
+    "app:prepare": "yarn build-web && npx cap sync",
+    "app:add:android": "npx cap add android",
+    "app:add:ios": "npx cap add ios",
+    "app:run:android": "npx cap run android",
+    "app:run:ios": "npx cap run ios"
   },
   "browserslist": {
     "production": [
