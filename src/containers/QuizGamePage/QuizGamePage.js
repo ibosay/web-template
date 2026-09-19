@@ -71,13 +71,16 @@ export const QuizGamePageComponent = props => {
   const [roundXp, setRoundXp] = useState(0);
   const [roundBestStreak, setRoundBestStreak] = useState(0);
   const [achievements, setAchievements] = useState([]);
+  const [confirmExitRound, setConfirmExitRound] = useState(false);
 
   useEffect(() => {
     if (!nativeApp) return undefined;
 
     let listener;
     App.addListener('backButton', () => {
-      if (screen === SCREEN_QUESTION || screen === SCREEN_RESULT) {
+      if (screen === SCREEN_QUESTION) {
+        setConfirmExitRound(true);
+      } else if (screen === SCREEN_RESULT) {
         setScreen(SCREEN_START);
       } else {
         App.exitApp();
@@ -114,6 +117,7 @@ export const QuizGamePageComponent = props => {
     setRoundXp(0);
     setRoundBestStreak(0);
     setIsNewHighScore(false);
+    setConfirmExitRound(false);
     setScreen(SCREEN_QUESTION);
   };
 
@@ -242,6 +246,22 @@ export const QuizGamePageComponent = props => {
             </>
           )}
           {gameContent}
+          {confirmExitRound ? (
+            <div className={css.confirmOverlay} role="dialog" aria-modal="true">
+              <div className={css.confirmCard}>
+                <strong>{intl.formatMessage({ id: 'QuizGamePage.exitRoundTitle' })}</strong>
+                <p>{intl.formatMessage({ id: 'QuizGamePage.exitRoundText' })}</p>
+                <div className={css.confirmActions}>
+                  <button type="button" onClick={() => setConfirmExitRound(false)}>
+                    {intl.formatMessage({ id: 'QuizGamePage.continueRound' })}
+                  </button>
+                  <button type="button" onClick={() => { setConfirmExitRound(false); setScreen(SCREEN_START); }}>
+                    {intl.formatMessage({ id: 'QuizGamePage.leaveRound' })}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </LayoutSingleColumn>
     </Page>
