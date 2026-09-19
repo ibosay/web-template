@@ -1596,5 +1596,9 @@
   "QuizGamePage.correctLabel": "ВЕРНО",
   "QuizGamePage.accuracyLabel": "ТОЧНОСТЬ",
   "QuizGamePage.xpLabel": "XP",
-  "QuizGamePage.levelUp": "Новый уровень! Теперь у вас уровень {level}."
+  "QuizGamePage.levelUp": "Новый уровень! Теперь у вас уровень {level}.",
+  "QuizGamePage.achievement.firstRound": "Первый раунд",
+  "QuizGamePage.achievement.perfectRound": "Идеальный раунд",
+  "QuizGamePage.achievement.streak3": "Серия из 3",
+  "QuizGamePage.achievement.tenRounds": "10 раундов"
 }
