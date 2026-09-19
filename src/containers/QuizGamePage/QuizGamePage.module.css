@@ -44,3 +44,12 @@
     calc(env(safe-area-inset-bottom, 0px) + 24px)
     calc(env(safe-area-inset-left, 0px) + 14px);
 }
+
+.confirmOverlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(3,7,18,.78); backdrop-filter: blur(8px); }
+.confirmCard { width: min(100%, 360px); padding: 22px; border: 1px solid rgba(124,140,255,.35); border-radius: 22px; background: #10182b; color: #fff; box-shadow: 0 24px 70px rgba(0,0,0,.45); }
+.confirmCard strong { display: block; font-size: 20px; }
+.confirmCard p { margin: 9px 0 18px; color: #aebbd5; line-height: 1.45; }
+.confirmActions { display: grid; gap: 9px; }
+.confirmActions button { min-height: 46px; border: 0; border-radius: 14px; font-weight: 700; cursor: pointer; }
+.confirmActions button:first-child { background: linear-gradient(135deg,#6378ff,#9b5cff); color: #fff; }
+.confirmActions button:last-child { background: #202b43; color: #dce5f8; }
