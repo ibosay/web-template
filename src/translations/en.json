@@ -1606,5 +1606,6 @@
   "QuizGamePage.continueRound": "Keep playing",
   "QuizGamePage.leaveRound": "Leave round",
   "QuizGamePage.shareResult": "Share result",
-  "QuizGamePage.shareText": "I scored {points} points in the quiz and answered {correct} of {total} questions correctly."
+  "QuizGamePage.shareText": "I scored {points} points in the quiz and answered {correct} of {total} questions correctly.",
+  "QuizGamePage.achievementUnlocked": "Achievement unlocked!"
 }
