@@ -4,15 +4,22 @@ const context = () => {
   if (typeof window === 'undefined') return null;
   const AudioContext = window.AudioContext || window.webkitAudioContext;
   if (!AudioContext) return null;
-  if (!audioContext) audioContext = new AudioContext();
-  return audioContext;
+  try {
+    if (!audioContext || audioContext.state === 'closed') audioContext = new AudioContext();
+    return audioContext;
+  } catch (e) {
+    return null;
+  }
 };
 
 const tone = (frequency, duration, volume = 0.045, delay = 0) => {
   const ctx = context();
   if (!ctx) return;
   try {
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') {
+      const resumeResult = ctx.resume();
+      if (resumeResult && typeof resumeResult.catch === 'function') resumeResult.catch(() => {});
+    }
     const oscillator = ctx.createOscillator();
     const gain = ctx.createGain();
     const start = ctx.currentTime + delay;
