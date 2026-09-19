@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { HelmetProvider } from 'react-helmet-async';
 import { BrowserRouter, StaticRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
@@ -234,9 +234,14 @@ export const ClientApp = props => {
   const { store, hostedTranslations = {}, hostedConfig = {} } = props;
   const appConfig = mergeConfig(hostedConfig, defaultConfig);
   const isNativeQuizApp = Capacitor.isNativePlatform();
-  if (isNativeQuizApp && window.location.pathname === '/') {
-    window.history.replaceState(null, '', '/quiz');
-  }
+
+  useEffect(() => {
+    if (isNativeQuizApp && window.location.pathname === '/') {
+      window.history.replaceState(null, '', '/quiz');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  }, [isNativeQuizApp]);
+
   const isQuizPath = window.location.pathname.startsWith('/quiz') || isNativeQuizApp;
   const quizLanguage = isQuizPath ? getQuizLanguage() : null;
   const activeLocale = quizLanguage || appConfig.localization.locale;
