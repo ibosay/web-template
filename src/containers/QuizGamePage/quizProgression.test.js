@@ -26,6 +26,15 @@ describe('quizProgression', () => {
   it('calculates round XP from correct answers and score', () => {
     expect(xpForRound(4, 1200)).toBe(260);
     expect(xpForRound(-1, -20)).toBe(0);
+    expect(xpForRound(NaN, Infinity)).toBe(0);
+    expect(xpForRound(2.9, 100.9)).toBe(105);
+  });
+
+  it('keeps level helpers safe for invalid XP', () => {
+    expect(levelFromXp(NaN)).toBe(1);
+    expect(levelFromXp(Infinity)).toBe(1);
+    expect(xpIntoLevel(NaN)).toBe(0);
+    expect(xpIntoLevel(-500)).toBe(0);
   });
 
   it('sanitizes damaged persisted progression data', () => {
