@@ -135,6 +135,7 @@ const QuestionScreen = props => {
     onQuit,
     hapticsEnabled = true,
     soundEnabled = true,
+    interactionBlocked = false,
   } = props;
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
@@ -183,7 +184,7 @@ const QuestionScreen = props => {
 
   // Countdown: tick once a second until the question is answered or the time runs out.
   useEffect(() => {
-    if (hasAnswered || !isAppActive) {
+    if (hasAnswered || !isAppActive || interactionBlocked) {
       return undefined;
     }
     if (secondsLeft <= 0) {
@@ -192,11 +193,12 @@ const QuestionScreen = props => {
     }
     const timeoutId = setTimeout(() => setSecondsLeft(seconds => seconds - 1), 1000);
     return () => clearTimeout(timeoutId);
-  }, [secondsLeft, hasAnswered, isAppActive]);
+  }, [secondsLeft, hasAnswered, isAppActive, interactionBlocked]);
 
   // Keyboard shortcuts: 1–4 pick an answer, Enter moves on.
   useEffect(() => {
     const handleKeyDown = event => {
+      if (interactionBlocked) return;
       if (event.key === 'Enter' && hasAnswered) {
         callbacksRef.current.onNext();
         return;
@@ -214,7 +216,7 @@ const QuestionScreen = props => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasAnswered, secondsLeft, hapticsEnabled, soundEnabled]);
+  }, [hasAnswered, secondsLeft, hapticsEnabled, soundEnabled, interactionBlocked]);
 
   const correctAnswer = intl.formatMessage({
     id: questionOptionId(question.id, question.correctOptionIndex),
@@ -307,7 +309,12 @@ const QuestionScreen = props => {
       </div>
 
       {hasAnswered ? (
-        <PrimaryButton className={css.nextButton} type="button" onClick={onNext}>
+        <PrimaryButton
+          className={css.nextButton}
+          type="button"
+          onClick={onNext}
+          disabled={interactionBlocked}
+        >
           {isLastQuestion
             ? intl.formatMessage({ id: 'QuizGamePage.showResult' })
             : intl.formatMessage({ id: 'QuizGamePage.nextQuestion' })}
