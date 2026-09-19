@@ -20,8 +20,8 @@ import css from './QuestionScreen.module.css';
 // When fewer seconds than this are left, the countdown is highlighted.
 const LOW_TIME_SECONDS = 5;
 
-const nativeHaptic = async (type, isCorrect = false) => {
-  if (!Capacitor.isNativePlatform()) return;
+const nativeHaptic = async (type, isCorrect = false, enabled = true) => {
+  if (!enabled || !Capacitor.isNativePlatform()) return;
   try {
     if (type === 'answer') {
       await Haptics.notification({
@@ -68,7 +68,7 @@ const AnswerOption = props => {
         disabled={hasAnswered}
         aria-pressed={isSelected}
         onClick={() => {
-          nativeHaptic('tap');
+          nativeHaptic('tap', false, hapticsEnabled);
           onSelect();
         }}
       >
@@ -122,6 +122,7 @@ const QuestionScreen = props => {
     onTimeout,
     onNext,
     onQuit,
+    hapticsEnabled = true,
   } = props;
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
@@ -207,9 +208,9 @@ const QuestionScreen = props => {
 
   useEffect(() => {
     if (hasAnswered) {
-      nativeHaptic('answer', isCorrect);
+      nativeHaptic('answer', isCorrect, hapticsEnabled);
     }
-  }, [hasAnswered, isCorrect]);
+  }, [hasAnswered, isCorrect, hapticsEnabled]);
 
   const feedback = !hasAnswered ? null : isCorrect ? (
     <span className={css.feedbackCorrect}>
