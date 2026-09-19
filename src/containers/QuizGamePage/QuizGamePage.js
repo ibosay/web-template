@@ -252,6 +252,7 @@ export const QuizGamePageComponent = props => {
         onAnswer={handleAnswer}
         onTimeout={handleTimeout}
         onNext={handleNextQuestion}
+        onQuit={() => setConfirmExitRound(true)}
       />
     ) : screen === SCREEN_RESULT ? (
       <ResultScreen
