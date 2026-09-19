@@ -83,7 +83,7 @@ const ResultScreen = props => {
     setShareStatus(null);
     const text = intl.formatMessage(
       { id: 'QuizGamePage.shareText' },
-      { points: totalPoints, correct: correctCount, total: totalQuestions }
+      { points: totalPoints, correct: correctCount, total: totalQuestions, time: durationLabel }
     );
     try {
       if (Capacitor.isNativePlatform()) {
