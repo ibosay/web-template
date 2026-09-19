@@ -1604,5 +1604,7 @@
   "QuizGamePage.exitRoundTitle": "Quitter la manche ?",
   "QuizGamePage.exitRoundText": "Votre progression dans cette manche sera perdue.",
   "QuizGamePage.continueRound": "Continuer",
-  "QuizGamePage.leaveRound": "Quitter la manche"
+  "QuizGamePage.leaveRound": "Quitter la manche",
+  "QuizGamePage.shareResult": "Partager le résultat",
+  "QuizGamePage.shareText": "J'ai obtenu {points} points au quiz et répondu correctement à {correct} questions sur {total}."
 }
