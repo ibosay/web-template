@@ -178,3 +178,9 @@
 .languagePicker { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 12px; }
 .languageButton { min-width: 34px; padding: 6px 7px; border: 1px solid #2b3659; border-radius: 9px; background: #111a33; color: #7f91b9; font-size: 10px; font-weight: 800; cursor: pointer; }
 .languageButtonActive { border-color: #6f7dff; background: rgba(111, 125, 255, 0.2); color: #fff; }
+
+.achievements { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.achievement { padding: 8px 3px; border: 1px solid #283452; border-radius: 12px; background: rgba(8,14,31,.35); color: #4c5c7f; text-align: center; opacity: .55; }
+.achievement span { display: block; font-size: 16px; }
+.achievement small { display: block; margin-top: 3px; font-size: 7px; line-height: 1.2; }
+.achievementUnlocked { border-color: #6f7dff; color: #dce4ff; opacity: 1; background: rgba(111,125,255,.12); }
