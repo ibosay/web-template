@@ -1614,5 +1614,6 @@
   "QuizGamePage.soundSetting": "Звук",
   "QuizGamePage.achievement.fiftyCorrect": "50 верных",
   "QuizGamePage.achievement.streak5": "Серия 5",
-  "QuizGamePage.achievement.level5": "Уровень 5"
+  "QuizGamePage.achievement.level5": "Уровень 5",
+  "QuizGamePage.durationLabel": "Время"
 }
