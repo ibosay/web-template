@@ -32,6 +32,22 @@ const StartScreen = props => {
   const levelXp = xpIntoLevel(progression.totalXp);
 
   const highScore = highScores[categoryId];
+  const languageOptions = [
+    ['de', 'DE'],
+    ['en', 'EN'],
+    ['ru', 'RU'],
+    ['es', 'ES'],
+    ['fr', 'FR'],
+  ];
+  const activeLanguage =
+    typeof window !== 'undefined'
+      ? window.localStorage.getItem('quizGameLanguage') ||
+        (window.navigator.language || 'en').split('-')[0]
+      : 'en';
+  const changeLanguage = language => {
+    window.localStorage.setItem('quizGameLanguage', language);
+    window.location.reload();
+  };
   const categoryIcons = {
     all: '✦',
     geography: '◎',
@@ -42,6 +58,20 @@ const StartScreen = props => {
 
   return (
     <section className={css.root}>
+      <div className={css.languagePicker} aria-label="Language">
+        {languageOptions.map(([code, label]) => (
+          <button
+            key={code}
+            type="button"
+            className={classNames(css.languageButton, {
+              [css.languageButtonActive]: activeLanguage === code,
+            })}
+            onClick={() => changeLanguage(code)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
       <div className={css.hero}>
         <div className={css.logoMark}>Q</div>
         <div>
