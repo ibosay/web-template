@@ -1600,5 +1600,9 @@
   "QuizGamePage.achievement.firstRound": "First round",
   "QuizGamePage.achievement.perfectRound": "Perfect round",
   "QuizGamePage.achievement.streak3": "3 streak",
-  "QuizGamePage.achievement.tenRounds": "10 rounds"
+  "QuizGamePage.achievement.tenRounds": "10 rounds",
+  "QuizGamePage.exitRoundTitle": "Leave round?",
+  "QuizGamePage.exitRoundText": "Your progress in this round will be lost.",
+  "QuizGamePage.continueRound": "Keep playing",
+  "QuizGamePage.leaveRound": "Leave round"
 }
