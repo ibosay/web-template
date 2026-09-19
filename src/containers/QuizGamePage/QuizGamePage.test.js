@@ -144,6 +144,30 @@ describe('QuizGamePageComponent', () => {
     expect(screen.getByText(`Question 1 of ${QUESTIONS_PER_ROUND}`)).toBeInTheDocument();
   });
 
+  it('pauses keyboard answers while the exit confirmation is open', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    const question = getCurrentQuestion();
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.keyDown(window, { key: String(question.correctOptionIndex + 1) });
+    });
+
+    expect(screen.queryByText(/^Correct! \\+\\d+$/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: correctOptionName(question) })).toBeEnabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
+    await act(async () => {
+      fireEvent.keyDown(window, { key: String(question.correctOptionIndex + 1) });
+    });
+    expect(screen.getByText(/^Correct! \\+\\d+$/)).toBeInTheDocument();
+  });
+
   it('can leave an active round after confirmation', async () => {
     await act(async () => {
       renderQuizGamePage();
