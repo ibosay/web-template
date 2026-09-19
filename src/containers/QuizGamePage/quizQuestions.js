@@ -122,9 +122,14 @@ export const shuffle = items => {
  * @returns {Array<Object>} the questions of the round
  */
 export const drawQuestions = (categoryId, count = QUESTIONS_PER_ROUND) => {
+  const safeCategory = QUIZ_CATEGORIES.includes(categoryId) ? categoryId : CATEGORY_ALL;
+  const safeCount =
+    typeof count === 'number' && Number.isFinite(count)
+      ? Math.max(0, Math.floor(count))
+      : QUESTIONS_PER_ROUND;
   const pool =
-    categoryId === CATEGORY_ALL
+    safeCategory === CATEGORY_ALL
       ? QUIZ_QUESTIONS
-      : QUIZ_QUESTIONS.filter(question => question.category === categoryId);
-  return shuffle(pool).slice(0, count);
+      : QUIZ_QUESTIONS.filter(question => question.category === safeCategory);
+  return shuffle(pool).slice(0, Math.min(safeCount, pool.length));
 };
