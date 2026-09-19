@@ -1585,5 +1585,15 @@
   "UserNav.accountSettings": "Réglages",
   "UserNav.profileSettings": "Profil",
   "UserNav.screenreader.userNav": "Aller au profile d'utilisateur",
-  "UserNav.yourListings": "Mes annonces"
+  "UserNav.yourListings": "Mes annonces",
+  "QuizGamePage.arena": "QUIZ ARENA",
+  "QuizGamePage.level": "NIVEAU {level}",
+  "QuizGamePage.rounds": "{count} manches",
+  "QuizGamePage.playerMeta": "{rounds} manches · {correct} bonnes réponses · Meilleure série {streak}",
+  "QuizGamePage.bestScoreLabel": "RECORD",
+  "QuizGamePage.roundLabel": "MANCHE",
+  "QuizGamePage.timeLabel": "TEMPS",
+  "QuizGamePage.correctLabel": "BONNES",
+  "QuizGamePage.accuracyLabel": "PRÉCISION",
+  "QuizGamePage.xpLabel": "XP"
 }
