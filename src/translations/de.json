@@ -1611,5 +1611,8 @@
   "QuizGamePage.shareCopied": "Ergebnis in die Zwischenablage kopiert.",
   "QuizGamePage.shareUnavailable": "Teilen ist auf diesem Gerät nicht verfügbar.",
   "QuizGamePage.hapticsSetting": "Vibration",
-  "QuizGamePage.soundSetting": "Ton"
+  "QuizGamePage.soundSetting": "Ton",
+  "QuizGamePage.achievement.fiftyCorrect": "50 richtig",
+  "QuizGamePage.achievement.streak5": "5er-Serie",
+  "QuizGamePage.achievement.level5": "Level 5"
 }
