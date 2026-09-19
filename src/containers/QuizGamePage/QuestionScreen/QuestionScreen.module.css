@@ -13,6 +13,39 @@
   }
 }
 
+.topActions {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 10px;
+}
+
+.quitButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #34415f;
+  border-radius: 12px;
+  background: rgba(20, 29, 56, 0.8);
+  color: #aebbd5;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.quitButton:hover,
+.quitButton:focus-visible {
+  border-color: #7a87ff;
+  color: #fff;
+  outline: none;
+}
+
+.quitButton span:first-child {
+  font-size: 18px;
+  line-height: 1;
+}
+
 .statusRow {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
