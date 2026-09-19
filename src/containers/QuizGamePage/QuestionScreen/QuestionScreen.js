@@ -103,6 +103,7 @@ const AnswerOption = props => {
  * @param {Function} props.onAnswer - Called with the picked option index and the remaining seconds
  * @param {Function} props.onTimeout - Called when the time runs out
  * @param {Function} props.onNext - Called when the player moves on
+ * @param {Function} props.onQuit - Called when the player wants to leave the round
  * @returns {JSX.Element} question screen
  */
 const QuestionScreen = props => {
@@ -120,6 +121,7 @@ const QuestionScreen = props => {
     onAnswer,
     onTimeout,
     onNext,
+    onQuit,
   } = props;
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
@@ -226,6 +228,12 @@ const QuestionScreen = props => {
 
   return (
     <section className={css.root}>
+      <div className={css.topActions}>
+        <button className={css.quitButton} type="button" onClick={onQuit}>
+          <span aria-hidden="true">×</span>
+          <span>{intl.formatMessage({ id: 'QuizGamePage.leaveRound' })}</span>
+        </button>
+      </div>
       <div className={css.statusRow}>
         <span className={css.progress}>
           {intl.formatMessage(
