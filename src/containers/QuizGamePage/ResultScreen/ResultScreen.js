@@ -82,13 +82,13 @@ const ResultScreen = props => {
         )}
       </p>
       <div className={css.resultStats}>
-        <div><span>RICHTIG</span><strong>{correctCount}/{totalQuestions}</strong></div>
-        <div><span>GENAUIGKEIT</span><strong>{accuracy}%</strong></div>
-        <div><span>XP</span><strong>+{xpEarned}</strong></div>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.correctLabel' })}</span><strong>{correctCount}/{totalQuestions}</strong></div>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.accuracyLabel' })}</span><strong>{accuracy}%</strong></div>
+        <div><span>{intl.formatMessage({ id: 'QuizGamePage.xpLabel' })}</span><strong>+{xpEarned}</strong></div>
       </div>
       <div className={css.levelCard}>
         <div className={css.levelBadge}>{level}</div>
-        <div className={css.levelText}><span>LEVEL {level}</span><strong>{levelXp}/500 XP · {progression.roundsPlayed} Runden</strong></div>
+        <div className={css.levelText}><span>{intl.formatMessage({ id: 'QuizGamePage.level' }, { level })}</span><strong>{levelXp}/500 XP · {intl.formatMessage({ id: 'QuizGamePage.rounds' }, { count: progression.roundsPlayed })}</strong></div>
       </div>
 
       <p className={css.feedback}>
