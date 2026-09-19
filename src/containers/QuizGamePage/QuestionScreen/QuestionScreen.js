@@ -50,7 +50,16 @@ const nativeHaptic = async (type, isCorrect = false, enabled = true) => {
  * @returns {JSX.Element} answer option button
  */
 const AnswerOption = props => {
-  const { optionIndex, label, isSelected, isCorrect, hasAnswered, onSelect } = props;
+  const {
+    optionIndex,
+    label,
+    isSelected,
+    isCorrect,
+    hasAnswered,
+    onSelect,
+    hapticsEnabled,
+    soundEnabled,
+  } = props;
 
   const showAsCorrect = hasAnswered && isCorrect;
   const showAsIncorrect = hasAnswered && isSelected && !isCorrect;
@@ -197,13 +206,15 @@ const QuestionScreen = props => {
         Number.isInteger(optionIndex) && optionIndex >= 0 && optionIndex < OPTIONS_PER_QUESTION;
       if (isOptionKey && !hasAnswered && !answeredRef.current) {
         answeredRef.current = true;
+        nativeHaptic('tap', false, hapticsEnabled);
+        playQuizSound('tap', soundEnabled);
         callbacksRef.current.onAnswer(optionIndex, secondsLeft);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasAnswered, secondsLeft]);
+  }, [hasAnswered, secondsLeft, hapticsEnabled, soundEnabled]);
 
   const correctAnswer = intl.formatMessage({
     id: questionOptionId(question.id, question.correctOptionIndex),
@@ -280,6 +291,8 @@ const QuestionScreen = props => {
             isSelected={selectedOptionIndex === optionIndex}
             isCorrect={question.correctOptionIndex === optionIndex}
             hasAnswered={hasAnswered}
+            hapticsEnabled={hapticsEnabled}
+            soundEnabled={soundEnabled}
             onSelect={() => {
               if (answeredRef.current || hasAnswered) return;
               answeredRef.current = true;
