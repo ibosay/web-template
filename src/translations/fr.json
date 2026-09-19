@@ -1611,5 +1611,8 @@
   "QuizGamePage.shareCopied": "Résultat copié dans le presse-papiers.",
   "QuizGamePage.shareUnavailable": "Le partage n’est pas disponible sur cet appareil.",
   "QuizGamePage.hapticsSetting": "Vibrations",
-  "QuizGamePage.soundSetting": "Son"
+  "QuizGamePage.soundSetting": "Son",
+  "QuizGamePage.achievement.fiftyCorrect": "50 bonnes",
+  "QuizGamePage.achievement.streak5": "Série de 5",
+  "QuizGamePage.achievement.level5": "Niveau 5"
 }
