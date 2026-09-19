@@ -13,9 +13,13 @@ The quiz is prepared as a Capacitor app for iOS and Android.
 - Dark splash-screen configuration
 - Local quiz questions, so gameplay itself does not require a question API
 - Native haptic feedback for taps and correct/wrong answers
-- Native Android back-button handling with round-exit confirmation
+- Lightweight Web Audio feedback for taps, correct answers, wrong answers and timeouts
+- Persistent player settings for sound and haptics
+- Native Android back-button handling with accessible round-exit confirmation
+- In-game quit control with the same protected confirmation flow
 - Quiz timer pauses while the native app is in the background
 - Native result sharing through the iOS/Android share sheet
+- Web sharing fallback with clipboard confirmation when the Web Share API is unavailable
 - Five quiz languages: German, English, Russian, Spanish and French
 - Local achievements and persistent player progression
 
@@ -68,4 +72,4 @@ Whenever native dependencies change, run `yarn install` and then `yarn app:prepa
 
 ## Current verification status
 
-Unit tests now exist for scoring, question selection, XP progression and achievements. They still need to be executed after installing the branch dependencies. Do not treat the native app as release-ready until the production web build, unit tests, Capacitor sync and real-device checks in the release checklist have completed successfully.
+Unit tests now exist for scoring, question selection, XP progression, achievements and persistent settings. XP helpers and stored settings include defensive handling for invalid, damaged or non-finite values. They still need to be executed after installing the branch dependencies. Do not treat the native app as release-ready until the production web build, unit tests, Capacitor sync and real-device checks in the release checklist have completed successfully.
