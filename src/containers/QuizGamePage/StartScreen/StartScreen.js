@@ -10,6 +10,7 @@ import { H2, PrimaryButton } from '../../../components';
 // Modules from parent directory
 import { categoryLabelId, QUESTIONS_PER_ROUND, QUIZ_CATEGORIES } from '../quizQuestions';
 import { SECONDS_PER_QUESTION } from '../quizScoring';
+import { levelFromXp, xpIntoLevel } from '../quizProgression';
 
 // Modules from the same directory
 import css from './StartScreen.module.css';
@@ -26,7 +27,9 @@ import css from './StartScreen.module.css';
  */
 const StartScreen = props => {
   const intl = useIntl();
-  const { categoryId, highScores, onSelectCategory, onStart } = props;
+  const { categoryId, highScores, progression, onSelectCategory, onStart } = props;
+  const level = levelFromXp(progression.totalXp);
+  const levelXp = xpIntoLevel(progression.totalXp);
 
   const highScore = highScores[categoryId];
   const categoryIcons = {
@@ -46,6 +49,18 @@ const StartScreen = props => {
           <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.startHeading' })}</H2>
         </div>
       </div>
+      <div className={css.playerCard}>
+        <div className={css.playerLevel}>{level}</div>
+        <div className={css.playerProgress}>
+          <div className={css.playerProgressTop}>
+            <strong>LEVEL {level}</strong>
+            <span>{levelXp}/500 XP</span>
+          </div>
+          <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${(levelXp / 500) * 100}%` }} /></div>
+          <span className={css.playerMeta}>{progression.roundsPlayed} Runden · {progression.correctAnswers} richtige Antworten · Best Streak {progression.bestStreak}</span>
+        </div>
+      </div>
+
       <p className={css.rules}>
         {intl.formatMessage(
           { id: 'QuizGamePage.startRules' },
