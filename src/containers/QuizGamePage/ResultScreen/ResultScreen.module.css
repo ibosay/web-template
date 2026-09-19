@@ -138,3 +138,8 @@
 .actions > :first-child {
   background: linear-gradient(135deg, #755cff, #2aafff);
 }
+
+.levelText { flex: 1; min-width: 0; }
+.xpTrack { height: 6px; margin-top: 8px; overflow: hidden; border-radius: 99px; background: #273352; }
+.xpFill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #755cff, #2aafff); transition: width 350ms ease; }
+.levelUp { margin-top: 12px; padding: 11px 14px; border: 1px solid rgba(126,216,255,.35); border-radius: 14px; background: rgba(42,175,255,.12); color: #8fe2ff; font-weight: 900; }
