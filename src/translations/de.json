@@ -1596,5 +1596,9 @@
   "QuizGamePage.correctLabel": "RICHTIG",
   "QuizGamePage.accuracyLabel": "GENAUIGKEIT",
   "QuizGamePage.xpLabel": "XP",
-  "QuizGamePage.levelUp": "Levelaufstieg! Du bist jetzt Level {level}."
+  "QuizGamePage.levelUp": "Levelaufstieg! Du bist jetzt Level {level}.",
+  "QuizGamePage.achievement.firstRound": "Erste Runde",
+  "QuizGamePage.achievement.perfectRound": "Perfekte Runde",
+  "QuizGamePage.achievement.streak3": "3er-Serie",
+  "QuizGamePage.achievement.tenRounds": "10 Runden"
 }
