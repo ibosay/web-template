@@ -40,11 +40,16 @@ const StartScreen = props => {
     ['es', 'ES'],
     ['fr', 'FR'],
   ];
-  const activeLanguage =
-    typeof window !== 'undefined'
-      ? window.localStorage.getItem('quizGameLanguage') ||
-        (window.navigator.language || 'en').split('-')[0]
-      : 'en';
+  const supportedLanguages = languageOptions.map(([code]) => code);
+  const browserLanguage =
+    typeof window !== 'undefined' ? (window.navigator.language || 'en').split('-')[0] : 'en';
+  const storedLanguage =
+    typeof window !== 'undefined' ? window.localStorage.getItem('quizGameLanguage') : null;
+  const activeLanguage = supportedLanguages.includes(storedLanguage)
+    ? storedLanguage
+    : supportedLanguages.includes(browserLanguage)
+    ? browserLanguage
+    : 'en';
   const changeLanguage = language => {
     window.localStorage.setItem('quizGameLanguage', language);
     window.location.reload();
