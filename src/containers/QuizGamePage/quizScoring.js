@@ -48,7 +48,13 @@ export const loadHighScores = () => {
   try {
     const stored = window.localStorage.getItem(HIGH_SCORES_KEY);
     const parsed = stored ? JSON.parse(stored) : {};
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.entries(parsed).reduce((scores, [categoryId, score]) => {
+      if (typeof score === 'number' && Number.isFinite(score) && score >= 0) {
+        scores[categoryId] = Math.floor(score);
+      }
+      return scores;
+    }, {});
   } catch (e) {
     return {};
   }
@@ -63,12 +69,20 @@ export const loadHighScores = () => {
  * @returns {Object} the updated high scores
  */
 export const saveHighScore = (highScores, categoryId, points) => {
-  const previous = highScores[categoryId] || 0;
-  if (points <= previous) {
-    return highScores;
+  const safeScores = highScores && typeof highScores === 'object' && !Array.isArray(highScores)
+    ? highScores
+    : {};
+  const safePoints =
+    typeof points === 'number' && Number.isFinite(points) ? Math.max(0, Math.floor(points)) : 0;
+  const previous =
+    typeof safeScores[categoryId] === 'number' && Number.isFinite(safeScores[categoryId])
+      ? Math.max(0, safeScores[categoryId])
+      : 0;
+  if (!categoryId || safePoints <= previous) {
+    return safeScores;
   }
 
-  const updated = { ...highScores, [categoryId]: points };
+  const updated = { ...safeScores, [categoryId]: safePoints };
   if (typeof window !== 'undefined') {
     try {
       window.localStorage.setItem(HIGH_SCORES_KEY, JSON.stringify(updated));
