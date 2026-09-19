@@ -25,6 +25,7 @@ import { CATEGORY_ALL, drawQuestions } from './quizQuestions';
 import { calculateAnswerPoints, loadHighScores, saveHighScore } from './quizScoring';
 import { defaultProgression, loadProgression, saveRoundProgression } from './quizProgression';
 import { loadAchievements, unlockAchievements } from './quizAchievements';
+import { defaultSettings, loadSettings, saveSettings } from './quizSettings';
 import StartScreen from './StartScreen/StartScreen';
 import QuestionScreen from './QuestionScreen/QuestionScreen';
 import ResultScreen from './ResultScreen/ResultScreen';
@@ -73,6 +74,7 @@ export const QuizGamePageComponent = props => {
   const [achievements, setAchievements] = useState([]);
   const [newAchievements, setNewAchievements] = useState([]);
   const [confirmExitRound, setConfirmExitRound] = useState(false);
+  const [settings, setSettings] = useState(defaultSettings);
   const exitDialogRef = useRef(null);
   const continueButtonRef = useRef(null);
 
@@ -142,6 +144,7 @@ export const QuizGamePageComponent = props => {
     setHighScores(loadHighScores());
     setProgression(loadProgression());
     setAchievements(loadAchievements());
+    setSettings(loadSettings());
   }, []);
 
   const currentQuestion = questions[currentIndex];
@@ -253,6 +256,7 @@ export const QuizGamePageComponent = props => {
         onTimeout={handleTimeout}
         onNext={handleNextQuestion}
         onQuit={() => setConfirmExitRound(true)}
+        hapticsEnabled={settings.hapticsEnabled}
       />
     ) : screen === SCREEN_RESULT ? (
       <ResultScreen
@@ -274,6 +278,8 @@ export const QuizGamePageComponent = props => {
         highScores={highScores}
         progression={progression}
         achievements={achievements}
+        settings={settings}
+        onSettingsChange={nextSettings => setSettings(saveSettings(nextSettings))}
         onSelectCategory={handleSelectCategory}
         onStart={startRound}
       />
