@@ -1600,5 +1600,9 @@
   "QuizGamePage.achievement.firstRound": "Первый раунд",
   "QuizGamePage.achievement.perfectRound": "Идеальный раунд",
   "QuizGamePage.achievement.streak3": "Серия из 3",
-  "QuizGamePage.achievement.tenRounds": "10 раундов"
+  "QuizGamePage.achievement.tenRounds": "10 раундов",
+  "QuizGamePage.exitRoundTitle": "Выйти из раунда?",
+  "QuizGamePage.exitRoundText": "Прогресс этого раунда будет потерян.",
+  "QuizGamePage.continueRound": "Продолжить",
+  "QuizGamePage.leaveRound": "Выйти из раунда"
 }
