@@ -1606,7 +1606,7 @@
   "QuizGamePage.continueRound": "Weiterspielen",
   "QuizGamePage.leaveRound": "Runde verlassen",
   "QuizGamePage.shareResult": "Ergebnis teilen",
-  "QuizGamePage.shareText": "Ich habe im Quiz {points} Punkte erreicht und {correct} von {total} Fragen richtig beantwortet.",
+  "QuizGamePage.shareText": "Ich habe im Quiz {points} Punkte erreicht, {correct} von {total} Fragen richtig beantwortet und die Runde in {time} geschafft.",
   "QuizGamePage.achievementUnlocked": "Erfolg freigeschaltet!",
   "QuizGamePage.shareCopied": "Ergebnis in die Zwischenablage kopiert.",
   "QuizGamePage.shareUnavailable": "Teilen ist auf diesem Gerät nicht verfügbar.",
