@@ -1604,5 +1604,7 @@
   "QuizGamePage.exitRoundTitle": "Leave round?",
   "QuizGamePage.exitRoundText": "Your progress in this round will be lost.",
   "QuizGamePage.continueRound": "Keep playing",
-  "QuizGamePage.leaveRound": "Leave round"
+  "QuizGamePage.leaveRound": "Leave round",
+  "QuizGamePage.shareResult": "Share result",
+  "QuizGamePage.shareText": "I scored {points} points in the quiz and answered {correct} of {total} questions correctly."
 }
