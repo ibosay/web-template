@@ -28,7 +28,16 @@ import css from './StartScreen.module.css';
  */
 const StartScreen = props => {
   const intl = useIntl();
-  const { categoryId, highScores, progression, achievements, onSelectCategory, onStart } = props;
+  const {
+    categoryId,
+    highScores,
+    progression,
+    achievements,
+    settings,
+    onSettingsChange,
+    onSelectCategory,
+    onStart,
+  } = props;
   const level = levelFromXp(progression.totalXp);
   const levelXp = xpIntoLevel(progression.totalXp);
 
@@ -77,6 +86,28 @@ const StartScreen = props => {
             {label}
           </button>
         ))}
+      </div>
+      <div className={css.settingsRow}>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.hapticsEnabled}
+            onChange={event =>
+              onSettingsChange({ ...settings, hapticsEnabled: event.target.checked })
+            }
+          />
+          <span>{intl.formatMessage({ id: 'QuizGamePage.hapticsSetting' })}</span>
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={settings.soundEnabled}
+            onChange={event =>
+              onSettingsChange({ ...settings, soundEnabled: event.target.checked })
+            }
+          />
+          <span>{intl.formatMessage({ id: 'QuizGamePage.soundSetting' })}</span>
+        </label>
       </div>
       <div className={css.hero}>
         <div className={css.logoMark}>Q</div>
