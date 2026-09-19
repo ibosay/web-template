@@ -77,6 +77,8 @@ export const QuizGamePageComponent = props => {
   const [settings, setSettings] = useState(defaultSettings);
   const [roundStartedAt, setRoundStartedAt] = useState(null);
   const [roundDurationSeconds, setRoundDurationSeconds] = useState(0);
+  const activeRoundStartedAtRef = useRef(null);
+  const activeRoundElapsedMsRef = useRef(0);
   const exitDialogRef = useRef(null);
   const continueButtonRef = useRef(null);
 
@@ -99,6 +101,30 @@ export const QuizGamePageComponent = props => {
       } else {
         listener = handle;
       }
+    });
+
+    return () => {
+      disposed = true;
+      if (listener) listener.remove();
+    };
+  }, [nativeApp, screen]);
+
+  useEffect(() => {
+    if (!nativeApp) return undefined;
+
+    let listener;
+    let disposed = false;
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (screen !== SCREEN_QUESTION) return;
+      if (!isActive && activeRoundStartedAtRef.current) {
+        activeRoundElapsedMsRef.current += Date.now() - activeRoundStartedAtRef.current;
+        activeRoundStartedAtRef.current = null;
+      } else if (isActive && !activeRoundStartedAtRef.current) {
+        activeRoundStartedAtRef.current = Date.now();
+      }
+    }).then(handle => {
+      if (disposed) handle.remove();
+      else listener = handle;
     });
 
     return () => {
@@ -167,7 +193,10 @@ export const QuizGamePageComponent = props => {
     setIsNewHighScore(false);
     setNewAchievements([]);
     setConfirmExitRound(false);
-    setRoundStartedAt(Date.now());
+    const startedAt = Date.now();
+    setRoundStartedAt(startedAt);
+    activeRoundElapsedMsRef.current = 0;
+    activeRoundStartedAtRef.current = startedAt;
     setRoundDurationSeconds(0);
     setScreen(SCREEN_QUESTION);
   };
@@ -198,9 +227,12 @@ export const QuizGamePageComponent = props => {
   };
 
   const finishRound = () => {
-    const finishedDuration = roundStartedAt
-      ? Math.max(0, Math.round((Date.now() - roundStartedAt) / 1000))
-      : 0;
+    const activeElapsedMs =
+      activeRoundElapsedMsRef.current +
+      (activeRoundStartedAtRef.current ? Date.now() - activeRoundStartedAtRef.current : 0);
+    const finishedDuration = roundStartedAt ? Math.max(0, Math.round(activeElapsedMs / 1000)) : 0;
+    activeRoundElapsedMsRef.current = 0;
+    activeRoundStartedAtRef.current = null;
     setRoundDurationSeconds(finishedDuration);
     const previousHighScore = highScores[categoryId] || 0;
     setHighScores(saveHighScore(highScores, categoryId, totalPoints));
@@ -335,7 +367,13 @@ export const QuizGamePageComponent = props => {
                   >
                     {intl.formatMessage({ id: 'QuizGamePage.continueRound' })}
                   </button>
-                  <button type="button" onClick={() => { setConfirmExitRound(false); setRoundStartedAt(null); setScreen(SCREEN_START); }}>
+                  <button type="button" onClick={() => {
+                      setConfirmExitRound(false);
+                      setRoundStartedAt(null);
+                      activeRoundElapsedMsRef.current = 0;
+                      activeRoundStartedAtRef.current = null;
+                      setScreen(SCREEN_START);
+                    }}>
                     {intl.formatMessage({ id: 'QuizGamePage.leaveRound' })}
                   </button>
                 </div>
