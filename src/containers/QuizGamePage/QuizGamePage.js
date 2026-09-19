@@ -14,6 +14,10 @@ import { H1, LayoutSingleColumn, Page } from '../../components';
 import TopbarContainer from '../TopbarContainer/TopbarContainer';
 import FooterContainer from '../FooterContainer/FooterContainer';
 
+const isNativeApp = () =>
+  typeof window !== 'undefined' &&
+  (window.Capacitor?.isNativePlatform?.() || window.location.search.includes('nativeApp=1'));
+
 // Modules from the same directory
 import { CATEGORY_ALL, drawQuestions } from './quizQuestions';
 import { calculateAnswerPoints, loadHighScores, saveHighScore } from './quizScoring';
@@ -47,6 +51,7 @@ export const QuizGamePageComponent = props => {
   const config = useConfiguration();
   const intl = useIntl();
   const { scrollingDisabled } = props;
+  const nativeApp = isNativeApp();
 
   const [screen, setScreen] = useState(SCREEN_START);
   const [categoryId, setCategoryId] = useState(CATEGORY_ALL);
@@ -193,12 +198,16 @@ export const QuizGamePageComponent = props => {
     <Page title={title} scrollingDisabled={scrollingDisabled}>
       <LayoutSingleColumn
         mainColumnClassName={css.layoutWrapperMain}
-        topbar={<TopbarContainer />}
-        footer={<FooterContainer />}
+        topbar={nativeApp ? null : <TopbarContainer />}
+        footer={nativeApp ? null : <FooterContainer />}
       >
-        <div className={css.root}>
-          <H1 className={css.title}>{intl.formatMessage({ id: 'QuizGamePage.title' })}</H1>
-          <p className={css.subtitle}>{intl.formatMessage({ id: 'QuizGamePage.subtitle' })}</p>
+        <div className={nativeApp ? css.nativeRoot : css.root}>
+          {nativeApp ? null : (
+            <>
+              <H1 className={css.title}>{intl.formatMessage({ id: 'QuizGamePage.title' })}</H1>
+              <p className={css.subtitle}>{intl.formatMessage({ id: 'QuizGamePage.subtitle' })}</p>
+            </>
+          )}
           {gameContent}
         </div>
       </LayoutSingleColumn>
