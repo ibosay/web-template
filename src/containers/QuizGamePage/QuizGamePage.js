@@ -17,6 +17,7 @@ import FooterContainer from '../FooterContainer/FooterContainer';
 // Modules from the same directory
 import { CATEGORY_ALL, drawQuestions } from './quizQuestions';
 import { calculateAnswerPoints, loadHighScores, saveHighScore } from './quizScoring';
+import { defaultProgression, loadProgression, saveRoundProgression } from './quizProgression';
 import StartScreen from './StartScreen/StartScreen';
 import QuestionScreen from './QuestionScreen/QuestionScreen';
 import ResultScreen from './ResultScreen/ResultScreen';
@@ -58,10 +59,14 @@ export const QuizGamePageComponent = props => {
   const [streak, setStreak] = useState(0);
   const [highScores, setHighScores] = useState({});
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const [progression, setProgression] = useState(defaultProgression);
+  const [roundXp, setRoundXp] = useState(0);
+  const [roundBestStreak, setRoundBestStreak] = useState(0);
 
   // The high scores are stored in the browser of the player, so they can only be read after mount.
   useEffect(() => {
     setHighScores(loadHighScores());
+    setProgression(loadProgression());
   }, []);
 
   const currentQuestion = questions[currentIndex];
@@ -77,6 +82,8 @@ export const QuizGamePageComponent = props => {
     setIsTimedOut(false);
     setLastPoints(0);
     setStreak(0);
+    setRoundXp(0);
+    setRoundBestStreak(0);
     setIsNewHighScore(false);
     setScreen(SCREEN_QUESTION);
   };
@@ -91,6 +98,7 @@ export const QuizGamePageComponent = props => {
 
     setSelectedOptionIndex(optionIndex);
     setStreak(newStreak);
+    setRoundBestStreak(previous => Math.max(previous, newStreak));
     setLastPoints(points);
     setAnswers([...answers, { questionId: currentQuestion.id, isCorrect, points }]);
   };
@@ -109,6 +117,15 @@ export const QuizGamePageComponent = props => {
     const previousHighScore = highScores[categoryId] || 0;
     setHighScores(saveHighScore(highScores, categoryId, totalPoints));
     setIsNewHighScore(totalPoints > previousHighScore);
+    const correctCount = answers.filter(answer => answer.isCorrect).length;
+    const saved = saveRoundProgression({
+      progression,
+      correctCount,
+      totalPoints,
+      bestStreak: roundBestStreak,
+    });
+    setProgression(saved.progression);
+    setRoundXp(saved.xpEarned);
     setScreen(SCREEN_RESULT);
   };
 
@@ -157,6 +174,8 @@ export const QuizGamePageComponent = props => {
         totalPoints={totalPoints}
         highScore={highScores[categoryId]}
         isNewHighScore={isNewHighScore}
+        progression={progression}
+        xpEarned={roundXp}
         onPlayAgain={startRound}
         onBackToStart={() => setScreen(SCREEN_START)}
       />
