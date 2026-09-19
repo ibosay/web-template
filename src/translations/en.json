@@ -1611,5 +1611,8 @@
   "QuizGamePage.shareCopied": "Result copied to clipboard.",
   "QuizGamePage.shareUnavailable": "Sharing is not available on this device.",
   "QuizGamePage.hapticsSetting": "Haptics",
-  "QuizGamePage.soundSetting": "Sound"
+  "QuizGamePage.soundSetting": "Sound",
+  "QuizGamePage.achievement.fiftyCorrect": "50 correct",
+  "QuizGamePage.achievement.streak5": "5 streak",
+  "QuizGamePage.achievement.level5": "Level 5"
 }
