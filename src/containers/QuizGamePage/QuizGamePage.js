@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { compose } from 'redux';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -73,6 +73,8 @@ export const QuizGamePageComponent = props => {
   const [achievements, setAchievements] = useState([]);
   const [newAchievements, setNewAchievements] = useState([]);
   const [confirmExitRound, setConfirmExitRound] = useState(false);
+  const exitDialogRef = useRef(null);
+  const continueButtonRef = useRef(null);
 
   useEffect(() => {
     if (!nativeApp) return undefined;
@@ -100,6 +102,40 @@ export const QuizGamePageComponent = props => {
       if (listener) listener.remove();
     };
   }, [nativeApp, screen]);
+
+  useEffect(() => {
+    if (!confirmExitRound) return undefined;
+
+    const previousFocus = document.activeElement;
+    continueButtonRef.current?.focus();
+
+    const handleKeyDown = event => {
+      if (event.key === 'Escape') {
+        setConfirmExitRound(false);
+        return;
+      }
+      if (event.key !== 'Tab' || !exitDialogRef.current) return;
+
+      const focusable = exitDialogRef.current.querySelectorAll('button:not([disabled])');
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
+    };
+  }, [confirmExitRound]);
 
   // The high scores are stored in the browser of the player, so they can only be read after mount.
   useEffect(() => {
@@ -258,12 +294,27 @@ export const QuizGamePageComponent = props => {
           )}
           {gameContent}
           {confirmExitRound ? (
-            <div className={css.confirmOverlay} role="dialog" aria-modal="true">
-              <div className={css.confirmCard}>
-                <strong>{intl.formatMessage({ id: 'QuizGamePage.exitRoundTitle' })}</strong>
-                <p>{intl.formatMessage({ id: 'QuizGamePage.exitRoundText' })}</p>
+            <div className={css.confirmOverlay}>
+              <div
+                ref={exitDialogRef}
+                className={css.confirmCard}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="quiz-exit-title"
+                aria-describedby="quiz-exit-description"
+              >
+                <strong id="quiz-exit-title">
+                  {intl.formatMessage({ id: 'QuizGamePage.exitRoundTitle' })}
+                </strong>
+                <p id="quiz-exit-description">
+                  {intl.formatMessage({ id: 'QuizGamePage.exitRoundText' })}
+                </p>
                 <div className={css.confirmActions}>
-                  <button type="button" onClick={() => setConfirmExitRound(false)}>
+                  <button
+                    ref={continueButtonRef}
+                    type="button"
+                    onClick={() => setConfirmExitRound(false)}
+                  >
                     {intl.formatMessage({ id: 'QuizGamePage.continueRound' })}
                   </button>
                   <button type="button" onClick={() => { setConfirmExitRound(false); setScreen(SCREEN_START); }}>
