@@ -1606,5 +1606,6 @@
   "QuizGamePage.continueRound": "Weiterspielen",
   "QuizGamePage.leaveRound": "Runde verlassen",
   "QuizGamePage.shareResult": "Ergebnis teilen",
-  "QuizGamePage.shareText": "Ich habe im Quiz {points} Punkte erreicht und {correct} von {total} Fragen richtig beantwortet."
+  "QuizGamePage.shareText": "Ich habe im Quiz {points} Punkte erreicht und {correct} von {total} Fragen richtig beantwortet.",
+  "QuizGamePage.achievementUnlocked": "Erfolg freigeschaltet!"
 }
