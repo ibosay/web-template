@@ -1609,5 +1609,7 @@
   "QuizGamePage.shareText": "I scored {points} points in the quiz and answered {correct} of {total} questions correctly.",
   "QuizGamePage.achievementUnlocked": "Achievement unlocked!",
   "QuizGamePage.shareCopied": "Result copied to clipboard.",
-  "QuizGamePage.shareUnavailable": "Sharing is not available on this device."
+  "QuizGamePage.shareUnavailable": "Sharing is not available on this device.",
+  "QuizGamePage.hapticsSetting": "Haptics",
+  "QuizGamePage.soundSetting": "Sound"
 }
