@@ -139,15 +139,21 @@ const QuestionScreen = props => {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return undefined;
     let listener;
+    let disposed = false;
     App.addListener('appStateChange', ({ isActive }) => {
       if (!isActive) {
         wasInactiveRef.current = true;
       }
       setIsAppActive(isActive);
     }).then(handle => {
-      listener = handle;
+      if (disposed) {
+        handle.remove();
+      } else {
+        listener = handle;
+      }
     });
     return () => {
+      disposed = true;
       if (listener) listener.remove();
     };
   }, []);
