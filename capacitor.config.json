@@ -1,0 +1,8 @@
+{
+  "appId": "at.ibosay.quiz",
+  "appName": "Quiz",
+  "webDir": "build",
+  "server": {
+    "androidScheme": "https"
+  }
+}
