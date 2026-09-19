@@ -22,6 +22,7 @@ const isNativeApp = () =>
 import { CATEGORY_ALL, drawQuestions } from './quizQuestions';
 import { calculateAnswerPoints, loadHighScores, saveHighScore } from './quizScoring';
 import { defaultProgression, loadProgression, saveRoundProgression } from './quizProgression';
+import { loadAchievements, unlockAchievements } from './quizAchievements';
 import StartScreen from './StartScreen/StartScreen';
 import QuestionScreen from './QuestionScreen/QuestionScreen';
 import ResultScreen from './ResultScreen/ResultScreen';
@@ -67,11 +68,13 @@ export const QuizGamePageComponent = props => {
   const [progression, setProgression] = useState(defaultProgression);
   const [roundXp, setRoundXp] = useState(0);
   const [roundBestStreak, setRoundBestStreak] = useState(0);
+  const [achievements, setAchievements] = useState([]);
 
   // The high scores are stored in the browser of the player, so they can only be read after mount.
   useEffect(() => {
     setHighScores(loadHighScores());
     setProgression(loadProgression());
+    setAchievements(loadAchievements());
   }, []);
 
   const currentQuestion = questions[currentIndex];
@@ -131,6 +134,13 @@ export const QuizGamePageComponent = props => {
     });
     setProgression(saved.progression);
     setRoundXp(saved.xpEarned);
+    setAchievements(unlockAchievements({
+      unlocked: achievements,
+      progression: saved.progression,
+      correctCount,
+      totalQuestions: answers.length,
+      bestStreak: roundBestStreak,
+    }));
     setScreen(SCREEN_RESULT);
   };
 
@@ -180,6 +190,7 @@ export const QuizGamePageComponent = props => {
         highScore={highScores[categoryId]}
         isNewHighScore={isNewHighScore}
         progression={progression}
+        achievements={achievements}
         xpEarned={roundXp}
         onPlayAgain={startRound}
         onBackToStart={() => setScreen(SCREEN_START)}
@@ -189,6 +200,7 @@ export const QuizGamePageComponent = props => {
         categoryId={categoryId}
         highScores={highScores}
         progression={progression}
+        achievements={achievements}
         onSelectCategory={handleSelectCategory}
         onStart={startRound}
       />
