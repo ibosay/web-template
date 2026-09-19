@@ -78,6 +78,7 @@ export const QuizGamePageComponent = props => {
     if (!nativeApp) return undefined;
 
     let listener;
+    let disposed = false;
     App.addListener('backButton', () => {
       if (screen === SCREEN_QUESTION) {
         setConfirmExitRound(true);
@@ -87,10 +88,15 @@ export const QuizGamePageComponent = props => {
         App.exitApp();
       }
     }).then(handle => {
-      listener = handle;
+      if (disposed) {
+        handle.remove();
+      } else {
+        listener = handle;
+      }
     });
 
     return () => {
+      disposed = true;
       if (listener) listener.remove();
     };
   }, [nativeApp, screen]);
