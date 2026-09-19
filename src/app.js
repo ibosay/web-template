@@ -4,6 +4,7 @@ import { BrowserRouter, StaticRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import loadable from '@loadable/component';
 import moment from 'moment';
+import { Capacitor } from '@capacitor/core';
 
 // Configs and store setup
 import defaultConfig from './config/configDefault';
@@ -232,7 +233,11 @@ const EnvironmentVariableWarning = props => {
 export const ClientApp = props => {
   const { store, hostedTranslations = {}, hostedConfig = {} } = props;
   const appConfig = mergeConfig(hostedConfig, defaultConfig);
-  const isQuizPath = window.location.pathname.startsWith('/quiz');
+  const isNativeQuizApp = Capacitor.isNativePlatform();
+  if (isNativeQuizApp && window.location.pathname === '/') {
+    window.history.replaceState(null, '', '/quiz');
+  }
+  const isQuizPath = window.location.pathname.startsWith('/quiz') || isNativeQuizApp;
   const quizLanguage = isQuizPath ? getQuizLanguage() : null;
   const activeLocale = quizLanguage || appConfig.localization.locale;
   const activeMessages = quizLanguage
