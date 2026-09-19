@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { compose } from 'redux';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { connect } from 'react-redux';
 
 // Contexts, configs, and util modules
@@ -70,6 +71,25 @@ export const QuizGamePageComponent = props => {
   const [roundXp, setRoundXp] = useState(0);
   const [roundBestStreak, setRoundBestStreak] = useState(0);
   const [achievements, setAchievements] = useState([]);
+
+  useEffect(() => {
+    if (!nativeApp) return undefined;
+
+    let listener;
+    App.addListener('backButton', () => {
+      if (screen === SCREEN_QUESTION || screen === SCREEN_RESULT) {
+        setScreen(SCREEN_START);
+      } else {
+        App.exitApp();
+      }
+    }).then(handle => {
+      listener = handle;
+    });
+
+    return () => {
+      if (listener) listener.remove();
+    };
+  }, [nativeApp, screen]);
 
   // The high scores are stored in the browser of the player, so they can only be read after mount.
   useEffect(() => {
