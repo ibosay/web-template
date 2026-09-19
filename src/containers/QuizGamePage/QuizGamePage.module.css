@@ -2,6 +2,9 @@
 
 .layoutWrapperMain {
   min-height: calc(100vh - var(--topbarHeight));
+  background:
+    radial-gradient(circle at 50% 0%, rgba(82, 90, 220, 0.22), transparent 34%),
+    #080d1c;
 
   @media (--viewportMedium) {
     min-height: calc(100vh - var(--topbarHeightDesktop));
@@ -9,25 +12,24 @@
 }
 
 .root {
-  max-width: 600px;
+  max-width: 620px;
   margin: 0 auto;
-  padding: 24px 24px 48px 24px;
+  padding: 22px 16px 48px;
 
   @media (--viewportMedium) {
-    padding: 48px 24px 72px 24px;
+    padding: 42px 24px 72px;
   }
 }
 
 .title {
   margin: 0;
+  color: #fff;
+  text-align: center;
 }
 
 .subtitle {
   composes: p from global;
-  margin: 6px 0 24px 0;
-  color: var(--colorGrey700);
-
-  @media (--viewportMedium) {
-    margin: 8px 0 32px 0;
-  }
+  margin: 6px 0 22px;
+  color: #8fa0c5;
+  text-align: center;
 }
