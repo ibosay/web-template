@@ -184,3 +184,30 @@
 .achievement span { display: block; font-size: 16px; }
 .achievement small { display: block; margin-top: 3px; font-size: 7px; line-height: 1.2; }
 .achievementUnlocked { border-color: #6f7dff; color: #dce4ff; opacity: 1; background: rgba(111,125,255,.12); }
+
+.settingsRow {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0 18px;
+  flex-wrap: wrap;
+}
+
+.settingsRow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 11px;
+  border: 1px solid #2c385b;
+  border-radius: 999px;
+  background: rgba(20, 29, 56, 0.8);
+  color: #aebde0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settingsRow input {
+  accent-color: #735cff;
+}
