@@ -1600,5 +1600,9 @@
   "QuizGamePage.achievement.firstRound": "Primera ronda",
   "QuizGamePage.achievement.perfectRound": "Ronda perfecta",
   "QuizGamePage.achievement.streak3": "Racha de 3",
-  "QuizGamePage.achievement.tenRounds": "10 rondas"
+  "QuizGamePage.achievement.tenRounds": "10 rondas",
+  "QuizGamePage.exitRoundTitle": "¿Salir de la ronda?",
+  "QuizGamePage.exitRoundText": "Perderás el progreso de esta ronda.",
+  "QuizGamePage.continueRound": "Seguir jugando",
+  "QuizGamePage.leaveRound": "Salir de la ronda"
 }
