@@ -60,7 +60,8 @@
     "source-map-support": "^0.5.21",
     "unified": "^9.2.2",
     "@capacitor/core": "^8.0.0",
-    "@capacitor/splash-screen": "^8.0.0"
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/haptics": "^8.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
