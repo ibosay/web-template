@@ -1614,5 +1614,6 @@
   "QuizGamePage.soundSetting": "Sonido",
   "QuizGamePage.achievement.fiftyCorrect": "50 correctas",
   "QuizGamePage.achievement.streak5": "Racha de 5",
-  "QuizGamePage.achievement.level5": "Nivel 5"
+  "QuizGamePage.achievement.level5": "Nivel 5",
+  "QuizGamePage.durationLabel": "Tiempo"
 }
