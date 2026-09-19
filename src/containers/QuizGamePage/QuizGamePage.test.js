@@ -168,6 +168,40 @@ describe('QuizGamePageComponent', () => {
     expect(screen.getByText(/^Correct! \\+\\d+$/)).toBeInTheDocument();
   });
 
+  it('pauses the question countdown while the exit confirmation is open', async () => {
+    jest.useFakeTimers();
+    try {
+      await act(async () => {
+        renderQuizGamePage();
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.startGame' }));
+      });
+
+      expect(screen.getByText(`QuizGamePage.secondsLeft`)).toBeInTheDocument();
+      await act(async () => {
+        jest.advanceTimersByTime(3000);
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      const timerBeforePause = screen.getByText(/QuizGamePage.secondsLeft/).textContent;
+
+      await act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(screen.getByText(/QuizGamePage.secondsLeft/).textContent).toBe(timerBeforePause);
+
+      fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
+      await act(async () => {
+        jest.advanceTimersByTime(1000);
+      });
+      expect(screen.getByText(/QuizGamePage.secondsLeft/).textContent).not.toBe(timerBeforePause);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('can leave an active round after confirmation', async () => {
     await act(async () => {
       renderQuizGamePage();
