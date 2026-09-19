@@ -1614,5 +1614,6 @@
   "QuizGamePage.soundSetting": "Sound",
   "QuizGamePage.achievement.fiftyCorrect": "50 correct",
   "QuizGamePage.achievement.streak5": "5 streak",
-  "QuizGamePage.achievement.level5": "Level 5"
+  "QuizGamePage.achievement.level5": "Level 5",
+  "QuizGamePage.durationLabel": "Time"
 }
