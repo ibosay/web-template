@@ -1609,5 +1609,7 @@
   "QuizGamePage.shareText": "Я набрал(а) {points} очков в викторине и правильно ответил(а) на {correct} из {total} вопросов.",
   "QuizGamePage.achievementUnlocked": "Достижение разблокировано!",
   "QuizGamePage.shareCopied": "Результат скопирован в буфер обмена.",
-  "QuizGamePage.shareUnavailable": "На этом устройстве функция «Поделиться» недоступна."
+  "QuizGamePage.shareUnavailable": "На этом устройстве функция «Поделиться» недоступна.",
+  "QuizGamePage.hapticsSetting": "Вибрация",
+  "QuizGamePage.soundSetting": "Звук"
 }
