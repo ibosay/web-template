@@ -1600,5 +1600,9 @@
   "QuizGamePage.achievement.firstRound": "Première manche",
   "QuizGamePage.achievement.perfectRound": "Manche parfaite",
   "QuizGamePage.achievement.streak3": "Série de 3",
-  "QuizGamePage.achievement.tenRounds": "10 manches"
+  "QuizGamePage.achievement.tenRounds": "10 manches",
+  "QuizGamePage.exitRoundTitle": "Quitter la manche ?",
+  "QuizGamePage.exitRoundText": "Votre progression dans cette manche sera perdue.",
+  "QuizGamePage.continueRound": "Continuer",
+  "QuizGamePage.leaveRound": "Quitter la manche"
 }
