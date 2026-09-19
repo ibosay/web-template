@@ -11,6 +11,7 @@ import { H2, PrimaryButton, SecondaryButton } from '../../../components';
 // Modules from parent directory
 import { categoryLabelId, questionTextId } from '../quizQuestions';
 import { levelFromXp, xpIntoLevel, XP_PER_LEVEL } from '../quizProgression';
+import { ACHIEVEMENTS } from '../quizAchievements';
 
 // Modules from the same directory
 import css from './ResultScreen.module.css';
@@ -58,6 +59,7 @@ const ResultScreen = props => {
     highScore,
     isNewHighScore,
     progression,
+    newAchievements = [],
     xpEarned,
     onPlayAgain,
     onBackToStart,
@@ -120,6 +122,21 @@ const ResultScreen = props => {
 
       {leveledUp ? (
         <div className={css.levelUp}>{intl.formatMessage({ id: 'QuizGamePage.levelUp' }, { level })}</div>
+      ) : null}
+
+      {newAchievements.length > 0 ? (
+        <div className={css.unlocks}>
+          <strong>{intl.formatMessage({ id: 'QuizGamePage.achievementUnlocked' })}</strong>
+          {newAchievements.map(id => {
+            const achievement = ACHIEVEMENTS.find(item => item.id === id);
+            return achievement ? (
+              <div key={id} className={css.unlockItem}>
+                <span>{achievement.icon}</span>
+                <span>{intl.formatMessage({ id: achievement.labelId })}</span>
+              </div>
+            ) : null;
+          })}
+        </div>
       ) : null}
 
       <p className={css.feedback}>
