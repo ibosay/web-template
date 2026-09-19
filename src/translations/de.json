@@ -1595,5 +1595,6 @@
   "QuizGamePage.timeLabel": "ZEIT",
   "QuizGamePage.correctLabel": "RICHTIG",
   "QuizGamePage.accuracyLabel": "GENAUIGKEIT",
-  "QuizGamePage.xpLabel": "XP"
+  "QuizGamePage.xpLabel": "XP",
+  "QuizGamePage.levelUp": "Levelaufstieg! Du bist jetzt Level {level}."
 }
