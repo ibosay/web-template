@@ -127,6 +127,38 @@ describe('QuizGamePageComponent', () => {
     expect(screen.getByText(/^Correct! \+\d+$/)).toBeInTheDocument();
   });
 
+  it('confirms before leaving an active round', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'QuizGamePage.continueRound' })).toHaveFocus();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText(`Question 1 of ${QUESTIONS_PER_ROUND}`)).toBeInTheDocument();
+  });
+
+  it('can leave an active round after confirmation', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.leaveRound' }));
+    const dialog = screen.getByRole('dialog');
+    const leaveButtons = screen.getAllByRole('button', { name: 'QuizGamePage.leaveRound' });
+    await userEvent.click(leaveButtons.find(button => dialog.contains(button)));
+
+    expect(screen.getByText('QuizGamePage.startHeading')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('counts a question as wrong when the time runs out', async () => {
     jest.useFakeTimers();
     try {
