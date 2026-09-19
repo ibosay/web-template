@@ -1606,5 +1606,6 @@
   "QuizGamePage.continueRound": "Продолжить",
   "QuizGamePage.leaveRound": "Выйти из раунда",
   "QuizGamePage.shareResult": "Поделиться результатом",
-  "QuizGamePage.shareText": "Я набрал(а) {points} очков в викторине и правильно ответил(а) на {correct} из {total} вопросов."
+  "QuizGamePage.shareText": "Я набрал(а) {points} очков в викторине и правильно ответил(а) на {correct} из {total} вопросов.",
+  "QuizGamePage.achievementUnlocked": "Достижение разблокировано!"
 }
