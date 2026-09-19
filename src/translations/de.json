@@ -1614,5 +1614,6 @@
   "QuizGamePage.soundSetting": "Ton",
   "QuizGamePage.achievement.fiftyCorrect": "50 richtig",
   "QuizGamePage.achievement.streak5": "5er-Serie",
-  "QuizGamePage.achievement.level5": "Level 5"
+  "QuizGamePage.achievement.level5": "Level 5",
+  "QuizGamePage.durationLabel": "Zeit"
 }
