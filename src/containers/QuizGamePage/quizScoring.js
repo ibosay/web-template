@@ -28,11 +28,17 @@ const HIGH_SCORES_KEY = 'quizGameHighScores';
  * @param {number} params.streak - Number of correct answers in a row, including this one
  * @returns {number} points for this answer
  */
-export const calculateAnswerPoints = ({ secondsLeft, streak }) => {
-  const timeBonus = Math.max(0, secondsLeft) * POINTS_PER_SECOND_LEFT;
-  const streakSteps = Math.min(Math.max(0, streak - 1), MAX_STREAK_STEPS);
+export const calculateAnswerPoints = ({ secondsLeft, streak } = {}) => {
+  const safeSeconds =
+    typeof secondsLeft === 'number' && Number.isFinite(secondsLeft)
+      ? Math.min(SECONDS_PER_QUESTION, Math.max(0, secondsLeft))
+      : 0;
+  const safeStreak =
+    typeof streak === 'number' && Number.isFinite(streak) ? Math.max(0, Math.floor(streak)) : 0;
+  const timeBonus = safeSeconds * POINTS_PER_SECOND_LEFT;
+  const streakSteps = Math.min(Math.max(0, safeStreak - 1), MAX_STREAK_STEPS);
   const streakBonus = streakSteps * POINTS_PER_STREAK_STEP;
-  return POINTS_FOR_CORRECT_ANSWER + timeBonus + streakBonus;
+  return Math.floor(POINTS_FOR_CORRECT_ANSWER + timeBonus + streakBonus);
 };
 
 /**
