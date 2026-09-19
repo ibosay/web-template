@@ -1604,5 +1604,7 @@
   "QuizGamePage.exitRoundTitle": "Runde verlassen?",
   "QuizGamePage.exitRoundText": "Dein Fortschritt in dieser Runde geht verloren.",
   "QuizGamePage.continueRound": "Weiterspielen",
-  "QuizGamePage.leaveRound": "Runde verlassen"
+  "QuizGamePage.leaveRound": "Runde verlassen",
+  "QuizGamePage.shareResult": "Ergebnis teilen",
+  "QuizGamePage.shareText": "Ich habe im Quiz {points} Punkte erreicht und {correct} von {total} Fragen richtig beantwortet."
 }
