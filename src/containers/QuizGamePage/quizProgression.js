@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'quizGameProgression';
-const XP_PER_LEVEL = 500;
+export const XP_PER_LEVEL = 500;
 
 export const defaultProgression = {
   totalXp: 0,
