@@ -45,7 +45,7 @@ const StartScreen = props => {
       <div className={css.hero}>
         <div className={css.logoMark}>Q</div>
         <div>
-          <span className={css.eyebrow}>QUIZ ARENA</span>
+          <span className={css.eyebrow}>{intl.formatMessage({ id: 'QuizGamePage.arena' })}</span>
           <H2 className={css.heading}>{intl.formatMessage({ id: 'QuizGamePage.startHeading' })}</H2>
         </div>
       </div>
@@ -53,11 +53,11 @@ const StartScreen = props => {
         <div className={css.playerLevel}>{level}</div>
         <div className={css.playerProgress}>
           <div className={css.playerProgressTop}>
-            <strong>LEVEL {level}</strong>
+            <strong>{intl.formatMessage({ id: 'QuizGamePage.level' }, { level })}</strong>
             <span>{levelXp}/500 XP</span>
           </div>
           <div className={css.xpTrack}><div className={css.xpFill} style={{ width: `${(levelXp / 500) * 100}%` }} /></div>
-          <span className={css.playerMeta}>{progression.roundsPlayed} Runden · {progression.correctAnswers} richtige Antworten · Best Streak {progression.bestStreak}</span>
+          <span className={css.playerMeta}>{intl.formatMessage({ id: 'QuizGamePage.playerMeta' }, { rounds: progression.roundsPlayed, correct: progression.correctAnswers, streak: progression.bestStreak })}</span>
         </div>
       </div>
 
@@ -92,15 +92,15 @@ const StartScreen = props => {
 
       <div className={css.stats}>
         <div>
-          <span className={css.statLabel}>BEST SCORE</span>
+          <span className={css.statLabel}>{intl.formatMessage({ id: 'QuizGamePage.bestScoreLabel' })}</span>
           <strong className={css.statValue}>{highScore || 0}</strong>
         </div>
         <div>
-          <span className={css.statLabel}>ROUND</span>
+          <span className={css.statLabel}>{intl.formatMessage({ id: 'QuizGamePage.roundLabel' })}</span>
           <strong className={css.statValue}>{QUESTIONS_PER_ROUND}</strong>
         </div>
         <div>
-          <span className={css.statLabel}>TIME</span>
+          <span className={css.statLabel}>{intl.formatMessage({ id: 'QuizGamePage.timeLabel' })}</span>
           <strong className={css.statValue}>{SECONDS_PER_QUESTION}s</strong>
         </div>
       </div>
