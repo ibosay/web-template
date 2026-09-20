@@ -79,6 +79,8 @@ export const QuizGamePageComponent = props => {
   const [roundDurationSeconds, setRoundDurationSeconds] = useState(0);
   const activeRoundStartedAtRef = useRef(null);
   const activeRoundElapsedMsRef = useRef(0);
+  const isNativeAppActiveRef = useRef(true);
+  const confirmExitRoundRef = useRef(false);
   const exitDialogRef = useRef(null);
   const continueButtonRef = useRef(null);
 
@@ -112,16 +114,25 @@ export const QuizGamePageComponent = props => {
   }, [nativeApp, screen, confirmExitRound]);
 
   useEffect(() => {
+    confirmExitRoundRef.current = confirmExitRound;
+  }, [confirmExitRound]);
+
+  useEffect(() => {
     if (!nativeApp) return undefined;
 
     let listener;
     let disposed = false;
     App.addListener('appStateChange', ({ isActive }) => {
+      isNativeAppActiveRef.current = isActive;
       if (screen !== SCREEN_QUESTION) return;
       if (!isActive && activeRoundStartedAtRef.current) {
         activeRoundElapsedMsRef.current += Date.now() - activeRoundStartedAtRef.current;
         activeRoundStartedAtRef.current = null;
-      } else if (isActive && !activeRoundStartedAtRef.current) {
+      } else if (
+        isActive &&
+        !confirmExitRoundRef.current &&
+        !activeRoundStartedAtRef.current
+      ) {
         activeRoundStartedAtRef.current = Date.now();
       }
     }).then(handle => {
@@ -143,7 +154,11 @@ export const QuizGamePageComponent = props => {
         activeRoundElapsedMsRef.current += Date.now() - activeRoundStartedAtRef.current;
         activeRoundStartedAtRef.current = null;
       }
-    } else if (roundStartedAt && !activeRoundStartedAtRef.current) {
+    } else if (
+      roundStartedAt &&
+      isNativeAppActiveRef.current &&
+      !activeRoundStartedAtRef.current
+    ) {
       activeRoundStartedAtRef.current = Date.now();
     }
   }, [confirmExitRound, roundStartedAt, screen]);
@@ -217,7 +232,7 @@ export const QuizGamePageComponent = props => {
   };
 
   const handleAnswer = (optionIndex, secondsLeft) => {
-    if (hasAnswered) {
+    if (hasAnswered || confirmExitRound) {
       return;
     }
     const isCorrect = optionIndex === currentQuestion.correctOptionIndex;
@@ -232,7 +247,7 @@ export const QuizGamePageComponent = props => {
   };
 
   const handleTimeout = () => {
-    if (hasAnswered) {
+    if (hasAnswered || confirmExitRound) {
       return;
     }
     setIsTimedOut(true);
@@ -275,6 +290,9 @@ export const QuizGamePageComponent = props => {
   };
 
   const handleNextQuestion = () => {
+    if (confirmExitRound) {
+      return;
+    }
     if (isLastQuestion) {
       finishRound();
       return;
