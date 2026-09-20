@@ -507,6 +507,7 @@ function App() {
   const [theme, setTheme] = useState<'Dunkel' | 'Hell' | 'Auto'>(() => { try { const value = localStorage.getItem('quiz-arena-theme'); return value === 'Dunkel' || value === 'Auto' ? value : 'Hell'; } catch { return 'Hell'; } });
   const [fontSize, setFontSize] = useState<'Klein' | 'Normal' | 'Groß'>(() => { try { const value = localStorage.getItem('quiz-arena-font'); return value === 'Klein' || value === 'Groß' ? value : 'Normal'; } catch { return 'Normal'; } });
   const [questionTime, setQuestionTime] = useState(() => { try { const value = Number(localStorage.getItem('quiz-arena-time')); return [15,20,30].includes(value) ? value : 20; } catch { return 20; } });
+  const [timeLimitEnabled, setTimeLimitEnabled] = useState(() => { try { return localStorage.getItem('quiz-arena-time-enabled') !== 'off'; } catch { return true; } });
   const [roundSize, setRoundSize] = useState(() => { try { const value = Number(localStorage.getItem('quiz-arena-round-size')); return [5,10,15].includes(value) ? value : 10; } catch { return 10; } });
   const [difficulty, setDifficulty] = useState<'easy' | 'hard'>(() => { try { return localStorage.getItem('quiz-arena-difficulty') === 'hard' ? 'hard' : 'easy'; } catch { return 'easy'; } });
   const [wrongCount, setWrongCount] = useState(0);
@@ -613,7 +614,7 @@ function App() {
   );
 
   useEffect(() => {
-    if (screen !== 'quiz' || selected !== null || confirmExit || !appActive) return;
+    if (screen !== 'quiz' || selected !== null || confirmExit || !appActive || !timeLimitEnabled) return;
     if (seconds <= 0) {
       setFailReason('timeout');
       setScreen('failed');
@@ -621,7 +622,7 @@ function App() {
     }
     const timer = window.setTimeout(() => setSeconds(value => value - 1), 1000);
     return () => window.clearTimeout(timer);
-  }, [seconds, selected, screen, confirmExit, appActive]);
+  }, [seconds, selected, screen, confirmExit, appActive, timeLimitEnabled]);
 
   useEffect(() => {
     localStorage.setItem('quiz-arena-progress', JSON.stringify(progress));
@@ -634,9 +635,10 @@ function App() {
       localStorage.setItem('quiz-arena-theme', theme);
       localStorage.setItem('quiz-arena-font', fontSize);
       localStorage.setItem('quiz-arena-time', String(questionTime));
+      localStorage.setItem('quiz-arena-time-enabled', timeLimitEnabled ? 'on' : 'off');
       localStorage.setItem('quiz-arena-round-size', String(roundSize));
     } catch {}
-  }, [sound, haptics, theme, fontSize, questionTime, roundSize]);
+  }, [sound, haptics, theme, fontSize, questionTime, timeLimitEnabled, roundSize]);
 
   useEffect(() => {
     document.documentElement.dataset.quizTheme = resolvedDark ? 'dark' : 'light';
@@ -682,7 +684,7 @@ function App() {
     const nextStreak = correct ? streak + 1 : 0;
     if (correct) {
       const gained =
-        100 + seconds * 5 + Math.min(Math.max(nextStreak - 1, 0), 4) * 25;
+        100 + (timeLimitEnabled ? seconds * 5 : 0) + Math.min(Math.max(nextStreak - 1, 0), 4) * 25;
       setScore(value => value + gained);
     }
     setStreak(nextStreak);
@@ -759,7 +761,7 @@ function App() {
             <label className={`toggleRow ${vibrationSupported ? '' : 'disabled'}`}><span>📱 <b>{t.vibration}</b><small>{vibrationSupported ? t.vibrationSub : t.notAvailable}</small></span><input type="checkbox" checked={haptics && vibrationSupported} disabled={!vibrationSupported} onChange={e=>setHaptics(e.target.checked)}/></label>
             <div className="settingBlock"><div className="settingBlockTitle"><span>◐</span><div><b>{t.design}</b><small>{theme === 'Hell' ? t.light : theme === 'Dunkel' ? t.dark : t.auto}</small></div></div><div className="segmented three"><button className={theme==='Hell'?'active':''} onClick={()=>setTheme('Hell')}>{t.light}</button><button className={theme==='Dunkel'?'active':''} onClick={()=>setTheme('Dunkel')}>{t.dark}</button><button className={theme==='Auto'?'active':''} onClick={()=>setTheme('Auto')}>{t.auto}</button></div></div>
             <div className="settingBlock"><div className="settingBlockTitle"><span>AA</span><div><b>{t.font}</b><small>{fontSize === 'Klein' ? t.small : fontSize === 'Groß' ? t.large : t.normal}</small></div></div><div className="segmented three"><button className={fontSize==='Klein'?'active':''} onClick={()=>setFontSize('Klein')}>{t.small}</button><button className={fontSize==='Normal'?'active':''} onClick={()=>setFontSize('Normal')}>{t.normal}</button><button className={fontSize==='Groß'?'active':''} onClick={()=>setFontSize('Groß')}>{t.large}</button></div></div>
-            <div className="settingBlock"><div className="settingBlockTitle"><span>◷</span><div><b>{t.timer}</b><small>{questionTime} {t.seconds}</small></div></div><div className="segmented three"><button className={questionTime===15?'active':''} onClick={()=>setQuestionTime(15)}>15</button><button className={questionTime===20?'active':''} onClick={()=>setQuestionTime(20)}>20</button><button className={questionTime===30?'active':''} onClick={()=>setQuestionTime(30)}>30</button></div></div>
+            <div className="settingBlock"><div className="settingBlockTitle"><span>◷</span><div><b>{t.timer}</b><small>{timeLimitEnabled ? `${questionTime} ${t.seconds}` : (language === 'DE' ? 'Aus' : 'Off')}</small></div></div><div className="segmented four"><button className={!timeLimitEnabled?'active':''} onClick={()=>setTimeLimitEnabled(false)}>{language === 'DE' ? 'Aus' : 'Off'}</button><button className={timeLimitEnabled&&questionTime===15?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(15);}}>15</button><button className={timeLimitEnabled&&questionTime===20?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(20);}}>20</button><button className={timeLimitEnabled&&questionTime===30?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(30);}}>30</button></div></div>
             <div className="settingBlock"><div className="settingBlockTitle"><span>☷</span><div><b>{t.round}</b><small>{roundSize} {t.questions}</small></div></div><div className="segmented three"><button className={roundSize===5?'active':''} onClick={()=>setRoundSize(5)}>5</button><button className={roundSize===10?'active':''} onClick={()=>setRoundSize(10)}>10</button><button className={roundSize===15?'active':''} onClick={()=>setRoundSize(15)}>15</button></div></div>
           </div>
           <div className="menuGroup"><button className="menuRow"><span>▥ <b>{t.statistics}</b><small>{progress.rounds} {t.rounds} · {progress.correct} {t.correct}</small></span><b>›</b></button><button className="menuRow"><span>♜ <b>{t.achievements}</b><small>{achievements.filter(a=>a.unlocked).length}/{achievements.length} {t.badges}</small></span><b>›</b></button></div>
@@ -847,7 +849,7 @@ function App() {
         <div style={{ width: `${((index + 1) / questions.length) * 100}%` }} />
       </div>
       <section className="questionCard">
-        <div className="questionMeta"><p className="eyebrow">{categoryLabel(current.category).toUpperCase()}</p><div className={seconds <= 5 ? 'timer danger' : 'timer'}>{seconds}s</div></div>
+        <div className="questionMeta"><p className="eyebrow">{categoryLabel(current.category).toUpperCase()}</p>{timeLimitEnabled ? <div className={seconds <= 5 ? 'timer danger' : 'timer'}>{seconds}s</div> : <div className="timer off" aria-label={language === 'DE' ? 'Zeitlimit aus' : 'Time limit off'}>∞</div>}</div>
         <h2>{current.question}</h2>
         <div className="answers">
           {current.answers.map((answer, answerIndex) => {
@@ -873,8 +875,18 @@ function App() {
                   }
                 }}
               >
-                <span>{answerIndex + 1}</span>
-                {answer}
+                <span className="answerIndex">{answerIndex + 1}</span>
+                <span className="answerText">{answer}</span>
+                {isCorrect && (
+                  <span className="answerStatus correctStatus" aria-label={language === 'DE' ? 'Richtig' : 'Correct'}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5 10 17 19 7" /></svg>
+                  </span>
+                )}
+                {isWrong && (
+                  <span className="answerStatus wrongStatus" aria-label={language === 'DE' ? 'Falsch' : 'Wrong'}>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7 17 17M17 7 7 17" /></svg>
+                  </span>
+                )}
               </div>
             );
           })}
