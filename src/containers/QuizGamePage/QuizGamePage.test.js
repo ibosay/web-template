@@ -15,9 +15,10 @@ describe('current Quiz Arena experience', () => {
   });
 
   it('contains the complete current question bank with valid answers and English copy', () => {
-    expect(QUESTIONS).toHaveLength(250);
-    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(250);
+    expect(QUESTIONS).toHaveLength(270);
+    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(270);
     expect(CATEGORIES).toEqual([
+      'Islam',
       'Alle',
       'Allgemeinwissen',
       'Geografie',
@@ -26,7 +27,6 @@ describe('current Quiz Arena experience', () => {
       'Kultur',
       'Österreich',
       'EU',
-      'Islam',
     ]);
 
     QUESTIONS.forEach(question => {
@@ -38,6 +38,15 @@ describe('current Quiz Arena experience', () => {
     });
 
     expect(HARD_QUESTION_IDS.size).toBeGreaterThan(0);
+
+    const islamQuestions = QUESTIONS.filter(question => question.category === 'Islam');
+    expect(islamQuestions).toHaveLength(50);
+    expect(islamQuestions.filter(question => HARD_QUESTION_IDS.has(question.id))).toHaveLength(20);
+    expect(islamQuestions.filter(question => !HARD_QUESTION_IDS.has(question.id))).toHaveLength(30);
+    islamQuestions.forEach(question => {
+      expect(question.source).toBeTruthy();
+      expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
+    });
   });
 
   it('shows the same main categories and controls as the live app', () => {
