@@ -79,6 +79,7 @@ describe('current Quiz Arena experience', () => {
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
 
     expect(screen.getByText('FRAGE 1/10')).toBeInTheDocument();
+    expect(screen.getByText(/20s/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Runde verlassen' }));
 
     expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -88,4 +89,19 @@ describe('current Quiz Arena experience', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('FRAGE 1/10')).toBeInTheDocument();
   });
+  it('shows animated correct and wrong status marks and allows disabling the timer', () => {
+    render(<QuizArenaLiveApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aus' }));
+    fireEvent.click(screen.getByRole('button', { name: /Menu schließen|Close/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+    expect(screen.getByLabelText('Zeitlimit aus')).toHaveTextContent('∞');
+
+    const answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    fireEvent.click(answerButtons[0]);
+    expect(screen.queryByLabelText('Richtig') || screen.queryByLabelText('Falsch')).toBeTruthy();
+  });
+
 });
