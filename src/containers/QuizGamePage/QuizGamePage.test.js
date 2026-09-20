@@ -41,12 +41,15 @@ describe('current Quiz Arena experience', () => {
 
     const islamQuestions = QUESTIONS.filter(question => question.category === 'Islam');
     expect(islamQuestions).toHaveLength(60);
-    expect(islamQuestions.filter(question => HARD_QUESTION_IDS.has(question.id))).toHaveLength(25);
-    expect(islamQuestions.filter(question => !HARD_QUESTION_IDS.has(question.id))).toHaveLength(35);
+    expect(islamQuestions.filter(question => HARD_QUESTION_IDS.has(question.id))).toHaveLength(10);
+    expect(islamQuestions.filter(question => !HARD_QUESTION_IDS.has(question.id))).toHaveLength(50);
     islamQuestions.forEach(question => {
       expect(question.source).toBeTruthy();
       expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
     });
+    expect(islamQuestions.some(question => question.question.includes('Schahada'))).toBe(true);
+    const islamCopy = islamQuestions.flatMap(question => [question.question, ...question.answers]).join(' ');
+    expect(islamCopy).not.toMatch(/hanafi|maliki|schafi|hanbali|rechtsschule|madhhab/i);
   });
 
   it('shows the same main categories and controls as the live app', () => {
