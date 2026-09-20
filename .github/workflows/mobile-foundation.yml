@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: mobile-foundation-${{ github.event.pull_request.number || github.ref }}
@@ -19,10 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout PR branch
+      - name: Checkout PR
         uses: actions/checkout@v4
         with:
-          ref: app/quiz-capacitor
           fetch-depth: 0
 
       - name: Set up Node 22.22
@@ -40,10 +39,7 @@ jobs:
       - name: Install Yarn 1
         run: npm install --global yarn@1.22.22
 
-      - name: Install dependencies and refresh lockfile
-        run: yarn install --network-timeout 600000
-
-      - name: Verify lockfile is reproducible
+      - name: Install dependencies
         run: yarn install --frozen-lockfile --network-timeout 600000
 
       - name: Run quiz test suite
@@ -64,14 +60,14 @@ jobs:
           NODE_ENV: production
         run: yarn build-web
 
-      - name: Generate Android project when missing
-        run: |
-          if [ ! -d android ]; then
-            yarn app:add:android
-          fi
+      - name: Verify Android project is committed
+        run: test -d android
 
       - name: Sync Capacitor Android plugins
         run: npx cap sync android
+
+      - name: Verify Android project is reproducible
+        run: git diff --exit-code -- android
 
       - name: Inspect Capacitor Android plugins
         run: npx cap ls android
@@ -80,29 +76,15 @@ jobs:
         working-directory: android
         run: ./gradlew assembleDebug --stacktrace
 
-      - name: Commit lockfile and Android foundation when changed
-        shell: bash
-        run: |
-          git add yarn.lock android
-          if git diff --cached --quiet; then
-            echo "No lockfile or Android project changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Generate Android project and refresh yarn lock"
-          git push origin HEAD:app/quiz-capacitor
-
   ios:
-    name: iOS generate, sync, build
+    name: iOS sync, build, simulator
     needs: web-android
     runs-on: macos-latest
     timeout-minutes: 45
     steps:
-      - name: Checkout latest PR branch
+      - name: Checkout PR
         uses: actions/checkout@v4
         with:
-          ref: app/quiz-capacitor
           fetch-depth: 0
 
       - name: Set up Node 22.22
@@ -114,7 +96,7 @@ jobs:
       - name: Install Yarn 1
         run: npm install --global yarn@1.22.22
 
-      - name: Install dependencies from committed lockfile
+      - name: Install dependencies
         run: yarn install --frozen-lockfile --network-timeout 600000
 
       - name: Build production web bundle
@@ -123,14 +105,14 @@ jobs:
           NODE_ENV: production
         run: yarn build-web
 
-      - name: Generate iOS project when missing
-        run: |
-          if [ ! -d ios ]; then
-            yarn app:add:ios
-          fi
+      - name: Verify iOS project is committed
+        run: test -d ios
 
       - name: Sync Capacitor iOS plugins
         run: npx cap sync ios
+
+      - name: Verify iOS project is reproducible
+        run: git diff --exit-code -- ios
 
       - name: Inspect Capacitor iOS plugins
         run: npx cap ls ios
@@ -146,21 +128,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
           build
 
-      - name: Commit iOS foundation when changed
-        shell: bash
-        run: |
-          git add ios
-          if git diff --cached --quiet; then
-            echo "No iOS project changes to commit."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "Generate iOS project"
-            git push origin HEAD:app/quiz-capacitor
-          fi
-
       - name: Launch iOS app in Simulator
-        continue-on-error: true
         shell: bash
         run: |
           UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPhone .*\(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
