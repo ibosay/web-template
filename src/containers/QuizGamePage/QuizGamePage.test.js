@@ -15,8 +15,8 @@ describe('current Quiz Arena experience', () => {
   });
 
   it('contains the complete current question bank with valid answers and English copy', () => {
-    expect(QUESTIONS).toHaveLength(270);
-    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(270);
+    expect(QUESTIONS).toHaveLength(280);
+    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(280);
     expect(CATEGORIES).toEqual([
       'Islam',
       'Alle',
@@ -40,9 +40,9 @@ describe('current Quiz Arena experience', () => {
     expect(HARD_QUESTION_IDS.size).toBeGreaterThan(0);
 
     const islamQuestions = QUESTIONS.filter(question => question.category === 'Islam');
-    expect(islamQuestions).toHaveLength(50);
-    expect(islamQuestions.filter(question => HARD_QUESTION_IDS.has(question.id))).toHaveLength(20);
-    expect(islamQuestions.filter(question => !HARD_QUESTION_IDS.has(question.id))).toHaveLength(30);
+    expect(islamQuestions).toHaveLength(60);
+    expect(islamQuestions.filter(question => HARD_QUESTION_IDS.has(question.id))).toHaveLength(25);
+    expect(islamQuestions.filter(question => !HARD_QUESTION_IDS.has(question.id))).toHaveLength(35);
     islamQuestions.forEach(question => {
       expect(question.source).toBeTruthy();
       expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
