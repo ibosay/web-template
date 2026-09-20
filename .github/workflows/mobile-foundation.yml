@@ -1,0 +1,177 @@
+name: Mobile Foundation Verify
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mobile-foundation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  web-android:
+    name: Web tests, build, Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: app/quiz-capacitor
+          fetch-depth: 0
+
+      - name: Set up Node 22.22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: yarn
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Yarn 1
+        run: npm install --global yarn@1.22.22
+
+      - name: Install dependencies and refresh lockfile
+        run: yarn install --network-timeout 600000
+
+      - name: Verify lockfile is reproducible
+        run: yarn install --frozen-lockfile --network-timeout 600000
+
+      - name: Run quiz test suite
+        env:
+          CI: 'true'
+        run: >
+          yarn test --runInBand --watchAll=false
+          src/containers/QuizGamePage/QuizGamePage.test.js
+          src/containers/QuizGamePage/quizScoring.test.js
+          src/containers/QuizGamePage/quizQuestions.test.js
+          src/containers/QuizGamePage/quizProgression.test.js
+          src/containers/QuizGamePage/quizAchievements.test.js
+          src/containers/QuizGamePage/quizSettings.test.js
+
+      - name: Build production web bundle
+        env:
+          CI: 'true'
+          NODE_ENV: production
+        run: yarn build-web
+
+      - name: Generate Android project when missing
+        run: |
+          if [ ! -d android ]; then
+            yarn app:add:android
+          fi
+
+      - name: Sync Capacitor Android plugins
+        run: npx cap sync android
+
+      - name: Inspect Capacitor Android plugins
+        run: npx cap ls android
+
+      - name: Build Android debug app
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Commit lockfile and Android foundation when changed
+        shell: bash
+        run: |
+          git add yarn.lock android
+          if git diff --cached --quiet; then
+            echo "No lockfile or Android project changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Generate Android project and refresh yarn lock"
+          git push origin HEAD:app/quiz-capacitor
+
+  ios:
+    name: iOS generate, sync, build
+    needs: web-android
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout latest PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: app/quiz-capacitor
+          fetch-depth: 0
+
+      - name: Set up Node 22.22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: yarn
+
+      - name: Install Yarn 1
+        run: npm install --global yarn@1.22.22
+
+      - name: Install dependencies from committed lockfile
+        run: yarn install --frozen-lockfile --network-timeout 600000
+
+      - name: Build production web bundle
+        env:
+          CI: 'true'
+          NODE_ENV: production
+        run: yarn build-web
+
+      - name: Generate iOS project when missing
+        run: |
+          if [ ! -d ios ]; then
+            yarn app:add:ios
+          fi
+
+      - name: Sync Capacitor iOS plugins
+        run: npx cap sync ios
+
+      - name: Inspect Capacitor iOS plugins
+        run: npx cap ls ios
+
+      - name: Build iOS Simulator app
+        run: >
+          xcodebuild
+          -workspace ios/App/App.xcworkspace
+          -scheme App
+          -configuration Debug
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Launch iOS app in Simulator
+        shell: bash
+        run: |
+          UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPhone .*\(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          if [ -z "$UDID" ]; then
+            echo "No available iPhone simulator found"
+            exit 1
+          fi
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          xcrun simctl bootstatus "$UDID" -b
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Debug-iphonesimulator/App.app' -print -quit)"
+          test -n "$APP_PATH"
+          xcrun simctl install "$UDID" "$APP_PATH"
+          xcrun simctl launch "$UDID" at.ibosay.quiz
+          sleep 5
+          xcrun simctl spawn "$UDID" launchctl print system >/dev/null
+
+      - name: Commit iOS foundation when changed
+        shell: bash
+        run: |
+          git add ios
+          if git diff --cached --quiet; then
+            echo "No iOS project changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Generate iOS project"
+          git push origin HEAD:app/quiz-capacitor
