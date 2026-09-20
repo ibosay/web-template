@@ -56,7 +56,7 @@ describe('current Quiz Arena experience', () => {
     expect(screen.getByText('Allgemeinwissen')).toBeInTheDocument();
     expect(screen.getByText('Österreich')).toBeInTheDocument();
     expect(screen.getByText('EU')).toBeInTheDocument();
-    expect(screen.getByText('Sunnitischer Islam')).toBeInTheDocument();
+    expect(screen.getByText('Islam Fragen')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Spiel starten/ })).toBeInTheDocument();
   });
 
