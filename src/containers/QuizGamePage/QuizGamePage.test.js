@@ -159,14 +159,14 @@ describe('QuizGamePageComponent', () => {
       fireEvent.keyDown(window, { key: String(question.correctOptionIndex + 1) });
     });
 
-    expect(screen.queryByText(/^Correct! \\+\\d+$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Correct! \+\d+$/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: correctOptionName(question) })).toBeEnabled();
 
     await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.continueRound' }));
     await act(async () => {
       fireEvent.keyDown(window, { key: String(question.correctOptionIndex + 1) });
     });
-    expect(screen.getByText(/^Correct! \\+\\d+$/)).toBeInTheDocument();
+    expect(screen.getByText(/^Correct! \+\d+$/)).toBeInTheDocument();
   });
 
   it('pauses the question countdown while the exit confirmation is open', async () => {
@@ -180,9 +180,11 @@ describe('QuizGamePageComponent', () => {
       });
 
       expect(screen.getByText(`${SECONDS_PER_QUESTION}s`)).toBeInTheDocument();
-      await act(async () => {
-        jest.advanceTimersByTime(3000);
-      });
+      for (let second = 0; second < 3; second++) {
+        await act(async () => {
+          jest.advanceTimersByTime(1000);
+        });
+      }
 
       const secondsBeforePause = SECONDS_PER_QUESTION - 3;
       expect(screen.getByText(`${secondsBeforePause}s`)).toBeInTheDocument();
