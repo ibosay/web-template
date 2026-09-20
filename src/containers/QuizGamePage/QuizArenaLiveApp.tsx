@@ -16,7 +16,7 @@ type Progress = {
   bestStreak: number;
 };
 
-export const QUESTIONS: Question[
+export const QUESTIONS: Question[] = [
   { id: 301, category: 'Islam', question: "Wie viele Säulen hat der Islam nach Sahih al Bukhari und Sahih Muslim?", answers: ["Drei","Vier","Fünf","Sechs"], correct: 2, source: "Sahih al-Bukhari 8; Sahih Muslim 16a" },
   { id: 302, category: 'Islam', question: "Was gehört zur ersten Säule des Islam?", answers: ["Das Glaubensbekenntnis","Nur freiwilliges Fasten","Eine Reise nach Medina","Das Freitagsgebet allein"], correct: 0, source: "Sahih al-Bukhari 8; Sahih Muslim 16a" },
   { id: 303, category: 'Islam', question: "Wie viele Pflichtgebete werden täglich verrichtet?", answers: ["Drei","Vier","Fünf","Sieben"], correct: 2, source: "Sahih al-Bukhari 46" },
@@ -67,7 +67,6 @@ export const QUESTIONS: Question[
   { id: 348, category: 'Islam', question: "Kann ein Muslim grundsätzlich hinter einem Imam beten, der einer anderen anerkannten sunnitischen Rechtsschule folgt?", answers: ["Ja, grundsätzlich ist das möglich","Nein, niemals","Nur im Ramadan","Nur auf Reisen"], correct: 0, source: "SeekersGuidance, Can I Follow an Imam in Prayer Who Follows a Different School?" },
   { id: 349, category: 'Islam', question: "Wie sollten Unterschiede zwischen den vier anerkannten sunnitischen Rechtsschulen im Quiz behandelt werden?", answers: ["Als anerkannte Fiqh Unterschiede, mit klarer Nennung der jeweiligen Schule","Eine Schule immer als falsch markieren","Alle Unterschiede löschen","Nur die leichteste Meinung als richtig markieren"], correct: 0, source: "SeekersGuidance, Differences Between the Legal Schools" },
   { id: 350, category: 'Islam', question: "Welche Rechtsschule wurde im Osmanischen Reich offiziell besonders prägend?", answers: ["Hanafi","Maliki","Schafiʿi","Hanbali"], correct: 0, source: "Oxford Bibliographies, The Hanafi School" },
-] = [
   {
     id: 1,
     category: 'Geografie',
