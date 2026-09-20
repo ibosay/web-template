@@ -94,7 +94,7 @@ describe('current Quiz Arena experience', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
     fireEvent.click(screen.getByRole('button', { name: 'Aus' }));
-    fireEvent.click(screen.getByRole('button', { name: /Menu schließen|Close/i }));
+    fireEvent.click(screen.getByRole('button', { name: '×' }));
 
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
     expect(screen.getByLabelText('Zeitlimit aus')).toHaveTextContent('∞');
