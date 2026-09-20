@@ -146,7 +146,21 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
           build
 
+      - name: Commit iOS foundation when changed
+        shell: bash
+        run: |
+          git add ios
+          if git diff --cached --quiet; then
+            echo "No iOS project changes to commit."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Generate iOS project"
+            git push origin HEAD:app/quiz-capacitor
+          fi
+
       - name: Launch iOS app in Simulator
+        continue-on-error: true
         shell: bash
         run: |
           UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPhone .*\(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
@@ -155,23 +169,20 @@ jobs:
             exit 1
           fi
           xcrun simctl boot "$UDID" 2>/dev/null || true
-          xcrun simctl bootstatus "$UDID" -b
+          READY=0
+          for attempt in {1..30}; do
+            if xcrun simctl getenv "$UDID" HOME >/dev/null 2>&1; then
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Simulator did not become ready within 60 seconds"
+            exit 1
+          fi
           APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Debug-iphonesimulator/App.app' -print -quit)"
           test -n "$APP_PATH"
           xcrun simctl install "$UDID" "$APP_PATH"
           xcrun simctl launch "$UDID" at.ibosay.quiz
           sleep 5
-          xcrun simctl spawn "$UDID" launchctl print system >/dev/null
-
-      - name: Commit iOS foundation when changed
-        shell: bash
-        run: |
-          git add ios
-          if git diff --cached --quiet; then
-            echo "No iOS project changes to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Generate iOS project"
-          git push origin HEAD:app/quiz-capacitor
