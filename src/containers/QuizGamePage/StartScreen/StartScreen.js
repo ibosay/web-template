@@ -156,6 +156,7 @@ const StartScreen = props => {
                 [css.categoryButtonSelected]: category === categoryId,
               })}
               type="button"
+              aria-label={intl.formatMessage({ id: categoryLabelId(category) })}
               aria-pressed={category === categoryId}
               onClick={() => onSelectCategory(category)}
             >
