@@ -1,55 +1,10 @@
 @import '../../styles/customMediaQueries.css';
 
 .layoutWrapperMain {
-  min-height: calc(100vh - var(--topbarHeight));
-  background:
-    radial-gradient(circle at 50% 0%, rgba(82, 90, 220, 0.22), transparent 34%),
-    #080d1c;
-
-  @media (--viewportMedium) {
-    min-height: calc(100vh - var(--topbarHeightDesktop));
-  }
-}
-
-.root {
-  max-width: 620px;
-  margin: 0 auto;
-  padding: 22px 16px 48px;
-
-  @media (--viewportMedium) {
-    padding: 42px 24px 72px;
-  }
-}
-
-.title {
-  margin: 0;
-  color: #fff;
-  text-align: center;
-}
-
-.subtitle {
-  composes: p from global;
-  margin: 6px 0 22px;
-  color: #8fa0c5;
-  text-align: center;
-}
-
-.nativeRoot {
-  max-width: 620px;
   min-height: 100vh;
-  margin: 0 auto;
-  padding:
-    calc(env(safe-area-inset-top, 0px) + 16px)
-    calc(env(safe-area-inset-right, 0px) + 14px)
-    calc(env(safe-area-inset-bottom, 0px) + 24px)
-    calc(env(safe-area-inset-left, 0px) + 14px);
+  background: #f2f2f7;
 }
 
-.confirmOverlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 24px; background: rgba(3,7,18,.78); backdrop-filter: blur(8px); }
-.confirmCard { width: min(100%, 360px); padding: 22px; border: 1px solid rgba(124,140,255,.35); border-radius: 22px; background: #10182b; color: #fff; box-shadow: 0 24px 70px rgba(0,0,0,.45); }
-.confirmCard strong { display: block; font-size: 20px; }
-.confirmCard p { margin: 9px 0 18px; color: #aebbd5; line-height: 1.45; }
-.confirmActions { display: grid; gap: 9px; }
-.confirmActions button { min-height: 46px; border: 0; border-radius: 14px; font-weight: 700; cursor: pointer; }
-.confirmActions button:first-child { background: linear-gradient(135deg,#6378ff,#9b5cff); color: #fff; }
-.confirmActions button:last-child { background: #202b43; color: #dce5f8; }
+:global(:root[data-quiz-theme='dark']) .layoutWrapperMain {
+  background: #000;
+}
