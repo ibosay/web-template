@@ -234,26 +234,6 @@ export const QUESTIONS: Question[] = [
   { id: 86, category: 'Geschichte', question: 'Wie hieß die Epoche der europäischen Wiederentdeckung antiker Kunst und Wissenschaft?', answers: ['Renaissance', 'Bronzezeit', 'Romantik', 'Aufklärung'], correct: 0 },
   { id: 87, category: 'Geschichte', question: 'Welche Schrift verwendeten die alten Ägypter unter anderem auf Monumenten?', answers: ['Hieroglyphen', 'Keilschrift', 'Runen', 'Kyrillisch'], correct: 0 },
   { id: 88, category: 'Geschichte', question: 'Welcher Konflikt in den USA dauerte von 1861 bis 1865?', answers: ['Amerikanischer Bürgerkrieg', 'Siebenjähriger Krieg', 'Krimkrieg', 'Burenkrieg'], correct: 0 },
-  { id: 111, category: 'Österreich', question: 'Wie heißt die Bundeshauptstadt Österreichs?', answers: ['Graz', 'Wien', 'Salzburg', 'Linz'], correct: 1 },
-  { id: 112, category: 'Österreich', question: 'Wie viele Bundesländer hat Österreich?', answers: ['7', '8', '9', '10'], correct: 2 },
-  { id: 113, category: 'Österreich', question: 'Welches Bundesland ist flächenmäßig das größte?', answers: ['Tirol', 'Steiermark', 'Niederösterreich', 'Oberösterreich'], correct: 2 },
-  { id: 114, category: 'Österreich', question: 'Welcher Fluss fließt durch Wien und Linz?', answers: ['Inn', 'Mur', 'Donau', 'Salzach'], correct: 2 },
-  { id: 115, category: 'Österreich', question: 'Wie heißt der höchste Berg Österreichs?', answers: ['Dachstein', 'Großglockner', 'Wildspitze', 'Großvenediger'], correct: 1 },
-  { id: 116, category: 'Österreich', question: 'Welches Bundesland hat Innsbruck als Landeshauptstadt?', answers: ['Vorarlberg', 'Tirol', 'Kärnten', 'Salzburg'], correct: 1 },
-  { id: 117, category: 'Österreich', question: 'Welche Stadt ist die Landeshauptstadt der Steiermark?', answers: ['Graz', 'Klagenfurt', 'Eisenstadt', 'St. Pölten'], correct: 0 },
-  { id: 118, category: 'Österreich', question: 'Welche Stadt ist die Landeshauptstadt von Niederösterreich?', answers: ['Wien', 'St. Pölten', 'Krems', 'Wiener Neustadt'], correct: 1 },
-  { id: 119, category: 'Österreich', question: 'Welches Bundesland liegt ganz im Westen Österreichs?', answers: ['Vorarlberg', 'Burgenland', 'Wien', 'Kärnten'], correct: 0 },
-  { id: 120, category: 'Österreich', question: 'Welche Währung verwendet Österreich?', answers: ['Franken', 'Euro', 'Krone', 'Schilling'], correct: 1 },
-  { id: 121, category: 'Österreich', question: 'Seit welchem Jahr ist Österreich Mitglied der Europäischen Union?', answers: ['1989', '1995', '2002', '2007'], correct: 1 },
-  { id: 122, category: 'Österreich', question: 'Welche Farben hat die österreichische Bundesflagge?', answers: ['Rot-Weiß-Rot', 'Schwarz-Rot-Gold', 'Rot-Weiß-Blau', 'Grün-Weiß-Grün'], correct: 0 },
-  { id: 123, category: 'Österreich', question: 'Wie heißt die Landeshauptstadt von Kärnten?', answers: ['Villach', 'Klagenfurt', 'Bregenz', 'Lienz'], correct: 1 },
-  { id: 124, category: 'Österreich', question: 'Wie heißt die Landeshauptstadt des Burgenlands?', answers: ['Eisenstadt', 'Rust', 'Mattersburg', 'Oberwart'], correct: 0 },
-  { id: 125, category: 'Österreich', question: 'Welche Stadt ist die Landeshauptstadt von Vorarlberg?', answers: ['Dornbirn', 'Feldkirch', 'Bregenz', 'Bludenz'], correct: 2 },
-  { id: 126, category: 'Österreich', question: 'Welcher berühmte Komponist wurde 1756 in Salzburg geboren?', answers: ['Mozart', 'Beethoven', 'Haydn', 'Schubert'], correct: 0 },
-  { id: 127, category: 'Österreich', question: 'Wie heißt das bekannte Schloss in Wien, das als Sommerresidenz der Habsburger diente?', answers: ['Belvedere', 'Schönbrunn', 'Hofburg', 'Mirabell'], correct: 1 },
-  { id: 128, category: 'Österreich', question: 'Welcher See liegt teilweise in Österreich und teilweise in Ungarn?', answers: ['Wörthersee', 'Neusiedler See', 'Attersee', 'Traunsee'], correct: 1 },
-  { id: 129, category: 'Österreich', question: 'Wie heißt die Landeshauptstadt Oberösterreichs?', answers: ['Linz', 'Wels', 'Steyr', 'Ried'], correct: 0 },
-  { id: 130, category: 'Österreich', question: 'Welche Stadt ist die Landeshauptstadt des Bundeslandes Salzburg?', answers: ['Salzburg', 'Hallein', 'Zell am See', 'Saalfelden'], correct: 0 },
   { id: 131, category: 'EU', question: 'Wie viele Mitgliedstaaten hat die Europäische Union?', answers: ['25', '27', '28', '30'], correct: 1 },
   { id: 132, category: 'EU', question: 'Welche Währung wird von vielen, aber nicht allen EU-Mitgliedstaaten verwendet?', answers: ['Euro', 'Pfund', 'Franken', 'Krone'], correct: 0 },
   { id: 133, category: 'EU', question: 'In welcher Stadt hat die Europäische Kommission ihren Hauptsitz?', answers: ['Straßburg', 'Brüssel', 'Luxemburg', 'Frankfurt'], correct: 1 },
@@ -553,7 +533,6 @@ export const CATEGORIES = [
   'Wissenschaft',
   'Geschichte',
   'Kultur',
-  'Österreich',
   'EU',
   'Staatsbürgerschaft',
 ];
@@ -628,6 +607,8 @@ const vibrate = (enabled: boolean, correct: boolean) => {
     // Feedback must never interrupt gameplay.
   }
 };
+
+const BrandLogo = ({ className = '' }: { className?: string }) => <svg className={`brandLogo ${className}`} viewBox="0 0 1000 880" aria-hidden="true" focusable="false"><defs><linearGradient id="quizArenaBrandGradient" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stopColor="#071b52"/><stop offset="55%" stopColor="#0b5f9f"/><stop offset="100%" stopColor="#16b4d5"/></linearGradient></defs><path d="M971.1 40.0 L941.3 14.9 L915.3 3.7 L897.6 0.0 L874.3 0.0 L844.5 7.4 L401.3 268.2 L374.3 279.3 L344.5 278.4 L319.4 264.4 L303.5 242.1 L298.0 215.1 L339.9 182.5 L393.9 154.6 L437.6 141.5 L469.3 136.9 L521.4 135.9 L532.6 137.8 L597.8 95.9 L565.2 88.5 L527.9 83.8 L479.5 83.8 L423.6 92.2 L377.1 106.1 L345.4 120.1 L301.7 146.2 L268.2 172.3 L234.6 205.8 L199.3 251.4 L176.9 291.4 L154.6 351.0 L144.3 402.2 L142.5 458.1 L149.0 507.4 L162.9 554.0 L209.5 527.9 L202.0 502.8 L195.5 458.1 L195.5 419.0 L199.3 390.1 L208.6 352.0 L219.7 322.2 L234.6 293.3 L256.1 261.6 L275.6 293.3 L288.6 306.3 L306.3 318.4 L328.7 327.7 L346.4 331.5 L382.7 329.6 L401.3 324.0 L430.2 309.1 L862.2 54.9 L877.1 51.2 L892.9 51.2 L915.3 58.7 L937.6 79.1 L947.9 106.1 L947.9 123.8 L944.1 138.7 L936.7 152.7 L919.9 169.5 L46.6 676.0 L32.6 689.0 L16.8 710.4 L6.5 731.8 L0.0 759.8 L0.0 778.4 L5.6 803.5 L13.0 820.3 L26.1 838.9 L55.9 864.1 L82.9 875.2 L120.1 879.0 L156.4 870.6 L610.8 608.0 L630.4 600.6 L661.1 601.5 L685.3 614.5 L702.0 637.8 L705.8 654.6 L704.8 665.7 L655.5 704.8 L610.8 726.3 L581.9 735.6 L531.7 743.9 L466.5 743.9 L397.6 784.9 L430.2 792.4 L472.1 797.0 L528.9 796.1 L570.8 789.6 L600.6 782.1 L649.9 763.5 L685.3 744.9 L731.8 711.4 L760.7 683.4 L793.3 642.5 L821.2 593.1 L841.7 538.2 L852.9 484.2 L854.7 422.7 L850.1 380.8 L837.1 330.5 L790.5 357.5 L801.7 417.1 L802.6 447.9 L798.0 490.7 L789.6 527.0 L777.5 559.6 L763.5 588.5 L746.7 613.6 L731.8 589.4 L716.0 573.6 L698.3 561.5 L679.7 553.1 L660.1 548.4 L622.9 549.3 L592.2 560.5 L132.2 825.9 L101.5 827.7 L79.1 819.4 L59.6 799.8 L51.2 774.7 L54.9 746.7 L65.2 728.1 L80.1 713.2 L625.7 399.4 L956.2 205.8 L973.0 189.0 L986.0 169.5 L994.4 149.0 L999.1 124.8 L999.1 106.1 L995.3 85.7 L985.1 60.5 Z" fill="url(#quizArenaBrandGradient)"/></svg>;
 
 const CategoryIcon = ({ category }: { category: string }) => {
   const common = { width: 24, height: 24, viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': true } as const;
@@ -896,7 +877,7 @@ function App() {
     return (
       <main className={`shell appRoot gameHome font-${fontSize.toLowerCase()}`}>
         <header className="homeTop"><div className="levelBox"><span className="levelBadge">{level}</span><div><strong>Level {level}</strong><div className="progressTrack"><div style={{ width: `${(xpIntoLevel / 500) * 100}%` }} /></div></div><b>{xpIntoLevel} XP</b></div><button className="menuButton" onClick={() => setMenuOpen(true)} aria-label="Menu"><span></span><span></span><span></span></button></header>
-        <section className="gameHero"><div className="appMark">Q</div><div><h1>Quiz <em>Arena</em></h1><p>{t.tag}</p></div></section>
+        <section className="gameHero"><BrandLogo className="brandLogoHome"/><div><h1>Quiz <em>Arena</em></h1><p>{t.tag}</p></div></section>
         <section className="panel categoryPanel">
           <div className="categoryHeading"><div><h2>{language === 'DE' ? 'Kategorie wählen' : 'Choose a category'}</h2><p>{language === 'DE' ? 'Wähle ein Thema für deine nächste Runde.' : 'Pick a topic for your next round.'}</p></div><button className={`difficultyQuickSwitch ${difficulty}`} onClick={toggleDifficulty} aria-label={`${t.difficulty}: ${difficulty === 'hard' ? t.hard : t.easy}. ${t.switchDifficulty}`}><span className={difficulty === 'easy' ? 'active' : ''}>{t.easy}</span><span className={difficulty === 'hard' ? 'active' : ''}>{t.hard}</span></button></div>
           <div className="categoryList">
@@ -949,7 +930,7 @@ function App() {
         <button className="playButton" onClick={() => { ensureAudio(); startRound(); }}><span>▶</span> {t.play} <b>›</b></button>
         <button className="statsButton" onClick={() => setMenuOpen(true)}>▥ <span>{t.stats}</span> <b>›</b></button>
 
-        {menuOpen && <div className="drawerLayer" onClick={() => setMenuOpen(false)}><aside className="drawer" onClick={e => e.stopPropagation()} aria-label={t.settings}><div className="drawerHead"><div className="drawerBrandBlock"><b className="drawerBrand">Quiz <em>Arena</em></b><small>{t.tag}</small></div><button className="drawerClose" onClick={() => setMenuOpen(false)} aria-label="Menü schließen">×</button></div>
+        {menuOpen && <div className="drawerLayer" onClick={() => setMenuOpen(false)}><aside className="drawer" onClick={e => e.stopPropagation()} aria-label={t.settings}><div className="drawerHead"><div className="drawerBrandRow"><BrandLogo className="brandLogoDrawer"/><div className="drawerBrandBlock"><b className="drawerBrand">Quiz <em>Arena</em></b><small>{t.tag}</small></div></div><button className="drawerClose" onClick={() => setMenuOpen(false)} aria-label="Menü schließen">×</button></div>
           <div className="menuGroup"><h3>🌐 {t.languageLabel}</h3>{languages.map(([code,flag,label]) => <button key={code} className={language===code?'language active':'language'} onClick={()=>setAppLanguage(code)}><span>{flag}</span>{label}<b>{language===code?'✓':''}</b></button>)}</div>
           <div className="menuGroup settings"><h3>⚙ {t.settings}</h3>
             <div className="settingBlock"><div className="settingBlockTitle"><span className="settingsGlyph">☷</span><div><b>{t.difficulty}</b><small>{difficulty === 'hard' ? t.hardSub : t.easySub}</small></div></div><div className="segmented two"><button className={difficulty==='easy'?'active':''} onClick={()=>setDifficultyValue('easy')}>{t.easy}</button><button className={difficulty==='hard'?'active':''} onClick={()=>setDifficultyValue('hard')}>{t.hard}</button></div></div>
