@@ -38,6 +38,7 @@ const SearchPageWithMap = loadable(() => import(/* webpackChunkName: "SearchPage
 const SearchPageWithGrid = loadable(() => import(/* webpackChunkName: "SearchPageWithGrid" */ /* webpackPrefetch: true */  '../containers/SearchPage/SearchPageWithGrid'));
 const StripePayoutPage = loadable(() => import(/* webpackChunkName: "StripePayoutPage" */ '../containers/StripePayoutPage/StripePayoutPage'));
 const TermsOfServicePage = loadable(() => import(/* webpackChunkName: "TermsOfServicePage" */ '../containers/TermsOfServicePage/TermsOfServicePage'));
+const TrafficSignAssistPage = loadable(() => import(/* webpackChunkName: "TrafficSignAssistPage" */ '../containers/TrafficSignAssistPage/TrafficSignAssistPage'));
 const TransactionPage = loadable(() => import(/* webpackChunkName: "TransactionPage" */ '../containers/TransactionPage/TransactionPage'));
 const NoAccessPage = loadable(() => import(/* webpackChunkName: "NoAccessPage" */ '../containers/NoAccessPage/NoAccessPage'));
 
@@ -375,6 +376,11 @@ const routeConfiguration = (layoutConfig, accessControlConfig) => {
       path: '/quiz',
       name: 'QuizGamePage',
       component: QuizGamePage,
+    },
+    {
+      path: '/verkehrszeichen',
+      name: 'TrafficSignAssistPage',
+      component: TrafficSignAssistPage,
     },
     {
       path: '/styleguide',

@@ -1,0 +1,117 @@
+@import '../../../styles/customMediaQueries.css';
+
+.root {
+  padding: 24px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+
+  @media (--viewportMedium) {
+    padding: 32px;
+  }
+}
+
+.heading {
+  margin: 0;
+}
+
+.lead {
+  composes: p from global;
+  margin: 6px 0 24px 0;
+  color: var(--colorGrey700);
+
+  @media (--viewportMedium) {
+    margin: 8px 0 32px 0;
+  }
+}
+
+.requirements {
+  margin: 0 0 24px 0;
+  padding: 0;
+  list-style: none;
+
+  @media (--viewportMedium) {
+    margin: 0 0 32px 0;
+  }
+}
+
+.requirement {
+  composes: marketplaceDefaultFontStyles from global;
+  display: flex;
+  gap: 12px;
+  margin: 0;
+  padding: 6px 0;
+  color: var(--colorGrey900);
+
+  @media (--viewportMedium) {
+    padding: 8px 0;
+  }
+}
+
+.requirementMissing {
+  color: var(--colorGrey700);
+}
+
+.requirementMark {
+  flex-shrink: 0;
+  width: 18px;
+  color: var(--colorSuccess);
+  text-align: center;
+}
+
+.requirementMissing .requirementMark {
+  color: var(--colorAttention);
+}
+
+.requirementNote {
+  color: var(--colorGrey700);
+}
+
+.error {
+  composes: marketplaceDefaultFontStyles from global;
+  margin: 0 0 24px 0;
+  color: var(--colorFail);
+}
+
+.safety {
+  margin: 0 0 24px 0;
+  padding: 12px 18px;
+  border-left: solid 4px var(--colorAttention);
+  background-color: var(--colorGrey50);
+
+  @media (--viewportMedium) {
+    margin: 0 0 32px 0;
+    padding: 16px 24px;
+  }
+}
+
+.safetyHeading {
+  composes: marketplaceDefaultFontStyles from global;
+  display: block;
+  color: var(--colorGrey900);
+}
+
+.safetyText {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 6px 0 0 0;
+  color: var(--colorGrey700);
+
+  @media (--viewportMedium) {
+    margin: 8px 0 0 0;
+  }
+}
+
+.startButton {
+  margin: 0;
+}
+
+.hint {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 12px 0 0 0;
+  color: var(--colorGrey700);
+  text-align: center;
+
+  @media (--viewportMedium) {
+    margin: 16px 0 0 0;
+  }
+}

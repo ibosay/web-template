@@ -1,0 +1,192 @@
+@import '../../../styles/customMediaQueries.css';
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  @media (--viewportMedium) {
+    gap: 16px;
+  }
+}
+
+/* The camera picture keeps the shape of a phone held upright in a holder. */
+.viewport {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorGrey900);
+}
+
+.video,
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.overlay {
+  pointer-events: none;
+}
+
+.overlayHidden {
+  display: none;
+}
+
+.hud {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  pointer-events: none;
+
+  @media (--viewportMedium) {
+    right: 16px;
+    bottom: 16px;
+    left: 16px;
+  }
+}
+
+/* A round white sign with a red ring, the way it stands by the road. */
+.limitSign {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 84px;
+  height: 84px;
+  border: solid 10px #d62027;
+  border-radius: 50%;
+  background-color: var(--colorWhite);
+
+  @media (--viewportMedium) {
+    width: 96px;
+    height: 96px;
+    border-width: 12px;
+  }
+}
+
+.limitSignEmpty {
+  border-color: var(--colorGrey400);
+}
+
+.limitValue {
+  font-size: 34px;
+  font-weight: var(--fontWeightBold);
+  line-height: 1;
+  color: var(--colorBlack);
+
+  @media (--viewportMedium) {
+    font-size: 40px;
+  }
+}
+
+.speed {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--borderRadiusMedium);
+  background-color: rgba(0, 0, 0, 0.6);
+  color: var(--colorWhite);
+}
+
+.speedOver {
+  background-color: var(--colorFail);
+}
+
+.speedValue {
+  font-size: 34px;
+  font-weight: var(--fontWeightBold);
+  line-height: 1;
+
+  @media (--viewportMedium) {
+    font-size: 40px;
+  }
+}
+
+.speedUnit {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 0;
+}
+
+.stopBanner {
+  composes: marketplaceDefaultFontStyles from global;
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  margin: 0;
+  padding: 6px 18px;
+  transform: translateX(-50%);
+  border-radius: var(--borderRadiusMedium);
+  background-color: #d62027;
+  color: var(--colorWhite);
+  font-weight: var(--fontWeightBold);
+
+  @media (--viewportMedium) {
+    top: 16px;
+  }
+}
+
+.status {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 0;
+  color: var(--colorGrey700);
+  text-align: center;
+}
+
+.statusError {
+  color: var(--colorFail);
+}
+
+.debug {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  padding: 12px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+
+  @media (--viewportMedium) {
+    gap: 8px 24px;
+    padding: 16px;
+  }
+}
+
+.debugRow {
+  composes: marketplaceTinyFontStyles from global;
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  color: var(--colorGrey700);
+}
+
+.debugRow dt {
+  margin: 0;
+}
+
+.debugRow dd {
+  margin: 0;
+  color: var(--colorGrey900);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+
+  @media (--viewportMedium) {
+    gap: 8px;
+  }
+}
+
+.actionButton {
+  flex: 1;
+  margin: 0;
+}
