@@ -15,11 +15,13 @@ type Progress = {
   correct: number;
   bestStreak: number;
   gifts: number;
+  stars: number;
+  levelChests: number;
 };
 
 type MasteryEntry = { seen: number[]; hadMistake: boolean };
 type MasteryState = Record<string, MasteryEntry>;
-type Reward = { title: string; detail: string; xp: number } | null;
+type Reward = { title: string; detail: string; xp: number; stars: number } | null;
 
 export const QUESTIONS: Question[] = [
   { id: 301, category: 'Islam', question: "Wie viele Säulen hat der Islam nach Sahih al Bukhari und Sahih Muslim?", answers: ["Drei","Vier","Fünf","Sechs"], correct: 2, source: "Sahih al-Bukhari 8; Sahih Muslim 16a" },
@@ -512,6 +514,8 @@ const defaultProgress: Progress = {
   correct: 0,
   bestStreak: 0,
   gifts: 0,
+  stars: 0,
+  levelChests: 0,
 };
 
 const clampInt = (value: unknown, max: number) =>
@@ -522,13 +526,40 @@ const clampInt = (value: unknown, max: number) =>
 const normalizeProgress = (value: unknown): Progress => {
   if (!value || typeof value !== 'object') return defaultProgress;
   const item = value as Partial<Progress>;
+  const xp = clampInt(item.xp, 10_000_000);
   return {
-    xp: clampInt(item.xp, 10_000_000),
+    xp,
     rounds: clampInt(item.rounds, 100_000),
     correct: clampInt(item.correct, 1_000_000),
     bestStreak: clampInt(item.bestStreak, 10),
     gifts: clampInt(item.gifts, 100_000),
+    stars: typeof item.stars === 'number' ? clampInt(item.stars, 100_000) : Math.floor(xp / 500),
+    levelChests: clampInt(item.levelChests, 100_000),
   };
+};
+
+const addXpRewards = (progress: Progress, amount: number, bonusStars = 0, bonusPerfectGifts = 0): Progress => {
+  const oldLevel = Math.floor(progress.xp / 500) + 1;
+  const nextXp = progress.xp + Math.max(0, amount);
+  const newLevel = Math.floor(nextXp / 500) + 1;
+  const levelUps = Math.max(0, newLevel - oldLevel);
+  const milestoneChests = Math.max(0, Math.floor(newLevel / 5) - Math.floor(oldLevel / 5));
+  return {
+    ...progress,
+    xp: nextXp,
+    stars: progress.stars + levelUps + milestoneChests * 2 + bonusStars,
+    levelChests: progress.levelChests + milestoneChests,
+    gifts: progress.gifts + bonusPerfectGifts,
+  };
+};
+
+const getRank = (level: number) => {
+  if (level >= 50) return 'Quiz Legende';
+  if (level >= 35) return 'Großmeister';
+  if (level >= 20) return 'Meister';
+  if (level >= 10) return 'Experte';
+  if (level >= 5) return 'Kenner';
+  return 'Einsteiger';
 };
 
 type WebkitWindow = typeof window & { webkitAudioContext?: typeof AudioContext };
@@ -600,6 +631,7 @@ function App() {
   const [index, setIndex] = useState(0);
   const [seconds, setSeconds] = useState(20);
   const [selected, setSelected] = useState<number | null>(null);
+  const [hiddenAnswers, setHiddenAnswers] = useState<number[]>([]);
   const [answers, setAnswers] = useState<boolean[]>([]);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -718,6 +750,7 @@ function App() {
     };
   }, [isNativeApp]);
   const level = Math.floor(progress.xp / 500) + 1;
+  const rank = getRank(level);
   const xpIntoLevel = progress.xp % 500;
   const accuracy = answers.length
     ? Math.round((answers.filter(Boolean).length / answers.length) * 100)
@@ -805,6 +838,7 @@ function App() {
     setIndex(0);
     setSeconds(questionTime);
     setSelected(null);
+    setHiddenAnswers([]);
     setAnswers([]);
     setScore(0);
     setStreak(0);
@@ -855,25 +889,30 @@ function App() {
       const completedCycle = eligiblePool.length > 0 && eligiblePool.every(question => entry.seen.includes(question.id));
       const perfectCycle = completedCycle && !entry.hadMistake;
       const rewardXp = perfectCycle ? 500 : 0;
+      const rewardStars = perfectCycle ? 2 : 0;
       const xp = correctCount * 50 + Math.floor(score / 20) + rewardXp;
       setLastReward(perfectCycle ? {
         title: 'Goldene Wissenskiste',
         detail: 'Perfekter Durchlauf: ' + eligiblePool.length + ' von ' + eligiblePool.length + ' richtig',
         xp: rewardXp,
+        stars: rewardStars,
       } : null);
-      setProgress(prev => ({
-        xp: prev.xp + xp,
-        rounds: prev.rounds + 1,
-        correct: prev.correct + correctCount,
-        bestStreak: Math.max(prev.bestStreak, bestRoundStreak),
-        gifts: prev.gifts + (perfectCycle ? 1 : 0),
-      }));
+      setProgress(prev => {
+        const rewarded = addXpRewards(prev, xp, rewardStars, perfectCycle ? 1 : 0);
+        return {
+          ...rewarded,
+          rounds: rewarded.rounds + 1,
+          correct: rewarded.correct + correctCount,
+          bestStreak: Math.max(rewarded.bestStreak, bestRoundStreak),
+        };
+      });
       setScreen('result');
       return;
     }
     setIndex(value => value + 1);
     setSeconds(questionTime);
     setSelected(null);
+    setHiddenAnswers([]);
   };
 
   const resetProgress = () => {
@@ -888,7 +927,7 @@ function App() {
     const languages = [['DE','🇩🇪','Deutsch'],['EN','🇬🇧','English']];
     return (
       <main className={`shell appRoot gameHome font-${fontSize.toLowerCase()}`}>
-        <header className="homeTop"><div className="levelBox"><span className="levelBadge">{level}</span><div><strong>Level {level}</strong><div className="progressTrack"><div style={{ width: `${(xpIntoLevel / 500) * 100}%` }} /></div></div><b>{xpIntoLevel} XP</b></div><button className="menuButton" onClick={() => setMenuOpen(true)} aria-label="Menu"><span></span><span></span><span></span></button></header>
+        <header className="homeTop"><div className="levelBox"><span className="levelBadge">{level}</span><div className="levelCopy"><strong>Level {level}</strong><small>{rank}</small><div className="progressTrack"><div style={{ width: `${(xpIntoLevel / 500) * 100}%` }} /></div></div><div className="levelRewards"><b>★ {progress.stars}</b><small>{xpIntoLevel}/500 XP</small></div></div><button className="menuButton" onClick={() => setMenuOpen(true)} aria-label="Menu"><span></span><span></span><span></span></button></header>
         <section className="gameHero"><BrandLogo className="brandLogoHome"/><div><h1>Quiz <em>Arena</em></h1><p>{t.tag}</p></div></section>
         <section className="panel categoryPanel">
           <div className="categoryHeading"><div><h2>{language === 'DE' ? 'Kategorie wählen' : 'Choose a category'}</h2><p>{language === 'DE' ? 'Wähle ein Thema für deine nächste Runde.' : 'Pick a topic for your next round.'}</p></div><button className={`difficultyQuickSwitch ${difficulty}`} onClick={toggleDifficulty} aria-label={`${t.difficulty}: ${difficulty === 'hard' ? t.hard : t.easy}. ${t.switchDifficulty}`}><span className={difficulty === 'easy' ? 'active' : ''}>{t.easy}</span><span className={difficulty === 'hard' ? 'active' : ''}>{t.hard}</span></button></div>
@@ -998,7 +1037,7 @@ function App() {
             <strong>{Math.floor(progress.xp / 500) + 1}</strong>
           </div>
         </section>
-        {lastReward && <section className="rewardCard" aria-label="Ingame Belohnung"><div className="rewardGift">🎁</div><div><strong>{lastReward.title}</strong><span>{lastReward.detail}</span><b>+{lastReward.xp} XP</b></div></section>}
+        {lastReward && <section className="rewardCard" aria-label="Ingame Belohnung"><div className="rewardGift">🎁</div><div><strong>{lastReward.title}</strong><span>{lastReward.detail}</span><b>+{lastReward.xp} XP · +{lastReward.stars} ★</b></div></section>}
         <section className="panel">
           <div className="panelTitle">
             <span>{t.progress}</span>
@@ -1041,8 +1080,15 @@ function App() {
       <section className="questionCard">
         <div className="questionMeta"><p className="eyebrow">{categoryLabel(current.category).toUpperCase()}</p>{timeLimitEnabled ? <div className={seconds <= 5 ? 'timer danger' : 'timer'}>{seconds}s</div> : <div className="timer off" aria-label={language === 'DE' ? 'Zeitlimit aus' : 'Time limit off'}>∞</div>}</div>
         <h2>{current.question}</h2>
+        <div className="jokerBar"><span>Wissenssterne <b>★ {progress.stars}</b></span><button disabled={selected !== null || hiddenAnswers.length > 0 || progress.stars < 1} onClick={() => {
+          if (!current || selected !== null || hiddenAnswers.length > 0 || progress.stars < 1) return;
+          const wrong = current.answers.map((_, answerIndex) => answerIndex).filter(answerIndex => answerIndex !== current.correct);
+          setHiddenAnswers(shuffle(wrong).slice(0, 2));
+          setProgress(prev => ({ ...prev, stars: Math.max(0, prev.stars - 1) }));
+        }}>50:50 · 1 ★</button></div>
         <div className="answers">
           {current.answers.map((answer, answerIndex) => {
+            if (hiddenAnswers.includes(answerIndex)) return null;
             const isCorrect =
               selected !== null && answerIndex === current.correct;
             const isWrong =
