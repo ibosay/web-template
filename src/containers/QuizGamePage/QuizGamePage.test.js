@@ -159,6 +159,63 @@ describe('current Quiz Arena experience', () => {
     jest.useRealTimers();
   });
 
+  it('does not repeat answered questions in the next round', () => {
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    const seenIds = new Set();
+
+    for (let step = 0; step < 10; step += 1) {
+      const current = QUESTIONS.find(question => screen.queryByText(question.question));
+      expect(current).toBeDefined();
+      seenIds.add(current.id);
+
+      const answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+      fireEvent.click(answerButtons[current.correct]);
+      fireEvent.click(screen.getByRole('button', { name: step === 9 ? 'Ergebnis ansehen' : 'Weiter' }));
+    }
+
+    expect(screen.getByText('RUNDE BEENDET')).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem('quiz-arena-mastery'))['Islam:easy'].seen).toHaveLength(10);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Noch eine Runde' }));
+
+    const nextQuestion = QUESTIONS.find(question => screen.queryByText(question.question));
+    expect(nextQuestion).toBeDefined();
+    expect(seenIds.has(nextQuestion.id)).toBe(false);
+
+    randomSpy.mockRestore();
+  });
+
+  it('awards a golden knowledge chest for a perfect complete pool', () => {
+    window.localStorage.setItem('quiz-arena-difficulty', 'hard');
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    for (let step = 0; step < 10; step += 1) {
+      const current = QUESTIONS.find(question => screen.queryByText(question.question));
+      expect(current).toBeDefined();
+
+      const answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+      fireEvent.click(answerButtons[current.correct]);
+      fireEvent.click(screen.getByRole('button', { name: step === 9 ? 'Ergebnis ansehen' : 'Weiter' }));
+    }
+
+    expect(screen.getByText('Goldene Wissenskiste')).toBeInTheDocument();
+    expect(screen.getByText('+500 XP')).toBeInTheDocument();
+
+    const storedProgress = JSON.parse(window.localStorage.getItem('quiz-arena-progress'));
+    expect(storedProgress.gifts).toBe(1);
+
+    randomSpy.mockRestore();
+  });
+
   it('shows animated correct and wrong status marks and allows disabling the timer', () => {
     render(<QuizArenaLiveApp />);
 
