@@ -27,12 +27,19 @@ import {
 import { createStabilizerState, pushFrame } from './logic/detectionStabilizer';
 import useCameraStream from './hooks/useCameraStream';
 import useFrameDetection from './hooks/useFrameDetection';
+import useFrameRecorder from './hooks/useFrameRecorder';
 import useGpsSpeed from './hooks/useGpsSpeed';
 import useSpeech from './hooks/useSpeech';
 import useWakeLock from './hooks/useWakeLock';
 import StartScreen from './StartScreen/StartScreen';
 import DriveScreen from './DriveScreen/DriveScreen';
+import ReviewScreen from './ReviewScreen/ReviewScreen';
 import css from './TrafficSignAssistPage.module.css';
+
+// The screens the page moves through.
+const SCREEN_START = 'start';
+const SCREEN_DRIVE = 'drive';
+const SCREEN_REVIEW = 'review';
 
 /** Which announcement is spoken with which wording. */
 const ANNOUNCEMENT_MESSAGE_IDS = {
@@ -74,7 +81,7 @@ export const TrafficSignAssistPageComponent = props => {
   const intl = useIntl();
   const { scrollingDisabled } = props;
 
-  const [isDriving, setIsDriving] = useState(false);
+  const [screen, setScreen] = useState(SCREEN_START);
   const [isDebugVisible, setIsDebugVisible] = useState(false);
   // Only what is actually on screen lives in React state. The detector runs eight times a second,
   // and re-rendering the page that often would be wasteful, so its state is kept in refs.
@@ -87,12 +94,14 @@ export const TrafficSignAssistPageComponent = props => {
 
   const detector = useMemo(() => createDetector(), []);
   const camera = useCameraStream();
+  const recorder = useFrameRecorder({ videoRef: camera.videoRef });
   const gps = useGpsSpeed();
   // The warnings are spoken in the language of the app. Austrian German gets the Austrian voice
   // where the phone has one, which reads "30" and "130" the way they are said here.
   const locale = intl.locale || '';
   const speechLanguage = locale.toLowerCase().startsWith('de') ? 'de-AT' : locale || 'de-AT';
   const speech = useSpeech({ language: speechLanguage });
+  const isDriving = screen === SCREEN_DRIVE;
   useWakeLock(isDriving);
 
   const speedKmh = gps.speedKmh;
@@ -135,6 +144,12 @@ export const TrafficSignAssistPageComponent = props => {
       const vote = pushFrame(stabilizerRef.current, detections);
       stabilizerRef.current = vote.state;
 
+      recorder.offerFrame({
+        detections,
+        speedKmh: speedKmh === undefined ? null : speedKmh,
+        limitKmh: assistantRef.current.limitKmh,
+      });
+
       const result = updateAssistant(assistantRef.current, {
         nowMs: Date.now(),
         confirmedSigns: vote.confirmed,
@@ -164,7 +179,7 @@ export const TrafficSignAssistPageComponent = props => {
           : nextHud
       );
     },
-    [drawOverlay, intl, isDebugVisible, speech, speedKmh]
+    [drawOverlay, intl, isDebugVisible, recorder, speech, speedKmh]
   );
 
   const frameStats = useFrameDetection({
@@ -189,18 +204,19 @@ export const TrafficSignAssistPageComponent = props => {
     // Stay on the start screen if the camera refused, because that is where the error is shown.
     const isCameraRunning = await camera.start();
     if (isCameraRunning) {
-      setIsDriving(true);
+      setScreen(SCREEN_DRIVE);
     } else {
       gps.stop();
     }
   }, [camera, detector, gps, intl, speech]);
 
   const handleStop = useCallback(() => {
-    setIsDriving(false);
+    setScreen(SCREEN_START);
+    recorder.stop();
     camera.stop();
     gps.stop();
     speech.cancel();
-  }, [camera, gps, speech]);
+  }, [camera, gps, recorder, speech]);
 
   const title = intl.formatMessage(
     { id: 'TrafficSignAssistPage.schemaTitle' },
@@ -220,7 +236,9 @@ export const TrafficSignAssistPageComponent = props => {
             {intl.formatMessage({ id: 'TrafficSignAssistPage.subtitle' })}
           </p>
 
-          {isDriving ? (
+          {screen === SCREEN_REVIEW ? (
+            <ReviewScreen recorder={recorder} onBack={() => setScreen(SCREEN_START)} />
+          ) : isDriving ? (
             <DriveScreen
               videoRef={camera.registerVideo}
               overlayRef={overlayRef}
@@ -232,6 +250,7 @@ export const TrafficSignAssistPageComponent = props => {
               cameraError={camera.error}
               frameStats={frameStats}
               isDebugVisible={isDebugVisible}
+              recorder={recorder}
               onToggleDebug={() => setIsDebugVisible(visible => !visible)}
               onStop={handleStop}
             />
@@ -241,7 +260,9 @@ export const TrafficSignAssistPageComponent = props => {
               isGpsSupported={gps.isSupported}
               isSpeechSupported={speech.isSupported}
               cameraError={camera.error}
+              recordedFrameCount={recorder.isSupported ? recorder.frameCount : 0}
               onStart={handleStart}
+              onReview={() => setScreen(SCREEN_REVIEW)}
             />
           )}
         </div>

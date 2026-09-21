@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import { useIntl } from '../../../util/reactIntl';
 
 // Shared components
-import { H2, PrimaryButton } from '../../../components';
+import { H2, PrimaryButton, SecondaryButton } from '../../../components';
 
 // Modules from the same directory
 import css from './StartScreen.module.css';
@@ -29,12 +29,22 @@ const requirementRows = ({ isCameraSupported, isGpsSupported, isSpeechSupported 
  * @param {boolean} props.isGpsSupported - Whether the browser can report a position
  * @param {boolean} props.isSpeechSupported - Whether the browser can speak
  * @param {Object} [props.cameraError] - The error of the last attempt to open the camera
+ * @param {number} props.recordedFrameCount - How many frames a previous drive left behind
  * @param {Function} props.onStart - Called when the driver starts the assistant
+ * @param {Function} props.onReview - Called when the driver wants to look at that recording
  * @returns {JSX.Element} start screen
  */
 const StartScreen = props => {
   const intl = useIntl();
-  const { isCameraSupported, isGpsSupported, isSpeechSupported, cameraError, onStart } = props;
+  const {
+    isCameraSupported,
+    isGpsSupported,
+    isSpeechSupported,
+    cameraError,
+    recordedFrameCount,
+    onStart,
+    onReview,
+  } = props;
 
   const rows = requirementRows({ isCameraSupported, isGpsSupported, isSpeechSupported });
 
@@ -98,6 +108,15 @@ const StartScreen = props => {
       </PrimaryButton>
 
       <p className={css.hint}>{intl.formatMessage({ id: 'TrafficSignAssistPage.startHint' })}</p>
+
+      {recordedFrameCount > 0 ? (
+        <SecondaryButton className={css.reviewButton} type="button" onClick={onReview}>
+          {intl.formatMessage(
+            { id: 'TrafficSignAssistPage.reviewOpen' },
+            { count: recordedFrameCount }
+          )}
+        </SecondaryButton>
+      ) : null}
     </section>
   );
 };

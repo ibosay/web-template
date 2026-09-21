@@ -190,3 +190,19 @@
   flex: 1;
   margin: 0;
 }
+
+.recording {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.recordCount {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 0;
+  color: var(--colorGrey700);
+}
+
+.recordCountFull {
+  color: var(--colorAttention);
+}

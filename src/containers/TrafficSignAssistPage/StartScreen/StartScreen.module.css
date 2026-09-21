@@ -115,3 +115,11 @@
     margin: 16px 0 0 0;
   }
 }
+
+.reviewButton {
+  margin: 12px 0 0 0;
+
+  @media (--viewportMedium) {
+    margin: 16px 0 0 0;
+  }
+}

@@ -34,6 +34,19 @@ const installBrowserApis = ({ cameraFails = false } = {}) => {
   };
   // jsdom has no media playback.
   window.HTMLMediaElement.prototype.play = jest.fn(() => Promise.resolve());
+  // jsdom has no IndexedDB either. This is just enough of it for the page to see that a recording
+  // could be stored; opening it then fails, which the recorder is expected to shrug off.
+  window.indexedDB = {
+    open: () => {
+      const request = {};
+      setTimeout(() => {
+        if (request.onerror) {
+          request.onerror();
+        }
+      }, 0);
+      return request;
+    },
+  };
 
   return { spoken, getUserMedia, stream };
 };
@@ -42,6 +55,7 @@ const removeBrowserApis = () => {
   // The page has to come down before its stand-ins go away, otherwise it tears itself down
   // against a browser that no longer has a camera or a GPS.
   cleanup();
+  delete window.indexedDB;
   delete navigator.mediaDevices;
   delete navigator.geolocation;
   delete window.speechSynthesis;
@@ -181,6 +195,23 @@ describe('TrafficSignAssistPage', () => {
       expect(screen.getByText('TrafficSignAssistPage.debugLastSign')).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: 'TrafficSignAssistPage.hideDebug' })
+      ).toBeInTheDocument();
+    });
+
+    it('can record the drive, and says how much it has', async () => {
+      installBrowserApis();
+      renderPage();
+      await startAssistant();
+
+      const recordButton = await screen.findByRole('button', {
+        name: 'TrafficSignAssistPage.recordStart',
+      });
+      expect(screen.getByText('TrafficSignAssistPage.recordCount')).toBeInTheDocument();
+
+      await userEvent.click(recordButton);
+
+      expect(
+        screen.getByRole('button', { name: 'TrafficSignAssistPage.recordStop' })
       ).toBeInTheDocument();
     });
 

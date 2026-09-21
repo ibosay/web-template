@@ -30,6 +30,7 @@ import css from './DriveScreen.module.css';
  * @param {Object} [props.cameraError] - The error of the last attempt to open the camera
  * @param {Object} props.frameStats - Frames per second and time per frame of the detector
  * @param {boolean} props.isDebugVisible - Whether the boxes and the numbers are shown
+ * @param {Object} props.recorder - The recorder, from `useFrameRecorder`
  * @param {Function} props.onToggleDebug - Called when the driver shows or hides the debug view
  * @param {Function} props.onStop - Called when the driver stops the assistant
  * @returns {JSX.Element} drive screen
@@ -47,6 +48,7 @@ const DriveScreen = props => {
     cameraError,
     frameStats,
     isDebugVisible,
+    recorder,
     onToggleDebug,
     onStop,
   } = props;
@@ -131,6 +133,33 @@ const DriveScreen = props => {
             </dd>
           </div>
         </dl>
+      ) : null}
+
+      {recorder.isSupported ? (
+        <div className={css.recording}>
+          <SecondaryButton
+            className={css.actionButton}
+            type="button"
+            disabled={recorder.isFull}
+            onClick={recorder.isRecording ? recorder.stop : recorder.start}
+          >
+            {intl.formatMessage({
+              id: recorder.isRecording
+                ? 'TrafficSignAssistPage.recordStop'
+                : 'TrafficSignAssistPage.recordStart',
+            })}
+          </SecondaryButton>
+          <span className={classNames(css.recordCount, { [css.recordCountFull]: recorder.isFull })}>
+            {intl.formatMessage(
+              {
+                id: recorder.isFull
+                  ? 'TrafficSignAssistPage.recordFull'
+                  : 'TrafficSignAssistPage.recordCount',
+              },
+              { count: recorder.frameCount }
+            )}
+          </span>
+        </div>
       ) : null}
 
       <div className={css.actions}>

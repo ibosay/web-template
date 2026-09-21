@@ -1,0 +1,106 @@
+@import '../../../styles/customMediaQueries.css';
+
+.root {
+  padding: 24px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorWhite);
+
+  @media (--viewportMedium) {
+    padding: 32px;
+  }
+}
+
+.heading {
+  margin: 0 0 12px 0;
+
+  @media (--viewportMedium) {
+    margin: 0 0 16px 0;
+  }
+}
+
+.empty {
+  composes: marketplaceDefaultFontStyles from global;
+  margin: 0 0 24px 0;
+  color: var(--colorGrey700);
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  border-radius: var(--borderRadiusMedium);
+  background-color: var(--colorGrey900);
+}
+
+.position {
+  composes: marketplaceTinyFontStyles from global;
+  margin: 6px 0;
+  color: var(--colorGrey700);
+  text-align: center;
+
+  @media (--viewportMedium) {
+    margin: 8px 0;
+  }
+}
+
+.stepper {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px 0;
+
+  @media (--viewportMedium) {
+    gap: 8px;
+    margin: 0 0 16px 0;
+  }
+}
+
+.stepButton {
+  flex: 1;
+  margin: 0;
+}
+
+.facts {
+  margin: 0 0 24px 0;
+  padding: 12px;
+  border: solid 1px var(--colorGrey100);
+  border-radius: var(--borderRadiusMedium);
+
+  @media (--viewportMedium) {
+    margin: 0 0 32px 0;
+    padding: 16px;
+  }
+}
+
+.fact {
+  composes: marketplaceTinyFontStyles from global;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 3px 0;
+  color: var(--colorGrey700);
+}
+
+.fact dt {
+  margin: 0;
+}
+
+.fact dd {
+  margin: 0;
+  color: var(--colorGrey900);
+  text-align: right;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  @media (--viewportMedium) {
+    gap: 8px;
+  }
+}
+
+.actionButton {
+  margin: 0;
+}

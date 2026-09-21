@@ -74,9 +74,14 @@ TrafficSignAssistPage/
 ├── logic/
 │   ├── detectionStabilizer.js    # several frames have to agree
 │   └── assistantState.js         # the limit in force, and when to speak
-├── hooks/                        # camera, GPS, voice, screen, frame loop
+├── recording/
+│   ├── recordingPolicy.js        # which frames of a drive are worth keeping
+│   ├── frameStore.js             # the recording, in the browser of the phone
+│   └── zipArchive.js             # packs a recording into a ZIP to take away
+├── hooks/                        # camera, GPS, voice, screen, frame loop, recorder
 ├── StartScreen/                  # before the drive
-└── DriveScreen/                  # during the drive
+├── DriveScreen/                  # during the drive
+└── ReviewScreen/                 # afterwards: what it made of each frame
 ```
 
 ## Trying it on a phone
@@ -98,6 +103,32 @@ Then open `/verkehrszeichen`, tap **start**, and allow the camera and the locati
 detection** draws a box around everything the detector found, with what it read in it. That view is
 the tool for judging whether the detector is doing its job: park at the side of a road with a sign
 in view and watch what it makes of it.
+
+## Recording a drive, and looking at it afterwards
+
+Watching the assistant from the driver's seat only ever yields an impression — "it did not see much"
+— and there is no threshold to be tuned against an impression. So a drive can be recorded: tap
+**start recording** during the drive, and afterwards **look at the recording**.
+
+What is kept, and what is not:
+
+- every half second while the detector is reporting something, so a sign is caught at several
+  distances,
+- one frame every three seconds otherwise, which is the part that matters — a sign that was driven
+  straight past leaves a frame behind instead of leaving nothing,
+- at most 600 frames, about 15 MB, so a recording that is forgotten cannot fill the phone.
+
+The frames stay on the phone, in IndexedDB. Nothing is uploaded.
+
+The review screen shows one frame at a time with two lines under it: what the detector found **while
+driving**, and what it finds **now**, running again over the same picture as it is shown. That pair
+is the tuning loop — change a threshold, open the same recording again, and see whether the sign it
+missed is still missed.
+
+**Download as ZIP** writes the whole thing out: a folder of JPEGs at 640×480 next to a
+`manifest.json` that lists, per frame, what was detected, with what confidence, in which box, at
+what speed, and under which limit. That file is both the evidence for a bug report and the raw
+material for [Part 2](#part-2-a-trained-model).
 
 ## Tuning it
 
@@ -149,8 +180,10 @@ export const createDetector = () => ({
 
 A sensible order of work:
 
-1. **Collect footage.** Drive with the page open and record, or film with a mounted phone. A few
-   hundred frames of Austrian roads in different light is worth more than any public dataset.
+1. **Collect footage.** Drive with the recording on, then download the ZIP — see
+   [above](#recording-a-drive-and-looking-at-it-afterwards). A few hundred frames of Austrian roads
+   in different light is worth more than any public dataset, and the manifest already says what the
+   shape detector made of each one, which is a head start on labelling.
 2. **Start from a public dataset.** Austrian signs follow the Vienna Convention, so the German GTSRB
    and GTSDB sets and the Mapillary Traffic Sign Dataset transfer almost directly. Label your own
    footage on top of them.
