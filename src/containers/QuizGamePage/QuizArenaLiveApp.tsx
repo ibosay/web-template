@@ -121,27 +121,6 @@ export const QUESTIONS: Question[] = [
     correct: 1,
   },
   {
-    id: 7,
-    category: 'Kultur',
-    question: 'Wer malte die Mona Lisa?',
-    answers: ['Michelangelo', 'Raphael', 'Leonardo da Vinci', 'Rembrandt'],
-    correct: 2,
-  },
-  {
-    id: 8,
-    category: 'Kultur',
-    question: 'In welcher Stadt steht das Kolosseum?',
-    answers: ['Athen', 'Rom', 'Madrid', 'Paris'],
-    correct: 1,
-  },
-  {
-    id: 9,
-    category: 'Kultur',
-    question: 'Wie heißt die japanische Papierfaltkunst?',
-    answers: ['Ikebana', 'Origami', 'Haiku', 'Kabuki'],
-    correct: 1,
-  },
-  {
     id: 10,
     category: 'Geschichte',
     question: 'In welchem Jahr fiel die Berliner Mauer?',
@@ -199,23 +178,6 @@ export const QUESTIONS: Question[] = [
   { id: 53, category: 'Wissenschaft', question: 'Welche Schicht schützt die Erde vor einem großen Teil der UV-Strahlung?', answers: ['Ozonschicht', 'Erdkern', 'Troposphäre allein', 'Magnetkern'], correct: 0 },
   { id: 54, category: 'Wissenschaft', question: 'Wie heißt das Zentrum eines Atoms?', answers: ['Elektron', 'Atomkern', 'Molekül', 'Ion'], correct: 1 },
 
-  { id: 55, category: 'Kultur', question: 'Wer schrieb das Drama Romeo und Julia?', answers: ['Goethe', 'Shakespeare', 'Schiller', 'Dante'], correct: 1 },
-  { id: 56, category: 'Kultur', question: 'Welches Instrument besitzt typischerweise 88 Tasten?', answers: ['Klavier', 'Violine', 'Trompete', 'Flöte'], correct: 0 },
-  { id: 57, category: 'Kultur', question: 'Aus welchem Land stammt die Kunstform Kabuki?', answers: ['China', 'Japan', 'Indien', 'Korea'], correct: 1 },
-  { id: 58, category: 'Kultur', question: 'Wer komponierte die 9. Sinfonie mit der Ode an die Freude?', answers: ['Mozart', 'Beethoven', 'Bach', 'Vivaldi'], correct: 1 },
-  { id: 59, category: 'Kultur', question: 'Wie nennt man ein Gedicht mit traditionell 14 Verszeilen?', answers: ['Sonett', 'Roman', 'Essay', 'Fabel'], correct: 0 },
-  { id: 60, category: 'Kultur', question: 'Welcher Künstler malte Die Sternennacht?', answers: ['Van Gogh', 'Picasso', 'Monet', 'Dalí'], correct: 0 },
-  { id: 61, category: 'Kultur', question: 'In welchem Land entstand der Flamenco?', answers: ['Spanien', 'Frankreich', 'Mexiko', 'Portugal'], correct: 0 },
-  { id: 62, category: 'Kultur', question: 'Wie heißt die Kunst des schönen Schreibens?', answers: ['Kalligrafie', 'Lithografie', 'Fotografie', 'Choreografie'], correct: 0 },
-  { id: 63, category: 'Kultur', question: 'Wer schrieb den Roman Der Prozess?', answers: ['Franz Kafka', 'Thomas Mann', 'Hermann Hesse', 'Stefan Zweig'], correct: 0 },
-  { id: 64, category: 'Kultur', question: 'Welche Tanzform ist eng mit Argentinien verbunden?', answers: ['Tango', 'Walzer', 'Polka', 'Samba'], correct: 0 },
-  { id: 65, category: 'Kultur', question: 'Welcher Maler ist für das Werk Guernica bekannt?', answers: ['Picasso', 'Rembrandt', 'Klimt', 'Munch'], correct: 0 },
-  { id: 66, category: 'Kultur', question: 'Wie nennt man eine längere erfundene Erzählung in Buchform?', answers: ['Roman', 'Sonett', 'Oper', 'Skulptur'], correct: 0 },
-  { id: 67, category: 'Kultur', question: 'Welcher österreichische Komponist wurde in Salzburg geboren?', answers: ['Mozart', 'Beethoven', 'Brahms', 'Wagner'], correct: 0 },
-  { id: 68, category: 'Kultur', question: 'Welche Kunstform arbeitet hauptsächlich mit dreidimensionalen Figuren und Formen?', answers: ['Skulptur', 'Lyrik', 'Oper', 'Fotografie'], correct: 0 },
-  { id: 69, category: 'Kultur', question: 'Wie heißt das berühmte Museum in Paris, in dem die Mona Lisa ausgestellt ist?', answers: ['Louvre', 'Prado', 'Uffizien', 'Tate Modern'], correct: 0 },
-  { id: 70, category: 'Kultur', question: 'Welcher Autor schrieb Die Verwandlung?', answers: ['Franz Kafka', 'Bertolt Brecht', 'Heinrich Heine', 'Erich Kästner'], correct: 0 },
-  { id: 71, category: 'Kultur', question: 'Welche Farbe entsteht klassisch beim Mischen von Blau und Gelb?', answers: ['Grün', 'Orange', 'Violett', 'Rot'], correct: 0 },
 
   { id: 72, category: 'Geschichte', question: 'Welche antike Stadt wurde beim Ausbruch des Vesuvs im Jahr 79 verschüttet?', answers: ['Pompeji', 'Sparta', 'Troja', 'Alexandria'], correct: 0 },
   { id: 73, category: 'Geschichte', question: 'Wer erfand in Europa den Buchdruck mit beweglichen Metalllettern?', answers: ['Johannes Gutenberg', 'Galileo Galilei', 'Isaac Newton', 'James Watt'], correct: 0 },
@@ -526,13 +488,12 @@ const localizeQuestion = (q:Question, language:string):Question | null => { if(l
 export const HARD_QUESTION_IDS = new Set([432,433,434,435,437,441,442,443,444,445,446,448,449,451,452,453,456,460,464,467,468,470,472,474,475,476,478,479,483,484,485,488,492,495,496,497,411,414,416,417,418,419,421,422,423,424,22,25,26,27,37,42,46,48,51,52,53,54,57,58,59,63,65,68,69,70,72,73,77,80,83,86,87,88,113,115,121,126,127,128,133,134,135,136,137,140,141,142,143,144,145,146,147,148,149,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,333,334,341,342,346,352,353,354,358,360]);
 
 export const CATEGORIES = [
-  'Islam',
   'Alle',
+  'Islam',
   'Allgemeinwissen',
   'Geografie',
   'Wissenschaft',
   'Geschichte',
-  'Kultur',
   'EU',
   'Staatsbürgerschaft',
 ];
