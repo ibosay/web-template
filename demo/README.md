@@ -43,6 +43,24 @@ Danach am Handy im Browser öffnen und zum Startbildschirm hinzufügen:
 
 Ab dann startet sie wie eine App, im Vollbild und ohne Adressleiste, und läuft auch ohne Empfang.
 
+## Auf dem iPhone
+
+- **Nur Safari.** Andere Browser auf iOS können keine App zum Home-Bildschirm hinzufügen. Auch zum
+  blossen Ausprobieren gehört die Adresse in Safari geöffnet.
+- **Hinzufügen**: Teilen-Symbol (Quadrat mit Pfeil) → nach unten scrollen → _Zum Home-Bildschirm_.
+  iOS zeigt von sich aus keine Aufforderung dazu, anders als Android.
+- **Beim ersten Start** fragt Safari nach Kamera und Standort. Wird eines abgelehnt, merkt iOS sich
+  das für diese Adresse; zurücknehmen lässt sich das unter Einstellungen → Safari → Kamera bzw.
+  Ortungsdienste.
+- **Der Stummschalter kann die Sprachausgabe verstummen lassen.** Wenn Zeichen erkannt werden, aber
+  nichts zu hören ist: Schalter an der Seite prüfen und die Lautstärke aufdrehen.
+- **Nicht wegwischen.** Wechselst du die App, pausiert iOS das Kamerabild. Beim Zurückkommen startet
+  die App es wieder; hat iOS die Kamera inzwischen einer anderen App gegeben, steht das als Meldung
+  auf dem Fahrbildschirm und die Fahrt muss neu gestartet werden.
+- **Aufnehmen und ansehen am selben Ort.** Eine Aufnahme liegt im Speicher der Seite. Safari und die
+  installierte App müssen sich diesen Speicher nicht zwingend teilen — nimm also dort auf, wo du sie
+  danach auch ansehen willst.
+
 ## Was am Handy anders ist als am Rechner
 
 - **Das Display muss anbleiben.** Die App hält es über die Wake-Lock-Schnittstelle wach, solange sie

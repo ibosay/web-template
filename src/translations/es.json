@@ -1329,6 +1329,7 @@
   "TopbarSearchForm.placeholder": "Buscar anuncios…",
   "TopbarSimplified.goToLandingPage": "Ir a la página de inicio",
   "TrafficSignAssistPage.cameraError": "No se pudo iniciar la cámara. Permite el acceso a la cámara y recarga la página.",
+  "TrafficSignAssistPage.cameraInterrupted": "Otra cosa se ha quedado con la cámara. Detén y vuelve a empezar.",
   "TrafficSignAssistPage.debugFps": "Imágenes/s",
   "TrafficSignAssistPage.debugFrameTime": "Por imagen",
   "TrafficSignAssistPage.debugGpsAccuracy": "Precisión del GPS",

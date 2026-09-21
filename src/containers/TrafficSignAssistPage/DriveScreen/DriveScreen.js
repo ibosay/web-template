@@ -28,6 +28,7 @@ import css from './DriveScreen.module.css';
  * @param {Object} [props.lastSign] - The sign that was recognised last
  * @param {Object} props.gps - The state of `useGpsSpeed`
  * @param {Object} [props.cameraError] - The error of the last attempt to open the camera
+ * @param {boolean} props.wasCameraInterrupted - Whether the system took the camera away mid-drive
  * @param {Object} props.frameStats - Frames per second and time per frame of the detector
  * @param {boolean} props.isDebugVisible - Whether the boxes and the numbers are shown
  * @param {Object} props.recorder - The recorder, from `useFrameRecorder`
@@ -46,6 +47,7 @@ const DriveScreen = props => {
     lastSign,
     gps,
     cameraError,
+    wasCameraInterrupted,
     frameStats,
     isDebugVisible,
     recorder,
@@ -98,7 +100,11 @@ const DriveScreen = props => {
       </div>
 
       <div className={css.status} role="status">
-        {cameraError ? (
+        {wasCameraInterrupted ? (
+          <span className={css.statusError}>
+            {intl.formatMessage({ id: 'TrafficSignAssistPage.cameraInterrupted' })}
+          </span>
+        ) : cameraError ? (
           <span className={css.statusError}>
             {intl.formatMessage({ id: 'TrafficSignAssistPage.cameraError' })}
           </span>

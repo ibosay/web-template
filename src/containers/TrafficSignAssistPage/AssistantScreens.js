@@ -34,6 +34,7 @@ const AssistantScreens = props => {
         lastSign={assistant.lastSign}
         gps={assistant.gps}
         cameraError={assistant.camera.error}
+        wasCameraInterrupted={assistant.camera.wasInterrupted}
         frameStats={assistant.frameStats}
         isDebugVisible={assistant.isDebugVisible}
         recorder={assistant.recorder}

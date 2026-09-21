@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { act } from 'react';
 import '@testing-library/jest-dom';
 
 import { renderWithProviders as render, testingLibrary } from '../../util/testHelpers';
@@ -12,7 +12,10 @@ const { cleanup, screen, userEvent, waitFor } = testingLibrary;
 // and driven without any of them being real.
 const installBrowserApis = ({ cameraFails = false } = {}) => {
   const spoken = [];
-  const stream = { getTracks: () => [{ stop: jest.fn() }] };
+  // A stand-in for a MediaStream, with the parts the camera hook uses: the tracks it stops when
+  // the drive ends, and the 'ended' event it listens for to notice a camera taken by the system.
+  const track = { stop: jest.fn(), addEventListener: jest.fn(), removeEventListener: jest.fn() };
+  const stream = { getTracks: () => [track], getVideoTracks: () => [track] };
   const getUserMedia = jest.fn(() =>
     cameraFails ? Promise.reject(new Error('NotAllowedError')) : Promise.resolve(stream)
   );
@@ -48,7 +51,7 @@ const installBrowserApis = ({ cameraFails = false } = {}) => {
     },
   };
 
-  return { spoken, getUserMedia, stream };
+  return { spoken, getUserMedia, stream, track };
 };
 
 const removeBrowserApis = () => {
@@ -213,6 +216,27 @@ describe('TrafficSignAssistPage', () => {
       expect(
         screen.getByRole('button', { name: 'TrafficSignAssistPage.recordStop' })
       ).toBeInTheDocument();
+    });
+
+    it('says so when the system takes the camera away mid-drive', async () => {
+      // On a phone another app can claim the camera, and iOS does it when the app goes to the
+      // background. Without this the picture just freezes and the assistant goes quiet.
+      const { track } = installBrowserApis();
+      renderPage();
+      await startAssistant();
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole('button', { name: 'TrafficSignAssistPage.stop' })
+        ).toBeInTheDocument()
+      );
+
+      const [, endTheTrack] = track.addEventListener.mock.calls.find(
+        ([event]) => event === 'ended'
+      );
+      await act(async () => endTheTrack());
+
+      expect(screen.getByText('TrafficSignAssistPage.cameraInterrupted')).toBeInTheDocument();
     });
 
     it('goes back to the start screen and lets go of the camera', async () => {
