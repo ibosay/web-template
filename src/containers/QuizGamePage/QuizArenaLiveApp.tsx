@@ -792,12 +792,7 @@ function App() {
     setAnswers(prev => [...prev, correct]);
     setSelected(answerIndex);
     if (!correct) {
-      const nextWrongCount = wrongCount + 1;
-      setWrongCount(nextWrongCount);
-      if (difficulty === 'hard' && nextWrongCount >= 2) {
-        setFailReason('mistakes');
-        window.setTimeout(() => setScreen('failed'), 280);
-      }
+      setWrongCount(value => value + 1);
     }
     playTone(ensureAudio(), sound, correct);
     vibrate(haptics, correct);
@@ -805,6 +800,11 @@ function App() {
 
   const next = () => {
     if (selected === null) return;
+    if (difficulty === 'hard' && wrongCount >= 2) {
+      setFailReason('mistakes');
+      setScreen('failed');
+      return;
+    }
     if (index === questions.length - 1) {
       const correctCount = answers.filter(Boolean).length;
       const xp = correctCount * 50 + Math.floor(score / 20);
@@ -998,7 +998,7 @@ function App() {
         )}
         {selected !== null && (
           <button className="primary" onClick={next}>
-            {index === questions.length - 1 ? t.result : t.next}
+            {difficulty === 'hard' && wrongCount >= 2 ? t.next : index === questions.length - 1 ? t.result : t.next}
           </button>
         )}
       </section>
