@@ -178,6 +178,7 @@
   "DeleteAccountForm.resetPasswordLinkSent": "Enviamos instrucciones para restablecer tu contraseña a {email}. {resendPasswordLink}",
   "DeleteAccountForm.resetPasswordLinkText": "Enviar las instrucciones de restablecimiento",
   "DeleteAccountForm.stripeDeletionFailedError": "No se pudo eliminar la cuenta. No se pudieron borrar los datos de Stripe. Por favor, contacta al equipo de soporte.",
+  "Demo.badge": "Versión de prueba",
   "DiscardDraftModal.close": "Cerrar",
   "DiscardDraftModal.message": "No se puede deshacer.",
   "DiscardDraftModal.submit": "Descartar borrador",

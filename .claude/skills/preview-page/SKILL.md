@@ -77,7 +77,8 @@ Each of these fails in a way that does not name its cause, so they are worth kno
   the CLI and wait on stdin, which looks exactly like a hang — zero CPU, no output.
 - **`css-loader` v7 defaults to named exports.** The app imports the default export, so
   `modules.namedExport` has to be `false`. Otherwise every `css.someClass` is `undefined` and the
-  page throws on its first render.
+  page throws on its first render. This and the rules below it live in `demo/webpackRules.js`,
+  shared with the installable demo.
 - **`process.env` has to be injected.** `src/config/settings.js` reads `REACT_APP_*`, and without
   `DefinePlugin` the page dies on `process is not defined` before rendering anything.
 - **`resolve.modules` order matters.** react-router v5 needs its own nested `path-to-regexp` v1.

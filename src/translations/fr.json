@@ -178,6 +178,7 @@
   "DeleteAccountForm.resetPasswordLinkSent": "Les instructions pour réinitialiser votre mot de passe ont été envoyées à {email}. {resendPasswordLink}",
   "DeleteAccountForm.resetPasswordLinkText": "Envoyer les instructions de réinitialisation.",
   "DeleteAccountForm.stripeDeletionFailedError": "La suppression du compte a échouée. Les données Stripe n'ont pas pu être supprimées. Veuillez contacter l'assistance.",
+  "Demo.badge": "Version de test",
   "DiscardDraftModal.close": "Fermer",
   "DiscardDraftModal.message": "Ceci est irréversible.",
   "DiscardDraftModal.submit": "Supprimer le brouillon",

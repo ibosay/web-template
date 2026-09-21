@@ -1,0 +1,42 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  /* Fills the window on a phone, where the address bar changes the height as you scroll. */
+  min-height: 100dvh;
+  background-color: var(--colorGrey50);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: solid 1px var(--colorGrey100);
+  background-color: var(--colorWhite);
+  /* Keeps the bar clear of the notch on a phone. */
+  padding-top: calc(10px + env(safe-area-inset-top));
+}
+
+.title {
+  font-size: 15px;
+  font-weight: var(--fontWeightBold);
+  color: var(--colorGrey900);
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: var(--colorAttention);
+  color: var(--colorWhite);
+  font-size: 11px;
+  font-weight: var(--fontWeightBold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.main {
+  flex: 1;
+  padding: 12px 12px calc(24px + env(safe-area-inset-bottom)) 12px;
+}

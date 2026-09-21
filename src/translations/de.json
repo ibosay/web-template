@@ -178,6 +178,7 @@
   "DeleteAccountForm.resetPasswordLinkSent": "Anweisungen zum Zurücksetzen deines Passworts wurden an {email} gesendet. {resendPasswordLink}",
   "DeleteAccountForm.resetPasswordLinkText": "Zurücksetzungsanweisungen senden.",
   "DeleteAccountForm.stripeDeletionFailedError": "Kontolöschung fehlgeschlagen. Stripe-Daten konnten nicht gelöscht werden. Bitte wende dich an den Support.",
+  "Demo.badge": "Testversion",
   "DiscardDraftModal.close": "Schließen",
   "DiscardDraftModal.message": "Dies kann nicht rückgängig gemacht werden.",
   "DiscardDraftModal.submit": "Entwurf verwerfen",

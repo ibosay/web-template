@@ -1,5 +1,6 @@
 build/
 coverage/
+demo/dist/
 node_modules/
 public/
 src/components/index.js
