@@ -7,8 +7,8 @@ Quiz Arena is packaged with Capacitor for iOS and Android.
 The native shell now uses the same Quiz Arena experience as the current live app.
 
 1. German and English are the two selectable languages.
-2. The local question bank contains 419 questions.
-3. Categories include General Knowledge, Geography, Science, History, Culture, EU, Islam and a separate Citizenship Questions section, plus the combined All category.
+2. The local question bank contains 399 questions.
+3. Categories include All, Islam, General Knowledge, Geography, Science, History, EU and a separate Citizenship Questions section.
 4. Easy and Hard difficulty modes are available.
 5. Round size, timer, theme, font size, sound and haptics are persistent local settings.
 6. Player progress, XP, rounds, correct answers and best streak are stored locally.
@@ -54,3 +54,6 @@ The app uses `@capacitor/splash-screen`. The current launch background is `#080D
 
 
 The separate legacy Austria category has been removed. Austrian citizenship content remains under Citizenship Questions, with History of Austria and Vienna as its two topics. Quiz Arena uses the vector brand logo on the home screen and settings drawer.
+
+
+The Culture category has been removed together with its 20 questions. The category order starts with All, followed directly by Islam Questions.
