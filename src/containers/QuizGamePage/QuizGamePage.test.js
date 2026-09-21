@@ -220,7 +220,7 @@ describe('current Quiz Arena experience', () => {
   it('uses earned knowledge stars for a 50:50 joker', () => {
     window.localStorage.setItem('quiz-arena-time-enabled', 'off');
     window.localStorage.setItem('quiz-arena-progress', JSON.stringify({
-      xp: 500,
+      xp: 2000,
       rounds: 0,
       correct: 0,
       bestStreak: 0,
