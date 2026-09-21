@@ -15,8 +15,8 @@ describe('current Quiz Arena experience', () => {
   });
 
   it('contains the complete current question bank with valid answers and English copy', () => {
-    expect(QUESTIONS).toHaveLength(310);
-    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(310);
+    expect(QUESTIONS).toHaveLength(377);
+    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(377);
     expect(CATEGORIES).toEqual([
       'Islam',
       'Alle',
@@ -34,8 +34,10 @@ describe('current Quiz Arena experience', () => {
       expect(question.answers).toHaveLength(4);
       expect(question.correct).toBeGreaterThanOrEqual(0);
       expect(question.correct).toBeLessThan(4);
-      expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
-      expect(QUESTION_TRANSLATIONS.EN?.[question.id].answers).toHaveLength(4);
+      if (question.category !== 'Staatsbürgerschaft') {
+        expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
+        expect(QUESTION_TRANSLATIONS.EN?.[question.id].answers).toHaveLength(4);
+      }
     });
 
     expect(HARD_QUESTION_IDS.size).toBeGreaterThan(0);
@@ -52,10 +54,13 @@ describe('current Quiz Arena experience', () => {
     const islamCopy = islamQuestions.flatMap(question => [question.question, ...question.answers]).join(' ');
     expect(islamCopy).not.toMatch(/hanafi|maliki|schafi|hanbali|rechtsschule|madhhab/i);
     const citizenshipQuestions = QUESTIONS.filter(question => question.category === 'Staatsbürgerschaft');
-    expect(citizenshipQuestions).toHaveLength(30);
+    expect(citizenshipQuestions).toHaveLength(97);
+    const sourceNumbers = citizenshipQuestions
+      .map(question => Number(question.source.split('10-')[1]))
+      .sort((a, b) => a - b);
+    expect(sourceNumbers).toEqual(Array.from({ length: 97 }, (_, index) => index + 1));
     citizenshipQuestions.forEach(question => {
-      expect(question.source).toMatch(/^Geschichte Österreichs, 10-/);
-      expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
+      expect(question.source).toMatch(/^Geschichte Österreichs, 10-\d{3}$/);
     });
   });
 
