@@ -10,6 +10,10 @@
       "launchShowDuration": 1200,
       "backgroundColor": "#080D1C",
       "showSpinner": false
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "hidden": false
     }
   }
 }
