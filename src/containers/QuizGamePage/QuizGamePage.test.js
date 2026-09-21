@@ -208,12 +208,42 @@ describe('current Quiz Arena experience', () => {
     }
 
     expect(screen.getByText('Goldene Wissenskiste')).toBeInTheDocument();
-    expect(screen.getByText('+500 XP')).toBeInTheDocument();
+    expect(screen.getByText('+500 XP · +2 ★')).toBeInTheDocument();
 
     const storedProgress = JSON.parse(window.localStorage.getItem('quiz-arena-progress'));
     expect(storedProgress.gifts).toBe(1);
+    expect(storedProgress.stars).toBeGreaterThanOrEqual(2);
 
     randomSpy.mockRestore();
+  });
+
+  it('uses earned knowledge stars for a 50:50 joker', () => {
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+    window.localStorage.setItem('quiz-arena-progress', JSON.stringify({
+      xp: 500,
+      rounds: 0,
+      correct: 0,
+      bestStreak: 0,
+      gifts: 0,
+      stars: 1,
+      levelChests: 0,
+    }));
+
+    render(<QuizArenaLiveApp />);
+    expect(screen.getByText('Kenner')).toBeInTheDocument();
+    expect(screen.getByText('★ 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+    const joker = screen.getByRole('button', { name: '50:50 · 1 ★' });
+    expect(joker).toBeEnabled();
+
+    fireEvent.click(joker);
+
+    const availableAnswers = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    expect(availableAnswers).toHaveLength(2);
+
+    const storedProgress = JSON.parse(window.localStorage.getItem('quiz-arena-progress'));
+    expect(storedProgress.stars).toBe(0);
   });
 
   it('shows animated correct and wrong status marks and allows disabling the timer', () => {
