@@ -15,8 +15,8 @@ describe('current Quiz Arena experience', () => {
   });
 
   it('contains the complete current question bank with valid answers and English copy', () => {
-    expect(QUESTIONS).toHaveLength(377);
-    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(377);
+    expect(QUESTIONS).toHaveLength(439);
+    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(439);
     expect(CATEGORIES).toEqual([
       'Islam',
       'Alle',
@@ -34,7 +34,7 @@ describe('current Quiz Arena experience', () => {
       expect(question.answers).toHaveLength(4);
       expect(question.correct).toBeGreaterThanOrEqual(0);
       expect(question.correct).toBeLessThan(4);
-      if (question.category !== 'Staatsbürgerschaft') {
+      if (!question.category.startsWith('Staatsbürgerschaft')) {
         expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
         expect(QUESTION_TRANSLATIONS.EN?.[question.id].answers).toHaveLength(4);
       }
@@ -53,15 +53,19 @@ describe('current Quiz Arena experience', () => {
     expect(islamQuestions.some(question => question.question.includes('Schahada'))).toBe(true);
     const islamCopy = islamQuestions.flatMap(question => [question.question, ...question.answers]).join(' ');
     expect(islamCopy).not.toMatch(/hanafi|maliki|schafi|hanbali|rechtsschule|madhhab/i);
-    const citizenshipQuestions = QUESTIONS.filter(question => question.category === 'Staatsbürgerschaft');
-    expect(citizenshipQuestions).toHaveLength(97);
-    const sourceNumbers = citizenshipQuestions
+    const austriaCitizenshipQuestions = QUESTIONS.filter(question => question.category === 'Staatsbürgerschaft Österreich');
+    const viennaCitizenshipQuestions = QUESTIONS.filter(question => question.category === 'Staatsbürgerschaft Wien');
+    expect(austriaCitizenshipQuestions).toHaveLength(97);
+    expect(viennaCitizenshipQuestions).toHaveLength(62);
+    const sourceNumbers = austriaCitizenshipQuestions
       .map(question => Number(question.source.split('10-')[1]))
       .sort((a, b) => a - b);
     expect(sourceNumbers).toEqual(Array.from({ length: 97 }, (_, index) => index + 1));
-    citizenshipQuestions.forEach(question => {
+    austriaCitizenshipQuestions.forEach(question => {
       expect(question.source).toMatch(/^Geschichte Österreichs, 10-\d{3}$/);
     });
+    expect(viennaCitizenshipQuestions[0].source).toBe('Wien, 39-001');
+    expect(viennaCitizenshipQuestions[61].source).toBe('Wien, 39-062');
   });
 
   it('shows the same main categories and controls as the live app', () => {
@@ -110,14 +114,16 @@ describe('current Quiz Arena experience', () => {
     fireEvent.click(screen.getByRole('button', { name: '×' }));
 
     expect(screen.getByText('Islam Fragen').closest('button')).toHaveTextContent('60');
+    expect(screen.getByText('Staatsbürgerschaft').closest('button')).toHaveTextContent('159');
 
     fireEvent.click(screen.getByText('Staatsbürgerschaft').closest('button'));
-    expect(screen.getByText('Staatsbürgerschaft').closest('button')).toHaveTextContent('97');
+    expect(screen.getByText('Geschichte Österreichs').closest('button')).toHaveTextContent('97');
+    expect(screen.getByText('Wien').closest('button')).toHaveTextContent('62');
 
-    fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
+    fireEvent.click(screen.getByText('Wien').closest('button'));
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
 
-    expect(screen.getByText('FRAGE 1/60')).toBeInTheDocument();
+    expect(screen.getByText('FRAGE 1/62')).toBeInTheDocument();
   });
 
   it('keeps the second hard-mode mistake visible until the player continues', () => {
