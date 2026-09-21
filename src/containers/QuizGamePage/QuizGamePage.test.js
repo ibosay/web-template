@@ -1,6 +1,6 @@
 import React from 'react';
 import '@testing-library/jest-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
 import QuizArenaLiveApp, {
   CATEGORIES,
@@ -118,6 +118,42 @@ describe('current Quiz Arena experience', () => {
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
 
     expect(screen.getByText('FRAGE 1/60')).toBeInTheDocument();
+  });
+
+  it('keeps the second hard-mode mistake visible until the player continues', () => {
+    jest.useFakeTimers();
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    window.localStorage.setItem('quiz-arena-difficulty', 'hard');
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    const hardIslam = QUESTIONS.filter(question => question.category === 'Islam' && HARD_QUESTION_IDS.has(question.id));
+
+    let answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    fireEvent.click(answerButtons[hardIslam[0].correct === 0 ? 1 : 0]);
+    expect(screen.getByLabelText('Falsch')).toBeInTheDocument();
+    expect(screen.getByLabelText('Richtig')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+
+    answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    fireEvent.click(answerButtons[hardIslam[1].correct === 0 ? 1 : 0]);
+    expect(screen.getByLabelText('Falsch')).toBeInTheDocument();
+    expect(screen.getByLabelText('Richtig')).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(screen.getByText('FRAGE 2/10')).toBeInTheDocument();
+    expect(screen.queryByText('Du hast im schweren Modus zweimal falsch geantwortet.')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+    expect(screen.getByText('Du hast im schweren Modus zweimal falsch geantwortet.')).toBeInTheDocument();
+
+    randomSpy.mockRestore();
+    jest.useRealTimers();
   });
 
   it('shows animated correct and wrong status marks and allows disabling the timer', () => {
