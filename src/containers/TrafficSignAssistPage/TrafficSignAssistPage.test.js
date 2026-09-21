@@ -10,9 +10,12 @@ const { cleanup, screen, userEvent, waitFor } = testingLibrary;
 // The page needs a camera, a GPS and a voice, none of which exist in a test run. They are stood in
 // for here, which is exactly the point of keeping them behind the hooks: the page can be rendered
 // and driven without any of them being real.
-const installBrowserApis = () => {
+const installBrowserApis = ({ cameraFails = false } = {}) => {
   const spoken = [];
-  const getUserMedia = jest.fn(() => Promise.resolve({ getTracks: () => [{ stop: jest.fn() }] }));
+  const stream = { getTracks: () => [{ stop: jest.fn() }] };
+  const getUserMedia = jest.fn(() =>
+    cameraFails ? Promise.reject(new Error('NotAllowedError')) : Promise.resolve(stream)
+  );
 
   navigator.mediaDevices = { getUserMedia };
   navigator.geolocation = {
@@ -32,7 +35,7 @@ const installBrowserApis = () => {
   // jsdom has no media playback.
   window.HTMLMediaElement.prototype.play = jest.fn(() => Promise.resolve());
 
-  return { spoken, getUserMedia };
+  return { spoken, getUserMedia, stream };
 };
 
 const removeBrowserApis = () => {
@@ -100,6 +103,33 @@ describe('TrafficSignAssistPage', () => {
       const constraints = getUserMedia.mock.calls[0][0];
       expect(constraints.video.facingMode).toEqual({ ideal: 'environment' });
       expect(constraints.audio).toBe(false);
+    });
+
+    it('hands the camera picture to the video element', async () => {
+      // The camera is asked for while the start screen is still up, so the video element does not
+      // exist yet. If the stream were attached right after getUserMedia resolves, it would attach
+      // to nothing, and the viewport would stay black with no detection at all.
+      const { stream } = installBrowserApis();
+      const { container } = renderPage();
+      await startAssistant();
+
+      await waitFor(() => expect(container.querySelector('video')).toBeInTheDocument());
+      await waitFor(() => expect(container.querySelector('video').srcObject).toBe(stream));
+    });
+
+    it('stays on the start screen when the camera refuses', async () => {
+      installBrowserApis({ cameraFails: true });
+      renderPage();
+      await startAssistant();
+
+      // The error belongs on the screen that explains what to do about it.
+      await waitFor(() =>
+        expect(screen.getByText('TrafficSignAssistPage.cameraError')).toBeInTheDocument()
+      );
+      expect(
+        screen.getByRole('button', { name: 'TrafficSignAssistPage.start' })
+      ).toBeInTheDocument();
+      expect(navigator.geolocation.clearWatch).toHaveBeenCalled();
     });
 
     it('starts tracking the position', async () => {

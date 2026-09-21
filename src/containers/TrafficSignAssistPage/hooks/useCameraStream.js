@@ -6,6 +6,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * The picture never leaves the phone: the stream goes into a `<video>` element, single frames are
  * copied onto a canvas, and the canvas is what the detector reads. Nothing is uploaded and nothing
  * is recorded.
+ *
+ * The stream and the element do not arrive in a fixed order. The camera is asked for while the
+ * start screen is still up, so the element does not exist yet, and it is mounted only once the
+ * drive screen renders. `registerVideo` is therefore a ref callback: whichever of the two arrives
+ * last attaches the stream. Assigning it once, right after `getUserMedia` resolves, would attach it
+ * to nothing and leave the viewport black for good.
  */
 
 /**
@@ -19,6 +25,31 @@ const useCameraStream = ({ width = 1280, height = 720 } = {}) => {
   const streamRef = useRef(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState(null);
+
+  /** Attaches the stream to the element, as soon as both exist. */
+  const attach = useCallback(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream || video.srcObject === stream) {
+      return;
+    }
+    video.srcObject = stream;
+    // The element also carries `autoPlay`, which is what starts the preview on the browsers that
+    // do not count this call as coming from the tap that opened the camera.
+    const played = video.play();
+    if (played && typeof played.catch === 'function') {
+      played.catch(() => {});
+    }
+  }, []);
+
+  /** Ref callback for the `<video>` element. */
+  const registerVideo = useCallback(
+    node => {
+      videoRef.current = node;
+      attach();
+    },
+    [attach]
+  );
 
   const isSupported =
     typeof navigator !== 'undefined' &&
@@ -35,9 +66,17 @@ const useCameraStream = ({ width = 1280, height = 720 } = {}) => {
     setIsRunning(false);
   }, []);
 
+  /**
+   * Opens the camera.
+   *
+   * @returns {Promise<boolean>} whether the camera is now running
+   */
   const start = useCallback(async () => {
-    if (!isSupported || streamRef.current) {
-      return;
+    if (!isSupported) {
+      return false;
+    }
+    if (streamRef.current) {
+      return true;
     }
     setError(null);
 
@@ -53,21 +92,19 @@ const useCameraStream = ({ width = 1280, height = 720 } = {}) => {
       });
 
       streamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Safari needs the play call, and it only succeeds because `start` is called from a tap.
-        await videoRef.current.play();
-      }
+      attach();
       setIsRunning(true);
+      return true;
     } catch (e) {
       setError(e);
       setIsRunning(false);
+      return false;
     }
-  }, [isSupported, width, height]);
+  }, [attach, isSupported, width, height]);
 
   useEffect(() => stop, [stop]);
 
-  return { videoRef, isSupported, isRunning, error, start, stop };
+  return { videoRef, registerVideo, isSupported, isRunning, error, start, stop };
 };
 
 export default useCameraStream;

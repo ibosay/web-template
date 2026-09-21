@@ -88,7 +88,11 @@ export const TrafficSignAssistPageComponent = props => {
   const detector = useMemo(() => createDetector(), []);
   const camera = useCameraStream();
   const gps = useGpsSpeed();
-  const speech = useSpeech({ language: 'de-AT' });
+  // The warnings are spoken in the language of the app. Austrian German gets the Austrian voice
+  // where the phone has one, which reads "30" and "130" the way they are said here.
+  const locale = intl.locale || '';
+  const speechLanguage = locale.toLowerCase().startsWith('de') ? 'de-AT' : locale || 'de-AT';
+  const speech = useSpeech({ language: speechLanguage });
   useWakeLock(isDriving);
 
   const speedKmh = gps.speedKmh;
@@ -182,8 +186,13 @@ export const TrafficSignAssistPageComponent = props => {
 
     gps.start();
     await detector.prepare();
-    await camera.start();
-    setIsDriving(true);
+    // Stay on the start screen if the camera refused, because that is where the error is shown.
+    const isCameraRunning = await camera.start();
+    if (isCameraRunning) {
+      setIsDriving(true);
+    } else {
+      gps.stop();
+    }
   }, [camera, detector, gps, intl, speech]);
 
   const handleStop = useCallback(() => {
@@ -213,7 +222,7 @@ export const TrafficSignAssistPageComponent = props => {
 
           {isDriving ? (
             <DriveScreen
-              videoRef={camera.videoRef}
+              videoRef={camera.registerVideo}
               overlayRef={overlayRef}
               limitKmh={hud.limitKmh}
               speedKmh={speedKmh}

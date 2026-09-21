@@ -20,7 +20,7 @@ import css from './DriveScreen.module.css';
  * does not belong on a screen in a moving car.
  *
  * @param {Object} props
- * @param {Object} props.videoRef - Ref for the `<video>` element the camera is shown in
+ * @param {Function} props.videoRef - Ref callback for the `<video>` element the camera is shown in
  * @param {Object} props.overlayRef - Ref for the `<canvas>` the debug boxes are drawn on
  * @param {number|null} props.limitKmh - The limit in force, or null if none is known
  * @param {number|null} props.speedKmh - The current speed, or null while the GPS has none
@@ -57,8 +57,9 @@ const DriveScreen = props => {
   return (
     <section className={css.root}>
       <div className={css.viewport}>
-        {/* `playsInline` keeps iOS from opening the camera in its own full screen player. */}
-        <video ref={videoRef} className={css.video} muted playsInline />
+        {/* `playsInline` keeps iOS from opening the camera in its own full screen player, and
+            `autoPlay` starts the preview without relying on a play() call. */}
+        <video ref={videoRef} className={css.video} autoPlay muted playsInline />
         <canvas
           ref={overlayRef}
           className={classNames(css.overlay, { [css.overlayHidden]: !isDebugVisible })}
