@@ -14,7 +14,12 @@ type Progress = {
   rounds: number;
   correct: number;
   bestStreak: number;
+  gifts: number;
 };
+
+type MasteryEntry = { seen: number[]; hadMistake: boolean };
+type MasteryState = Record<string, MasteryEntry>;
+type Reward = { title: string; detail: string; xp: number } | null;
 
 export const QUESTIONS: Question[] = [
   { id: 301, category: 'Islam', question: "Wie viele Säulen hat der Islam nach Sahih al Bukhari und Sahih Muslim?", answers: ["Drei","Vier","Fünf","Sechs"], correct: 2, source: "Sahih al-Bukhari 8; Sahih Muslim 16a" },
@@ -506,6 +511,7 @@ const defaultProgress: Progress = {
   rounds: 0,
   correct: 0,
   bestStreak: 0,
+  gifts: 0,
 };
 
 const clampInt = (value: unknown, max: number) =>
@@ -521,6 +527,7 @@ const normalizeProgress = (value: unknown): Progress => {
     rounds: clampInt(item.rounds, 100_000),
     correct: clampInt(item.correct, 1_000_000),
     bestStreak: clampInt(item.bestStreak, 10),
+    gifts: clampInt(item.gifts, 100_000),
   };
 };
 
@@ -619,8 +626,16 @@ function App() {
   const [wrongCount, setWrongCount] = useState(0);
   const [failReason, setFailReason] = useState<'timeout' | 'mistakes'>('timeout');
   const [appActive, setAppActive] = useState(true);
+  const [mastery, setMastery] = useState<MasteryState>(() => {
+    try {
+      const raw = localStorage.getItem('quiz-arena-mastery');
+      return raw ? JSON.parse(raw) as MasteryState : {};
+    } catch {
+      return {};
+    }
+  });
+  const [lastReward, setLastReward] = useState<Reward>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const recentQuestionIdsRef = useRef<Record<string, number[]>>({});
   const UI: Record<string, Record<string,string>> = {
     DE:{difficulty:'Schwierigkeit',easy:'Einfach',easySub:'Fehler erlaubt · Zeitablauf beendet die Runde',hard:'Schwer',hardSub:'2 Fehler oder Zeitablauf = Runde beendet',switchDifficulty:'Tippen zum Wechseln',light:'Hell',dark:'Dunkel',auto:'Auto',small:'Klein',normal:'Normal',large:'Groß',notAvailable:'Auf diesem Gerät nicht verfügbar',failed:'RUNDE BEENDET',timeoutFail:'Die Zeit ist abgelaufen.',mistakesFail:'Du hast im schweren Modus zweimal falsch geantwortet.',restart:'Von vorne starten',correctLabel:'RICHTIG',levelLabel:'LEVEL',languageLabel:'Sprache',tag:'Wissen. Spielen. Besser werden.',challenge:'Bereit für eine neue Herausforderung?',play:'Spiel starten',stats:'Meine Statistik',settings:'Einstellungen',sound:'Ton',soundSub:'Soundeffekte',vibration:'Vibration',vibrationSub:'Bei Antippen',design:'Design',font:'Schriftgröße',timer:'Timer pro Frage',round:'Fragen pro Runde',statistics:'Statistiken',achievements:'Erfolge',about:'Über die App',privacy:'Datenschutz',privacyText:'Kein Name, keine Adresse, kein Passwort. Spielstand nur lokal.',imprint:'Impressum',imprintText:'Betreiberangaben werden vor Veröffentlichung ergänzt.',reset:'Fortschritt zurücksetzen',safe:'Sicher & anonym',questions:'Fragen',seconds:'Sekunden',rounds:'Runden',correct:'richtig',badges:'Abzeichen',question:'FRAGE',points:'P',streak:'Serie',next:'Weiter',result:'Ergebnis ansehen',finished:'RUNDE BEENDET',accuracy:'GENAUIGKEIT',best:'BESTE SERIE',progress:'Dein Fortschritt',totalXp:'XP gesamt',again:'Noch eine Runde',home:'Zur Startseite',leaveTitle:'Runde verlassen?',leaveText:'Dein aktueller Fortschritt dieser Runde geht verloren. Der Timer ist währenddessen pausiert.',continue:'Weiterspielen',leave:'Runde verlassen'},
     EN:{difficulty:'Difficulty',easy:'Easy',easySub:'Mistakes allowed · timeout ends the round',hard:'Hard',hardSub:'2 mistakes or timeout = round over',switchDifficulty:'Tap to switch',light:'Light',dark:'Dark',auto:'Auto',small:'Small',normal:'Normal',large:'Large',notAvailable:'Not available on this device',failed:'ROUND OVER',timeoutFail:'Time ran out.',mistakesFail:'You answered incorrectly twice in Hard mode.',restart:'Restart from the beginning',correctLabel:'CORRECT',levelLabel:'LEVEL',languageLabel:'Language',tag:'Learn. Play. Improve.',challenge:'Ready for a new challenge?',play:'Start game',stats:'My statistics',settings:'Settings',sound:'Sound',soundSub:'Sound effects',vibration:'Vibration',vibrationSub:'On tap',design:'Theme',font:'Font size',timer:'Time per question',round:'Questions per round',statistics:'Statistics',achievements:'Achievements',about:'About the app',privacy:'Privacy',privacyText:'No name, address or password. Progress stays on this device.',imprint:'Legal notice',imprintText:'Operator details will be added before publication.',reset:'Reset progress',safe:'Safe & anonymous',questions:'questions',seconds:'seconds',rounds:'rounds',correct:'correct',badges:'badges',question:'QUESTION',points:'PTS',streak:'Streak',next:'Next',result:'View results',finished:'ROUND COMPLETE',accuracy:'ACCURACY',best:'BEST STREAK',progress:'Your progress',totalXp:'total XP',again:'Play again',home:'Home',leaveTitle:'Leave round?',leaveText:'Your progress in this round will be lost. The timer is paused while this dialog is open.',continue:'Continue',leave:'Leave round'},
@@ -715,6 +730,7 @@ function App() {
       { label: '50 richtig', unlocked: progress.correct >= 50 },
       { label: '5er-Serie', unlocked: progress.bestStreak >= 5 },
       { label: 'Level 5', unlocked: level >= 5 },
+      { label: 'Perfekter Durchlauf', unlocked: progress.gifts >= 1 },
     ],
     [progress, level]
   );
@@ -735,6 +751,10 @@ function App() {
   }, [progress]);
 
   useEffect(() => {
+    localStorage.setItem('quiz-arena-mastery', JSON.stringify(mastery));
+  }, [mastery]);
+
+  useEffect(() => {
     try {
       localStorage.setItem('quiz-arena-sound', sound ? 'on' : 'off');
       localStorage.setItem('quiz-arena-haptics', haptics ? 'on' : 'off');
@@ -751,26 +771,36 @@ function App() {
     return () => { delete document.documentElement.dataset.quizTheme; };
   }, [resolvedDark]);
 
-  const startRound = () => {
+  const getEligiblePool = () => {
     const pool =
       category === 'Alle'
         ? QUESTIONS
         : QUESTIONS.filter(q => q.category === category);
     const localizedPoolAll = language === 'DE' ? pool : pool.map(q => localizeQuestion(q, language)).filter((q): q is Question => q !== null);
-    const localizedPool = roundSize === 'max' ? localizedPoolAll : category.startsWith('Staatsbürgerschaft') ? localizedPoolAll : localizedPoolAll.filter(q => difficulty === 'hard' ? HARD_QUESTION_IDS.has(q.id) : !HARD_QUESTION_IDS.has(q.id));
-    const historyKey = `${language}:${difficulty}:${category}`;
-    const recentIds = new Set(recentQuestionIdsRef.current[historyKey] || []);
-    const unseen = localizedPool.filter(q => !recentIds.has(q.id));
-    const desired = roundSize === 'max' ? localizedPool.length : Math.min(roundSize, localizedPool.length);
-    const picked = shuffle(unseen).slice(0, desired);
-    if (picked.length < desired) {
-      const pickedIds = new Set(picked.map(q => q.id));
-      const recycled = shuffle(localizedPool.filter(q => !pickedIds.has(q.id))).slice(0, desired - picked.length);
-      picked.push(...recycled);
+    return roundSize === 'max' || category.startsWith('Staatsbürgerschaft')
+      ? localizedPoolAll
+      : localizedPoolAll.filter(q => difficulty === 'hard' ? HARD_QUESTION_IDS.has(q.id) : !HARD_QUESTION_IDS.has(q.id));
+  };
+
+  const getMasteryKey = () => category + ':' + (category.startsWith('Staatsbürgerschaft') ? 'all' : difficulty);
+
+  const startRound = () => {
+    const localizedPool = getEligiblePool();
+    const historyKey = getMasteryKey();
+    const saved = mastery[historyKey] || { seen: [], hadMistake: false };
+    const validIds = new Set(localizedPool.map(q => q.id));
+    const validSeen = saved.seen.filter(id => validIds.has(id));
+    const completedCycle = localizedPool.length > 0 && validSeen.length >= localizedPool.length;
+    const activeEntry: MasteryEntry = completedCycle ? { seen: [], hadMistake: false } : { seen: validSeen, hadMistake: saved.hadMistake };
+    if (completedCycle) {
+      setMastery(prev => ({ ...prev, [historyKey]: activeEntry }));
     }
+    const seenIds = new Set(activeEntry.seen);
+    const unseen = localizedPool.filter(q => !seenIds.has(q.id));
+    const desired = roundSize === 'max' ? unseen.length : Math.min(roundSize, unseen.length);
+    const picked = shuffle(unseen).slice(0, desired);
     if (!picked.length) return;
-    const nextHistory = [...(recentQuestionIdsRef.current[historyKey] || []), ...picked.map(q => q.id)];
-    recentQuestionIdsRef.current[historyKey] = nextHistory.slice(-Math.max(desired, localizedPool.length - desired));
+    setLastReward(null);
     setQuestions(picked);
     setIndex(0);
     setSeconds(questionTime);
@@ -797,6 +827,12 @@ function App() {
     setBestRoundStreak(value => Math.max(value, nextStreak));
     setAnswers(prev => [...prev, correct]);
     setSelected(answerIndex);
+    const historyKey = getMasteryKey();
+    setMastery(prev => {
+      const entry = prev[historyKey] || { seen: [], hadMistake: false };
+      const seen = entry.seen.includes(current.id) ? entry.seen : [...entry.seen, current.id];
+      return { ...prev, [historyKey]: { seen, hadMistake: entry.hadMistake || !correct } };
+    });
     if (!correct) {
       setWrongCount(value => value + 1);
     }
@@ -813,12 +849,24 @@ function App() {
     }
     if (index === questions.length - 1) {
       const correctCount = answers.filter(Boolean).length;
-      const xp = correctCount * 50 + Math.floor(score / 20);
+      const eligiblePool = getEligiblePool();
+      const historyKey = getMasteryKey();
+      const entry = mastery[historyKey] || { seen: [], hadMistake: false };
+      const completedCycle = eligiblePool.length > 0 && eligiblePool.every(question => entry.seen.includes(question.id));
+      const perfectCycle = completedCycle && !entry.hadMistake;
+      const rewardXp = perfectCycle ? 500 : 0;
+      const xp = correctCount * 50 + Math.floor(score / 20) + rewardXp;
+      setLastReward(perfectCycle ? {
+        title: 'Goldene Wissenskiste',
+        detail: 'Perfekter Durchlauf: ' + eligiblePool.length + ' von ' + eligiblePool.length + ' richtig',
+        xp: rewardXp,
+      } : null);
       setProgress(prev => ({
         xp: prev.xp + xp,
         rounds: prev.rounds + 1,
         correct: prev.correct + correctCount,
         bestStreak: Math.max(prev.bestStreak, bestRoundStreak),
+        gifts: prev.gifts + (perfectCycle ? 1 : 0),
       }));
       setScreen('result');
       return;
@@ -830,7 +878,10 @@ function App() {
 
   const resetProgress = () => {
     setProgress(defaultProgress);
+    setMastery({});
+    setLastReward(null);
     localStorage.removeItem('quiz-arena-progress');
+    localStorage.removeItem('quiz-arena-mastery');
   };
 
   if (screen === 'start') {
@@ -947,6 +998,7 @@ function App() {
             <strong>{Math.floor(progress.xp / 500) + 1}</strong>
           </div>
         </section>
+        {lastReward && <section className="rewardCard" aria-label="Ingame Belohnung"><div className="rewardGift">🎁</div><div><strong>{lastReward.title}</strong><span>{lastReward.detail}</span><b>+{lastReward.xp} XP</b></div></section>}
         <section className="panel">
           <div className="panelTitle">
             <span>{t.progress}</span>
