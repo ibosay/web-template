@@ -102,6 +102,24 @@ describe('current Quiz Arena experience', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('FRAGE 1/10')).toBeInTheDocument();
   });
+  it('offers a Max round size that uses the full selected category pool', () => {
+    render(<QuizArenaLiveApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Max' }));
+    fireEvent.click(screen.getByRole('button', { name: '×' }));
+
+    expect(screen.getByText('Islam Fragen').closest('button')).toHaveTextContent('60');
+
+    fireEvent.click(screen.getByText('Staatsbürgerschaft').closest('button'));
+    expect(screen.getByText('Staatsbürgerschaft').closest('button')).toHaveTextContent('97');
+
+    fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    expect(screen.getByText('FRAGE 1/60')).toBeInTheDocument();
+  });
+
   it('shows animated correct and wrong status marks and allows disabling the timer', () => {
     render(<QuizArenaLiveApp />);
 
