@@ -608,7 +608,7 @@ function App() {
   const [fontSize, setFontSize] = useState<'Klein' | 'Normal' | 'Groß'>(() => { try { const value = localStorage.getItem('quiz-arena-font'); return value === 'Klein' || value === 'Groß' ? value : 'Normal'; } catch { return 'Normal'; } });
   const [questionTime, setQuestionTime] = useState(() => { try { const value = Number(localStorage.getItem('quiz-arena-time')); return [15,20,30].includes(value) ? value : 20; } catch { return 20; } });
   const [timeLimitEnabled, setTimeLimitEnabled] = useState(() => { try { return localStorage.getItem('quiz-arena-time-enabled') !== 'off'; } catch { return true; } });
-  const [roundSize, setRoundSize] = useState(() => { try { const value = Number(localStorage.getItem('quiz-arena-round-size')); return [5,10,15].includes(value) ? value : 10; } catch { return 10; } });
+  const [roundSize, setRoundSize] = useState<number | 'max'>(() => { try { const stored = localStorage.getItem('quiz-arena-round-size'); if (stored === 'max') return 'max'; const value = Number(stored); return [5,10,15].includes(value) ? value : 10; } catch { return 10; } });
   const [difficulty, setDifficulty] = useState<'easy' | 'hard'>(() => { try { return localStorage.getItem('quiz-arena-difficulty') === 'hard' ? 'hard' : 'easy'; } catch { return 'easy'; } });
   const [wrongCount, setWrongCount] = useState(0);
   const [failReason, setFailReason] = useState<'timeout' | 'mistakes'>('timeout');
@@ -751,11 +751,11 @@ function App() {
         ? QUESTIONS
         : QUESTIONS.filter(q => q.category === category);
     const localizedPoolAll = language === 'DE' ? pool : pool.map(q => localizeQuestion(q, language)).filter((q): q is Question => q !== null);
-    const localizedPool = localizedPoolAll.filter(q => difficulty === 'hard' ? HARD_QUESTION_IDS.has(q.id) : !HARD_QUESTION_IDS.has(q.id));
+    const localizedPool = roundSize === 'max' ? localizedPoolAll : category === 'Staatsbürgerschaft' ? localizedPoolAll : localizedPoolAll.filter(q => difficulty === 'hard' ? HARD_QUESTION_IDS.has(q.id) : !HARD_QUESTION_IDS.has(q.id));
     const historyKey = `${language}:${difficulty}:${category}`;
     const recentIds = new Set(recentQuestionIdsRef.current[historyKey] || []);
     const unseen = localizedPool.filter(q => !recentIds.has(q.id));
-    const desired = Math.min(roundSize, localizedPool.length);
+    const desired = roundSize === 'max' ? localizedPool.length : Math.min(roundSize, localizedPool.length);
     const picked = shuffle(unseen).slice(0, desired);
     if (picked.length < desired) {
       const pickedIds = new Set(picked.map(q => q.id));
@@ -837,7 +837,7 @@ function App() {
           <div className="categoryHeading"><div><h2>{language === 'DE' ? 'Kategorie wählen' : 'Choose a category'}</h2><p>{language === 'DE' ? 'Wähle ein Thema für deine nächste Runde.' : 'Pick a topic for your next round.'}</p></div><button className={`difficultyQuickSwitch ${difficulty}`} onClick={toggleDifficulty} aria-label={`${t.difficulty}: ${difficulty === 'hard' ? t.hard : t.easy}. ${t.switchDifficulty}`}><span className={difficulty === 'easy' ? 'active' : ''}>{t.easy}</span><span className={difficulty === 'hard' ? 'active' : ''}>{t.hard}</span></button></div>
           <div className="categoryList">
             {CATEGORIES.map(item => {
-              const eligibleCount = QUESTIONS.filter(q => (item === 'Alle' || q.category === item) && (difficulty === 'hard' ? HARD_QUESTION_IDS.has(q.id) : !HARD_QUESTION_IDS.has(q.id))).length;
+              const eligibleCount = QUESTIONS.filter(q => (item === 'Alle' || q.category === item) && (roundSize === 'max' || item === 'Staatsbürgerschaft' || (difficulty === 'hard' ? HARD_QUESTION_IDS.has(q.id) : !HARD_QUESTION_IDS.has(q.id)))).length;
               const active = category === item;
               return (
                 <button key={item} className={active ? 'categoryRow active' : 'categoryRow'} onClick={() => setCategory(item)} aria-pressed={active}>
@@ -862,7 +862,7 @@ function App() {
             <div className="settingBlock"><div className="settingBlockTitle"><span>◐</span><div><b>{t.design}</b><small>{theme === 'Hell' ? t.light : theme === 'Dunkel' ? t.dark : t.auto}</small></div></div><div className="segmented three"><button className={theme==='Hell'?'active':''} onClick={()=>setTheme('Hell')}>{t.light}</button><button className={theme==='Dunkel'?'active':''} onClick={()=>setTheme('Dunkel')}>{t.dark}</button><button className={theme==='Auto'?'active':''} onClick={()=>setTheme('Auto')}>{t.auto}</button></div></div>
             <div className="settingBlock"><div className="settingBlockTitle"><span>AA</span><div><b>{t.font}</b><small>{fontSize === 'Klein' ? t.small : fontSize === 'Groß' ? t.large : t.normal}</small></div></div><div className="segmented three"><button className={fontSize==='Klein'?'active':''} onClick={()=>setFontSize('Klein')}>{t.small}</button><button className={fontSize==='Normal'?'active':''} onClick={()=>setFontSize('Normal')}>{t.normal}</button><button className={fontSize==='Groß'?'active':''} onClick={()=>setFontSize('Groß')}>{t.large}</button></div></div>
             <div className="settingBlock"><div className="settingBlockTitle"><span>◷</span><div><b>{t.timer}</b><small>{timeLimitEnabled ? `${questionTime} ${t.seconds}` : (language === 'DE' ? 'Aus' : 'Off')}</small></div></div><div className="segmented four"><button className={!timeLimitEnabled?'active':''} onClick={()=>setTimeLimitEnabled(false)}>{language === 'DE' ? 'Aus' : 'Off'}</button><button className={timeLimitEnabled&&questionTime===15?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(15);}}>15</button><button className={timeLimitEnabled&&questionTime===20?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(20);}}>20</button><button className={timeLimitEnabled&&questionTime===30?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(30);}}>30</button></div></div>
-            <div className="settingBlock"><div className="settingBlockTitle"><span>☷</span><div><b>{t.round}</b><small>{roundSize} {t.questions}</small></div></div><div className="segmented three"><button className={roundSize===5?'active':''} onClick={()=>setRoundSize(5)}>5</button><button className={roundSize===10?'active':''} onClick={()=>setRoundSize(10)}>10</button><button className={roundSize===15?'active':''} onClick={()=>setRoundSize(15)}>15</button></div></div>
+            <div className="settingBlock"><div className="settingBlockTitle"><span>☷</span><div><b>{t.round}</b><small>{roundSize === 'max' ? 'Max' : roundSize} {t.questions}</small></div></div><div className="segmented four"><button className={roundSize===5?'active':''} onClick={()=>setRoundSize(5)}>5</button><button className={roundSize===10?'active':''} onClick={()=>setRoundSize(10)}>10</button><button className={roundSize===15?'active':''} onClick={()=>setRoundSize(15)}>15</button><button className={roundSize==='max'?'active':''} onClick={()=>setRoundSize('max')}>Max</button></div></div>
           </div>
           <div className="menuGroup"><button className="menuRow"><span>▥ <b>{t.statistics}</b><small>{progress.rounds} {t.rounds} · {progress.correct} {t.correct}</small></span><b>›</b></button><button className="menuRow"><span>♜ <b>{t.achievements}</b><small>{achievements.filter(a=>a.unlocked).length}/{achievements.length} {t.badges}</small></span><b>›</b></button></div>
           <div className="menuGroup"><div className="menuInfo"><b>ⓘ {t.about}</b><small>Quiz Arena v1.0.0</small></div><div className="menuInfo"><b>⬡ {t.privacy}</b><small>{t.privacyText}</small></div><div className="menuInfo"><b>▤ {t.imprint}</b><small>{t.imprintText}</small></div><button className="resetLink" onClick={resetProgress}>{t.reset}</button></div><footer>{t.safe}</footer>
