@@ -15,16 +15,15 @@ describe('current Quiz Arena experience', () => {
   });
 
   it('contains the complete current question bank with valid answers and English copy', () => {
-    expect(QUESTIONS).toHaveLength(419);
-    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(419);
+    expect(QUESTIONS).toHaveLength(399);
+    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(399);
     expect(CATEGORIES).toEqual([
-      'Islam',
       'Alle',
+      'Islam',
       'Allgemeinwissen',
       'Geografie',
       'Wissenschaft',
       'Geschichte',
-      'Kultur',
       'EU',
       'Staatsbürgerschaft',
     ]);
