@@ -57,3 +57,14 @@ The separate legacy Austria category has been removed. Austrian citizenship cont
 
 
 The Culture category has been removed together with its 20 questions. The category order starts with All, followed directly by Islam Questions.
+
+Question mastery behavior:
+* Answered questions are stored locally and do not repeat in consecutive rounds while unseen questions remain in the active pool.
+* The final round of a cycle can be shorter than the selected round size so no seen question is recycled early.
+* Completing an entire active pool perfectly awards a Golden Knowledge Chest, 500 bonus XP and 2 Knowledge Stars.
+XP and reward progression:
+* 500 XP advances one level.
+* Each level-up awards 1 Knowledge Star.
+* Every fifth level also awards 2 extra Knowledge Stars and a level chest.
+* Knowledge Stars can be spent on a 50:50 joker that removes two wrong answers.
+* Ranks progress through Beginner, Knowledgeable, Expert, Master, Grandmaster and Quiz Legend.
