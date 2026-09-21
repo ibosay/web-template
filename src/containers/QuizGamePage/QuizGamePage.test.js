@@ -15,8 +15,8 @@ describe('current Quiz Arena experience', () => {
   });
 
   it('contains the complete current question bank with valid answers and English copy', () => {
-    expect(QUESTIONS).toHaveLength(439);
-    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(439);
+    expect(QUESTIONS).toHaveLength(419);
+    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(419);
     expect(CATEGORIES).toEqual([
       'Islam',
       'Alle',
@@ -25,7 +25,6 @@ describe('current Quiz Arena experience', () => {
       'Wissenschaft',
       'Geschichte',
       'Kultur',
-      'Österreich',
       'EU',
       'Staatsbürgerschaft',
     ]);
@@ -73,7 +72,6 @@ describe('current Quiz Arena experience', () => {
 
     expect(screen.getByRole('heading', { name: 'Quiz Arena' })).toBeInTheDocument();
     expect(screen.getByText('Allgemeinwissen')).toBeInTheDocument();
-    expect(screen.getByText('Österreich')).toBeInTheDocument();
     expect(screen.getByText('EU')).toBeInTheDocument();
     expect(screen.getByText('Staatsbürgerschaft')).toBeInTheDocument();
     expect(screen.getByText('Islam Fragen')).toBeInTheDocument();
