@@ -7,7 +7,7 @@ Quiz Arena is packaged with Capacitor for iOS and Android.
 The native shell now uses the same Quiz Arena experience as the current live app.
 
 1. German and English are the two selectable languages.
-2. The local question bank contains 310 questions.
+2. The local question bank contains 377 questions.
 3. Categories include General Knowledge, Geography, Science, History, Culture, Austria, EU, Islam and a separate Citizenship Questions section, plus the combined All category.
 4. Easy and Hard difficulty modes are available.
 5. Round size, timer, theme, font size, sound and haptics are persistent local settings.
@@ -44,7 +44,7 @@ Do not merge or call the store build finished until all required checks are sati
 9. Signing, bundle identifiers, version numbers and store metadata are finalized.
 10. Signed App Store and Play Store release builds are produced.
 
-The Citizenship Questions section currently contains 30 sourced questions based on the provided Austrian history citizenship question catalogue. Each question keeps its catalogue reference in the app.
+The Citizenship Questions section contains all 97 sourced questions from the provided Austrian history citizenship question catalogue. Each question keeps its catalogue reference in the app, from 10-001 through 10-097.
 
 The current bundle identifier is `at.ibosay.quiz`. The native display name is `Quiz Arena`.
 
