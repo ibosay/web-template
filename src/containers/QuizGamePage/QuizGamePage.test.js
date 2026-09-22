@@ -103,12 +103,13 @@ describe('current Quiz Arena experience', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.getByText('FRAGE 1/10')).toBeInTheDocument();
   });
+
   it('offers a Max round size that uses the full selected category pool', () => {
     render(<QuizArenaLiveApp />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
     fireEvent.click(screen.getByRole('button', { name: 'Max' }));
-    fireEvent.click(screen.getByRole('button', { name: '×' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Menü schließen' }));
 
     expect(screen.getByText('Islam Fragen').closest('button')).toHaveTextContent('60');
     expect(screen.getByText('Staatsbürgerschaft').closest('button')).toHaveTextContent('159');
@@ -283,7 +284,7 @@ describe('current Quiz Arena experience', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
     fireEvent.click(screen.getByRole('button', { name: 'Aus' }));
-    fireEvent.click(screen.getByRole('button', { name: '×' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Menü schließen' }));
 
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
     expect(screen.getByLabelText('Zeitlimit aus')).toHaveTextContent('∞');
@@ -292,5 +293,4 @@ describe('current Quiz Arena experience', () => {
     fireEvent.click(answerButtons[0]);
     expect(screen.queryByLabelText('Richtig') || screen.queryByLabelText('Falsch')).toBeTruthy();
   });
-
 });
