@@ -246,6 +246,38 @@ describe('current Quiz Arena experience', () => {
     expect(storedProgress.stars).toBe(0);
   });
 
+  it('opens statistics and achievements detail pages from the menu', () => {
+    window.localStorage.setItem('quiz-arena-progress', JSON.stringify({
+      xp: 2000,
+      rounds: 9,
+      correct: 88,
+      bestStreak: 5,
+      gifts: 1,
+      stars: 3,
+      levelChests: 1,
+      wrong: 12,
+      jokerUses: 2,
+    }));
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Statistiken/ }));
+    expect(screen.getByRole('heading', { name: 'Statistiken' })).toBeInTheDocument();
+    expect(screen.getByText('Joker genutzt')).toBeInTheDocument();
+    expect(screen.getByText('Fortschritt pro Kategorie')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zurück' }));
+    fireEvent.click(screen.getByRole('button', { name: /Erfolge/ }));
+
+    expect(screen.getByRole('heading', { name: 'Erfolge' })).toBeInTheDocument();
+    expect(screen.getByText('Erster Joker')).toBeInTheDocument();
+    expect(screen.getByText('Erste Wissenskiste')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zurück' }));
+    expect(screen.getByRole('button', { name: /Statistiken/ })).toBeInTheDocument();
+  });
+
   it('shows animated correct and wrong status marks and allows disabling the timer', () => {
     render(<QuizArenaLiveApp />);
 
