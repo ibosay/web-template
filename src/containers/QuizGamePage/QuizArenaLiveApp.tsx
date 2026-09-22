@@ -17,6 +17,8 @@ type Progress = {
   gifts: number;
   stars: number;
   levelChests: number;
+  wrong: number;
+  jokerUses: number;
 };
 
 type MasteryEntry = { seen: number[]; hadMistake: boolean };
@@ -516,6 +518,8 @@ const defaultProgress: Progress = {
   gifts: 0,
   stars: 0,
   levelChests: 0,
+  wrong: 0,
+  jokerUses: 0,
 };
 
 const clampInt = (value: unknown, max: number) =>
@@ -535,6 +539,8 @@ const normalizeProgress = (value: unknown): Progress => {
     gifts: clampInt(item.gifts, 100_000),
     stars: typeof item.stars === 'number' ? clampInt(item.stars, 100_000) : Math.floor(xp / 500),
     levelChests: clampInt(item.levelChests, 100_000),
+    wrong: clampInt(item.wrong, 1_000_000),
+    jokerUses: clampInt(item.jokerUses, 100_000),
   };
 };
 
@@ -648,6 +654,7 @@ function App() {
   const [haptics, setHaptics] = useState(() => { try { return localStorage.getItem('quiz-arena-haptics') !== 'off'; } catch { return true; } });
   const [confirmExit, setConfirmExit] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPage, setMenuPage] = useState<'main' | 'stats' | 'achievements'>('main');
   const [language, setLanguage] = useState(() => { try { return localStorage.getItem('quiz-arena-language')==='EN'?'EN':'DE'; } catch { return 'DE'; } });
   const [theme, setTheme] = useState<'Dunkel' | 'Hell' | 'Auto'>(() => { try { const value = localStorage.getItem('quiz-arena-theme'); return value === 'Dunkel' || value === 'Auto' ? value : 'Hell'; } catch { return 'Hell'; } });
   const [fontSize, setFontSize] = useState<'Klein' | 'Normal' | 'Groß'>(() => { try { const value = localStorage.getItem('quiz-arena-font'); return value === 'Klein' || value === 'Groß' ? value : 'Normal'; } catch { return 'Normal'; } });
@@ -705,8 +712,11 @@ function App() {
     CapacitorApp.addListener('backButton', () => {
       if (confirmExit) {
         setConfirmExit(false);
+      } else if (menuOpen && menuPage !== 'main') {
+        setMenuPage('main');
       } else if (menuOpen) {
         setMenuOpen(false);
+        setMenuPage('main');
       } else if (screen === 'quiz') {
         setConfirmExit(true);
       } else if (screen === 'result' || screen === 'failed') {
@@ -726,7 +736,7 @@ function App() {
       disposed = true;
       if (listener) void listener.remove();
     };
-  }, [isNativeApp, confirmExit, menuOpen, screen]);
+  }, [isNativeApp, confirmExit, menuOpen, menuPage, screen]);
 
   useEffect(() => {
     if (!isNativeApp) return undefined;
@@ -755,18 +765,46 @@ function App() {
   const accuracy = answers.length
     ? Math.round((answers.filter(Boolean).length / answers.length) * 100)
     : 0;
+  const lifetimeAnswered = progress.correct + progress.wrong;
+  const lifetimeAccuracy = lifetimeAnswered ? Math.round((progress.correct / lifetimeAnswered) * 100) : 0;
 
   const achievements = useMemo(
     () => [
-      { label: 'Erste Runde', unlocked: progress.rounds >= 1 },
-      { label: '10 Runden', unlocked: progress.rounds >= 10 },
-      { label: '50 richtig', unlocked: progress.correct >= 50 },
-      { label: '5er-Serie', unlocked: progress.bestStreak >= 5 },
-      { label: 'Level 5', unlocked: level >= 5 },
-      { label: 'Perfekter Durchlauf', unlocked: progress.gifts >= 1 },
+      { icon: '▶', label: 'Erste Runde', description: 'Spiele deine erste Runde.', current: progress.rounds, target: 1, unlocked: progress.rounds >= 1 },
+      { icon: '⑩', label: '10 Runden', description: 'Schließe 10 Runden ab.', current: progress.rounds, target: 10, unlocked: progress.rounds >= 10 },
+      { icon: '✓', label: '50 richtig', description: 'Beantworte 50 Fragen richtig.', current: progress.correct, target: 50, unlocked: progress.correct >= 50 },
+      { icon: '⚡', label: '5er Serie', description: 'Erreiche fünf richtige Antworten hintereinander.', current: progress.bestStreak, target: 5, unlocked: progress.bestStreak >= 5 },
+      { icon: '5', label: 'Level 5', description: 'Erreiche Level 5.', current: level, target: 5, unlocked: level >= 5 },
+      { icon: '★', label: 'Perfekter Durchlauf', description: 'Schließe einen kompletten Fragenpool ohne Fehler ab.', current: progress.gifts, target: 1, unlocked: progress.gifts >= 1 },
+      { icon: '10', label: 'Level 10', description: 'Erreiche Level 10.', current: level, target: 10, unlocked: level >= 10 },
+      { icon: '🎁', label: 'Erste Wissenskiste', description: 'Verdiene deine erste Goldene Wissenskiste.', current: progress.gifts, target: 1, unlocked: progress.gifts >= 1 },
+      { icon: '½', label: 'Erster Joker', description: 'Setze zum ersten Mal den 50:50 Joker ein.', current: progress.jokerUses, target: 1, unlocked: progress.jokerUses >= 1 },
     ],
     [progress, level]
   );
+
+  const categoryStats = useMemo(() => {
+    const labels = ['Islam','Allgemeinwissen','Geografie','Wissenschaft','Geschichte','EU','Staatsbürgerschaft'];
+    return labels.map(label => {
+      const pool = label === 'Staatsbürgerschaft'
+        ? QUESTIONS.filter(question => question.category.startsWith('Staatsbürgerschaft'))
+        : QUESTIONS.filter(question => question.category === label);
+      const validIds = new Set(pool.map(question => question.id));
+      const seen = new Set<number>();
+      Object.entries(mastery).forEach(([key, entry]) => {
+        const matches = label === 'Staatsbürgerschaft' ? key.startsWith('Staatsbürgerschaft') : key.startsWith(label + ':');
+        if (!matches) return;
+        entry.seen.forEach(id => { if (validIds.has(id)) seen.add(id); });
+      });
+      return {
+        label,
+        title: label === 'Staatsbürgerschaft' ? 'Staatsbürgerschaft' : categoryLabel(label),
+        seen: seen.size,
+        total: pool.length,
+        percent: pool.length ? Math.round((seen.size / pool.length) * 100) : 0,
+      };
+    });
+  }, [mastery, language]);
 
   useEffect(() => {
     if (screen !== 'quiz' || selected !== null || confirmExit || !appActive || !timeLimitEnabled) return;
@@ -869,6 +907,7 @@ function App() {
     });
     if (!correct) {
       setWrongCount(value => value + 1);
+      setProgress(prev => ({ ...prev, wrong: prev.wrong + 1 }));
     }
     playTone(ensureAudio(), sound, correct);
     vibrate(haptics, correct);
@@ -927,7 +966,7 @@ function App() {
     const languages = [['DE','🇩🇪','Deutsch'],['EN','🇬🇧','English']];
     return (
       <main className={`shell appRoot gameHome font-${fontSize.toLowerCase()}`}>
-        <header className="homeTop"><div className="levelBox"><span className="levelBadge">{level}</span><div className="levelCopy"><strong>Level {level}</strong><small>{rank}</small><div className="progressTrack"><div style={{ width: `${(xpIntoLevel / 500) * 100}%` }} /></div></div><div className="levelRewards"><b>★ {progress.stars}</b><small>{xpIntoLevel}/500 XP</small></div></div><button className="menuButton" onClick={() => setMenuOpen(true)} aria-label="Menu"><span></span><span></span><span></span></button></header>
+        <header className="homeTop"><div className="levelBox"><span className="levelBadge">{level}</span><div className="levelCopy"><strong>Level {level}</strong><small>{rank}</small><div className="progressTrack"><div style={{ width: `${(xpIntoLevel / 500) * 100}%` }} /></div></div><div className="levelRewards"><b>★ {progress.stars}</b><small>{xpIntoLevel}/500 XP</small></div></div><button className="menuButton" onClick={() => { setMenuPage('main'); setMenuOpen(true); }} aria-label="Menu"><span></span><span></span><span></span></button></header>
         <section className="gameHero"><BrandLogo className="brandLogoHome"/><div><h1>Quiz <em>Arena</em></h1><p>{t.tag}</p></div></section>
         <section className="panel categoryPanel">
           <div className="categoryHeading"><div><h2>{language === 'DE' ? 'Kategorie wählen' : 'Choose a category'}</h2><p>{language === 'DE' ? 'Wähle ein Thema für deine nächste Runde.' : 'Pick a topic for your next round.'}</p></div><button className={`difficultyQuickSwitch ${difficulty}`} onClick={toggleDifficulty} aria-label={`${t.difficulty}: ${difficulty === 'hard' ? t.hard : t.easy}. ${t.switchDifficulty}`}><span className={difficulty === 'easy' ? 'active' : ''}>{t.easy}</span><span className={difficulty === 'hard' ? 'active' : ''}>{t.hard}</span></button></div>
@@ -979,21 +1018,39 @@ function App() {
           </div>
         </section>
         <button className="playButton" onClick={() => { ensureAudio(); startRound(); }}><span>▶</span> {t.play} <b>›</b></button>
-        <button className="statsButton" onClick={() => setMenuOpen(true)}>▥ <span>{t.stats}</span> <b>›</b></button>
+        <button className="statsButton" onClick={() => { setMenuPage('stats'); setMenuOpen(true); }}>▥ <span>{t.stats}</span> <b>›</b></button>
 
-        {menuOpen && <div className="drawerLayer" onClick={() => setMenuOpen(false)}><aside className="drawer" onClick={e => e.stopPropagation()} aria-label={t.settings}><div className="drawerHead"><div className="drawerBrandRow"><BrandLogo className="brandLogoDrawer"/><div className="drawerBrandBlock"><b className="drawerBrand">Quiz <em>Arena</em></b><small>{t.tag}</small></div></div><button className="drawerClose" onClick={() => setMenuOpen(false)} aria-label="Menü schließen">×</button></div>
-          <div className="menuGroup"><h3>🌐 {t.languageLabel}</h3>{languages.map(([code,flag,label]) => <button key={code} className={language===code?'language active':'language'} onClick={()=>setAppLanguage(code)}><span>{flag}</span>{label}<b>{language===code?'✓':''}</b></button>)}</div>
-          <div className="menuGroup settings"><h3>⚙ {t.settings}</h3>
-            <div className="settingBlock"><div className="settingBlockTitle"><span className="settingsGlyph">☷</span><div><b>{t.difficulty}</b><small>{difficulty === 'hard' ? t.hardSub : t.easySub}</small></div></div><div className="segmented two"><button className={difficulty==='easy'?'active':''} onClick={()=>setDifficultyValue('easy')}>{t.easy}</button><button className={difficulty==='hard'?'active':''} onClick={()=>setDifficultyValue('hard')}>{t.hard}</button></div></div>
-            <label className="toggleRow"><span>🔊 <b>{t.sound}</b><small>{t.soundSub}</small></span><input type="checkbox" checked={sound} onChange={e=>setSound(e.target.checked)}/></label>
-            <label className={`toggleRow ${vibrationSupported ? '' : 'disabled'}`}><span>📱 <b>{t.vibration}</b><small>{vibrationSupported ? t.vibrationSub : t.notAvailable}</small></span><input type="checkbox" checked={haptics && vibrationSupported} disabled={!vibrationSupported} onChange={e=>setHaptics(e.target.checked)}/></label>
-            <div className="settingBlock"><div className="settingBlockTitle"><span>◐</span><div><b>{t.design}</b><small>{theme === 'Hell' ? t.light : theme === 'Dunkel' ? t.dark : t.auto}</small></div></div><div className="segmented three"><button className={theme==='Hell'?'active':''} onClick={()=>setTheme('Hell')}>{t.light}</button><button className={theme==='Dunkel'?'active':''} onClick={()=>setTheme('Dunkel')}>{t.dark}</button><button className={theme==='Auto'?'active':''} onClick={()=>setTheme('Auto')}>{t.auto}</button></div></div>
-            <div className="settingBlock"><div className="settingBlockTitle"><span>AA</span><div><b>{t.font}</b><small>{fontSize === 'Klein' ? t.small : fontSize === 'Groß' ? t.large : t.normal}</small></div></div><div className="segmented three"><button className={fontSize==='Klein'?'active':''} onClick={()=>setFontSize('Klein')}>{t.small}</button><button className={fontSize==='Normal'?'active':''} onClick={()=>setFontSize('Normal')}>{t.normal}</button><button className={fontSize==='Groß'?'active':''} onClick={()=>setFontSize('Groß')}>{t.large}</button></div></div>
-            <div className="settingBlock"><div className="settingBlockTitle"><span>◷</span><div><b>{t.timer}</b><small>{timeLimitEnabled ? `${questionTime} ${t.seconds}` : (language === 'DE' ? 'Aus' : 'Off')}</small></div></div><div className="segmented four"><button className={!timeLimitEnabled?'active':''} onClick={()=>setTimeLimitEnabled(false)}>{language === 'DE' ? 'Aus' : 'Off'}</button><button className={timeLimitEnabled&&questionTime===15?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(15);}}>15</button><button className={timeLimitEnabled&&questionTime===20?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(20);}}>20</button><button className={timeLimitEnabled&&questionTime===30?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(30);}}>30</button></div></div>
-            <div className="settingBlock"><div className="settingBlockTitle"><span>☷</span><div><b>{t.round}</b><small>{roundSize === 'max' ? 'Max' : roundSize} {t.questions}</small></div></div><div className="segmented four"><button className={roundSize===5?'active':''} onClick={()=>setRoundSize(5)}>5</button><button className={roundSize===10?'active':''} onClick={()=>setRoundSize(10)}>10</button><button className={roundSize===15?'active':''} onClick={()=>setRoundSize(15)}>15</button><button className={roundSize==='max'?'active':''} onClick={()=>setRoundSize('max')}>Max</button></div></div>
-          </div>
-          <div className="menuGroup"><button className="menuRow"><span>▥ <b>{t.statistics}</b><small>{progress.rounds} {t.rounds} · {progress.correct} {t.correct}</small></span><b>›</b></button><button className="menuRow"><span>♜ <b>{t.achievements}</b><small>{achievements.filter(a=>a.unlocked).length}/{achievements.length} {t.badges}</small></span><b>›</b></button></div>
-          <div className="menuGroup"><div className="menuInfo"><b>ⓘ {t.about}</b><small>Quiz Arena v1.0.0</small></div><div className="menuInfo"><b>⬡ {t.privacy}</b><small>{t.privacyText}</small></div><div className="menuInfo"><b>▤ {t.imprint}</b><small>{t.imprintText}</small></div><button className="resetLink" onClick={resetProgress}>{t.reset}</button></div><footer>{t.safe}</footer>
+        {menuOpen && <div className="drawerLayer" onClick={() => { setMenuOpen(false); setMenuPage('main'); }}><aside className="drawer" onClick={e => e.stopPropagation()} aria-label={t.settings}><div className="drawerHead"><div className="drawerBrandRow"><BrandLogo className="brandLogoDrawer"/><div className="drawerBrandBlock"><b className="drawerBrand">Quiz <em>Arena</em></b><small>{t.tag}</small></div></div><button className="drawerClose" onClick={() => { setMenuOpen(false); setMenuPage('main'); }} aria-label="Menü schließen">×</button></div>
+          {menuPage === 'main' ? <>
+            <div className="menuGroup"><h3>🌐 {t.languageLabel}</h3>{languages.map(([code,flag,label]) => <button key={code} className={language===code?'language active':'language'} onClick={()=>setAppLanguage(code)}><span>{flag}</span>{label}<b>{language===code?'✓':''}</b></button>)}</div>
+            <div className="menuGroup settings"><h3>⚙ {t.settings}</h3>
+              <div className="settingBlock"><div className="settingBlockTitle"><span className="settingsGlyph">☷</span><div><b>{t.difficulty}</b><small>{difficulty === 'hard' ? t.hardSub : t.easySub}</small></div></div><div className="segmented two"><button className={difficulty==='easy'?'active':''} onClick={()=>setDifficultyValue('easy')}>{t.easy}</button><button className={difficulty==='hard'?'active':''} onClick={()=>setDifficultyValue('hard')}>{t.hard}</button></div></div>
+              <label className="toggleRow"><span>🔊 <b>{t.sound}</b><small>{t.soundSub}</small></span><input type="checkbox" checked={sound} onChange={e=>setSound(e.target.checked)}/></label>
+              <label className={`toggleRow ${vibrationSupported ? '' : 'disabled'}`}><span>📱 <b>{t.vibration}</b><small>{vibrationSupported ? t.vibrationSub : t.notAvailable}</small></span><input type="checkbox" checked={haptics && vibrationSupported} disabled={!vibrationSupported} onChange={e=>setHaptics(e.target.checked)}/></label>
+              <div className="settingBlock"><div className="settingBlockTitle"><span>◐</span><div><b>{t.design}</b><small>{theme === 'Hell' ? t.light : theme === 'Dunkel' ? t.dark : t.auto}</small></div></div><div className="segmented three"><button className={theme==='Hell'?'active':''} onClick={()=>setTheme('Hell')}>{t.light}</button><button className={theme==='Dunkel'?'active':''} onClick={()=>setTheme('Dunkel')}>{t.dark}</button><button className={theme==='Auto'?'active':''} onClick={()=>setTheme('Auto')}>{t.auto}</button></div></div>
+              <div className="settingBlock"><div className="settingBlockTitle"><span>AA</span><div><b>{t.font}</b><small>{fontSize === 'Klein' ? t.small : fontSize === 'Groß' ? t.large : t.normal}</small></div></div><div className="segmented three"><button className={fontSize==='Klein'?'active':''} onClick={()=>setFontSize('Klein')}>{t.small}</button><button className={fontSize==='Normal'?'active':''} onClick={()=>setFontSize('Normal')}>{t.normal}</button><button className={fontSize==='Groß'?'active':''} onClick={()=>setFontSize('Groß')}>{t.large}</button></div></div>
+              <div className="settingBlock"><div className="settingBlockTitle"><span>◷</span><div><b>{t.timer}</b><small>{timeLimitEnabled ? `${questionTime} ${t.seconds}` : (language === 'DE' ? 'Aus' : 'Off')}</small></div></div><div className="segmented four"><button className={!timeLimitEnabled?'active':''} onClick={()=>setTimeLimitEnabled(false)}>{language === 'DE' ? 'Aus' : 'Off'}</button><button className={timeLimitEnabled&&questionTime===15?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(15);}}>15</button><button className={timeLimitEnabled&&questionTime===20?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(20);}}>20</button><button className={timeLimitEnabled&&questionTime===30?'active':''} onClick={()=>{setTimeLimitEnabled(true);setQuestionTime(30);}}>30</button></div></div>
+              <div className="settingBlock"><div className="settingBlockTitle"><span>☷</span><div><b>{t.round}</b><small>{roundSize === 'max' ? 'Max' : roundSize} {t.questions}</small></div></div><div className="segmented four"><button className={roundSize===5?'active':''} onClick={()=>setRoundSize(5)}>5</button><button className={roundSize===10?'active':''} onClick={()=>setRoundSize(10)}>10</button><button className={roundSize===15?'active':''} onClick={()=>setRoundSize(15)}>15</button><button className={roundSize==='max'?'active':''} onClick={()=>setRoundSize('max')}>Max</button></div></div>
+            </div>
+            <div className="menuGroup"><button className="menuRow" onClick={() => setMenuPage('stats')}><span>▥ <b>{t.statistics}</b><small>{progress.rounds} {t.rounds} · {progress.correct} {t.correct}</small></span><b>›</b></button><button className="menuRow" onClick={() => setMenuPage('achievements')}><span>♜ <b>{t.achievements}</b><small>{achievements.filter(a=>a.unlocked).length}/{achievements.length} {t.badges}</small></span><b>›</b></button></div>
+            <div className="menuGroup"><div className="menuInfo"><b>ⓘ {t.about}</b><small>Quiz Arena v1.0.0</small></div><div className="menuInfo"><b>⬡ {t.privacy}</b><small>{t.privacyText}</small></div><div className="menuInfo"><b>▤ {t.imprint}</b><small>{t.imprintText}</small></div><button className="resetLink" onClick={resetProgress}>{t.reset}</button></div><footer>{t.safe}</footer>
+          </> : menuPage === 'stats' ? <div className="drawerDetail">
+            <div className="detailNav"><button onClick={() => setMenuPage('main')} aria-label="Zurück">‹</button><div><small>DEIN PROFIL</small><h2>Statistiken</h2></div></div>
+            <section className="statsHero"><div className="statsRankBadge">{level}</div><div><small>AKTUELLER RANG</small><strong>{rank}</strong><span>Level {level} · {progress.xp} XP</span></div><div className="statsStars">★ {progress.stars}</div></section>
+            <div className="statsDetailGrid">
+              <div><span>Runden</span><strong>{progress.rounds}</strong></div><div><span>Richtig</span><strong>{progress.correct}</strong></div>
+              <div><span>Falsch</span><strong>{progress.wrong}</strong></div><div><span>Genauigkeit</span><strong>{lifetimeAccuracy}%</strong></div>
+              <div><span>Beste Serie</span><strong>{progress.bestStreak}</strong></div><div><span>Perfekt</span><strong>{progress.gifts}</strong></div>
+              <div><span>Levelkisten</span><strong>{progress.levelChests}</strong></div><div><span>Joker genutzt</span><strong>{progress.jokerUses}</strong></div>
+            </div>
+            <section className="detailSection"><div className="detailSectionHead"><h3>Fortschritt pro Kategorie</h3><span>{categoryStats.reduce((sum,item)=>sum+item.seen,0)} gesehen</span></div>
+              <div className="categoryProgressList">{categoryStats.map(item => <div className="categoryProgressRow" key={item.label}><div className="categoryProgressCopy"><span><CategoryIcon category={item.label}/></span><div><b>{item.title}</b><small>{item.seen}/{item.total} Fragen</small></div></div><strong>{item.percent}%</strong><div className="miniProgress"><i style={{width:item.percent + '%'}} /></div></div>)}</div>
+            </section>
+          </div> : <div className="drawerDetail">
+            <div className="detailNav"><button onClick={() => setMenuPage('main')} aria-label="Zurück">‹</button><div><small>DEINE SAMMLUNG</small><h2>Erfolge</h2></div></div>
+            <section className="achievementSummary"><strong>{achievements.filter(item=>item.unlocked).length}/{achievements.length}</strong><span>Abzeichen freigeschaltet</span><div className="miniProgress"><i style={{width:Math.round((achievements.filter(item=>item.unlocked).length / achievements.length) * 100) + '%'}} /></div></section>
+            <div className="achievementList">{achievements.map(item => { const pct=Math.min(100,Math.round((Math.min(item.current,item.target)/item.target)*100)); return <article key={item.label} className={item.unlocked?'achievementCard unlocked':'achievementCard locked'}><div className="achievementIcon">{item.icon}</div><div className="achievementCopy"><div><strong>{item.label}</strong><span>{item.unlocked?'Freigeschaltet':item.current+'/'+item.target}</span></div><p>{item.description}</p><div className="miniProgress"><i style={{width:pct+'%'}} /></div></div></article>; })}</div>
+          </div>}
         </aside></div>}
       </main>
     );
@@ -1084,7 +1141,7 @@ function App() {
           if (!current || selected !== null || hiddenAnswers.length > 0 || progress.stars < 1) return;
           const wrong = current.answers.map((_, answerIndex) => answerIndex).filter(answerIndex => answerIndex !== current.correct);
           setHiddenAnswers(shuffle(wrong).slice(0, 2));
-          setProgress(prev => ({ ...prev, stars: Math.max(0, prev.stars - 1) }));
+          setProgress(prev => ({ ...prev, stars: Math.max(0, prev.stars - 1), jokerUses: prev.jokerUses + 1 }));
         }}>50:50 · 1 ★</button></div>
         <div className="answers">
           {current.answers.map((answer, answerIndex) => {
