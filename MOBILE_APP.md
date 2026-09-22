@@ -68,3 +68,6 @@ XP and reward progression:
 * Every fifth level also awards 2 extra Knowledge Stars and a level chest.
 * Knowledge Stars can be spent on a 50:50 joker that removes two wrong answers.
 * Ranks progress through Beginner, Knowledgeable, Expert, Master, Grandmaster and Quiz Legend.
+* Statistics opens a dedicated mobile detail page with rounds, correct and wrong answers, lifetime accuracy, XP, level, rank, stars, perfect runs, level chests, joker usage and per-category question progress.
+* Achievements opens a dedicated mobile detail page with unlocked and locked badges, descriptions, counters and progress bars.
+* Android back navigation returns from Statistics or Achievements to the main settings drawer before closing the drawer.
