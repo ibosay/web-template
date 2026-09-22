@@ -5,7 +5,7 @@ import { connect } from 'react-redux';
 import { isScrollingDisabled } from '../../ducks/ui.duck';
 import { LayoutSingleColumn, Page } from '../../components';
 
-import QuizArenaLiveApp from './QuizArenaLiveApp.tsx';
+import QuizArenaLiveApp from './QuizArenaLiveAppV2.tsx';
 import css from './QuizGamePage.module.css';
 
 export const QuizGamePageComponent = props => {
