@@ -120,6 +120,9 @@ function QuizArenaLiveAppV2(){
   const level=Math.floor(progress.xp/500)+1;
   const rank=getRank(level);
   const xpIntoLevel=progress.xp%500;
+  const xpToNextLevel=500-xpIntoLevel;
+  const nextLevel=level+1;
+  const nextLevelIsMilestone=nextLevel%5===0;
   const accuracy=answers.length?Math.round(answers.filter(Boolean).length/answers.length*100):0;
   const lifetimeAnswered=progress.correct+progress.wrong;
   const lifetimeAccuracy=lifetimeAnswered?Math.round(progress.correct/lifetimeAnswered*100):0;
@@ -186,9 +189,20 @@ function QuizArenaLiveAppV2(){
       <header className="homeTop"><div className="levelBox"><span className="levelBadge">{level}</span><div className="levelCopy"><strong>Level {level}</strong><small>{rank}</small><div className="progressTrack"><div style={{width:`${xpIntoLevel/5}%`}}/></div></div><div className="levelRewards"><b>★ {progress.stars}</b><small>{xpIntoLevel}/500 XP</small></div></div><button className="menuButton" onClick={()=>{setMenuPage('main');setMenuOpen(true)}} aria-label="Menu"><span/><span/><span/></button></header>
       <section className="gameHero"><BrandLogo className="brandLogoHome"/><div><h1>Quiz <em>Arena</em></h1><p>{t.tag}</p></div></section>
       <aside className="xpGuide">
-        <strong>{mathIntl.formatMessage({id:'QuizMath.xpTitle'})}</strong>
-        <p>{mathIntl.formatMessage({id:'QuizMath.xpHelp'})}</p>
-        <small>{mathIntl.formatMessage({id:'QuizMath.xpNext'}, {xp:500-xpIntoLevel})}</small>
+        <div className="xpGuideHead">
+          <div><strong>{mathIntl.formatMessage({id:'QuizMath.xpTitle'})}</strong><p>{mathIntl.formatMessage({id:'QuizMath.xpHelp'})}</p></div>
+          <span className="xpGuideBalance">★ {progress.stars}</span>
+        </div>
+        <div className="xpRewardSteps">
+          <div><span>{mathIntl.formatMessage({id:'QuizMath.xpStepXp'})}</span><b>500 XP</b><small>{mathIntl.formatMessage({id:'QuizMath.xpStepLevel'})}</small></div>
+          <div><span>{mathIntl.formatMessage({id:'QuizMath.xpStepLevelTitle'})}</span><b>+1 ★</b><small>{mathIntl.formatMessage({id:'QuizMath.xpStepStar'})}</small></div>
+          <div className={nextLevelIsMilestone?'nextMilestone':''}><span>{mathIntl.formatMessage({id:'QuizMath.xpStepMilestone'})}</span><b>+2 ★</b><small>{mathIntl.formatMessage({id:'QuizMath.xpStepChest'})}</small></div>
+        </div>
+        <div className="xpNextReward">
+          <span>{mathIntl.formatMessage({id:'QuizMath.xpNext'}, {xp:xpToNextLevel,level:nextLevel})}</span>
+          <b>{mathIntl.formatMessage({id:nextLevelIsMilestone?'QuizMath.xpNextRewardMilestone':'QuizMath.xpNextReward'})}</b>
+        </div>
+        <small className="xpHardRule">{mathIntl.formatMessage({id:'QuizMath.xpHardRule'})}</small>
       </aside>
       <section className="panel categoryPanel"><div className="categoryHeading"><div><h2>{language==='DE'?'Kategorie wählen':'Choose a category'}</h2><p>{language==='DE'?'Wähle ein Thema für deine nächste Runde.':'Pick a topic for your next round.'}</p></div><button className={`difficultyQuickSwitch ${difficulty}`} onClick={toggleDifficulty} aria-label={`${t.difficulty}: ${difficulty==='hard'?t.hard:t.easy}. ${t.switchDifficulty}`}><span className={difficulty==='easy'?'active':''}>{t.easy}</span><span className={difficulty==='hard'?'active':''}>{t.hard}</span></button></div>
       <div className="categoryList">
