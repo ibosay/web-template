@@ -44,9 +44,19 @@
   background: linear-gradient(120deg, #fff8e5, #fffdf6);
   color: #6b4b15;
 }
+.xpGuideHead { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
 .xpGuide strong { font-size: 14px; }
-.xpGuide p { margin: 7px 0; font-size: 13px; line-height: 1.55; }
-.xpGuide small { display: block; font-size: 11px; line-height: 1.5; }
+.xpGuide p { margin: 7px 0 0; font-size: 13px; line-height: 1.5; }
+.xpGuideBalance { flex: 0 0 auto; padding: 7px 10px; border-radius: 999px; background: #fff0b8; font-size: 12px; font-weight: 800; }
+.xpRewardSteps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 14px 0 10px; }
+.xpRewardSteps > div { min-width: 0; padding: 10px 8px; border: 1px solid #f0dfad; border-radius: 14px; background: rgba(255,255,255,.72); text-align: center; }
+.xpRewardSteps > div.nextMilestone { border-color: #d6aa38; box-shadow: inset 0 0 0 1px #f4d36e; }
+.xpRewardSteps span,.xpRewardSteps small { display: block; font-size: 9px; line-height: 1.3; }
+.xpRewardSteps span { min-height: 24px; font-weight: 800; letter-spacing: .02em; }
+.xpRewardSteps b { display: block; margin: 3px 0; font-size: 13px; }
+.xpNextReward { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 10px; border-top: 1px solid #ecdcae; font-size: 11px; }
+.xpNextReward b { font-size: 11px; text-align: right; }
+.xpHardRule { display: block; margin-top: 8px; font-size: 10px; line-height: 1.45; opacity: .86; }
 .categoryRow[data-category] { --category-accent: #3765a5; --category-tint: #edf3ff; }
 .categoryRow[data-category='Islam'] { --category-accent: #17795a; --category-tint: #e6f5ed; }
 .categoryRow[data-category='Allgemeinwissen'] { --category-accent: #8056b2; --category-tint: #f1eafa; }
@@ -66,6 +76,10 @@
   border-radius: 12px;
 }
 :root[data-quiz-theme='dark'] .xpGuide { background: #30291d; border-color: #64532c; color: #f3d995; }
+:root[data-quiz-theme='dark'] .xpGuideBalance { background: #4a3c1e; }
+:root[data-quiz-theme='dark'] .xpRewardSteps > div { background: #26231d; border-color: #5b4b2c; }
+:root[data-quiz-theme='dark'] .xpRewardSteps > div.nextMilestone { border-color: #b9912e; box-shadow: inset 0 0 0 1px #80661e; }
+:root[data-quiz-theme='dark'] .xpNextReward { border-top-color: #5b4b2c; }
 :root[data-quiz-theme='dark'] .gameHome .categoryRow[data-category]:not(.active) {
   background: #202126;
 }
