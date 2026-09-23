@@ -1,0 +1,23 @@
+// Direct references for selected EU rules checked during this expansion.
+export const expansionSources: Record<number, string> = {
+  22200: 'https://eur-lex.europa.eu/EN/legal-content/glossary/principle-of-conferral.html',
+  22201: 'https://eur-lex.europa.eu/EN/legal-content/glossary/principle-of-subsidiarity.html',
+  22202: 'https://eur-lex.europa.eu/EN/legal-content/glossary/principle-of-proportionality.html',
+  22203: 'https://eur-lex.europa.eu/EN/legal-content/glossary/division-of-competences.html',
+  22204: 'https://eur-lex.europa.eu/EN/legal-content/glossary/division-of-competences.html',
+  22205: 'https://eur-lex.europa.eu/EN/legal-content/glossary/division-of-competences.html',
+  22206: 'https://european-union.europa.eu/institutions-law-budget/law/types-legislation_en',
+  22207: 'https://european-union.europa.eu/institutions-law-budget/law/types-legislation_en',
+  22220: 'https://www.consilium.europa.eu/en/council-eu/how-does-the-council-vote/qualified-majority/',
+  22221: 'https://www.consilium.europa.eu/en/council-eu/how-does-the-council-vote/qualified-majority/',
+  22224: 'https://www.consilium.europa.eu/en/council-eu/decision-making/implementing-and-delegated-acts/',
+  22225: 'https://www.consilium.europa.eu/en/council-eu/decision-making/implementing-and-delegated-acts/',
+  22227: 'https://www.europarl.europa.eu/factsheets/en/sheet/19/the-european-parliament-competences',
+  22240: 'https://www.europarl.europa.eu/factsheets/en/sheet/12/the-european-court-of-justice',
+  22241: 'https://www.europarl.europa.eu/thinktank/en/document/EPRS_BRI%282019%29642282',
+  22242: 'https://www.europarl.europa.eu/factsheets/en/sheet/12/the-european-court-of-justice',
+  22245: 'https://eur-lex.europa.eu/legal-content/EN/TXT/HTML/?uri=CELEX%3A12007P051',
+  22247: 'https://anti-fraud.ec.europa.eu/policy/policies-prevent-and-deter-fraud/european-public-prosecutors-office_en',
+  22248: 'https://anti-fraud.ec.europa.eu/policy/policies-prevent-and-deter-fraud/european-public-prosecutors-office_en',
+  22280: 'https://www.ecb.europa.eu/ecb/orga/escb/html/index.en.html',
+};

@@ -1615,5 +1615,14 @@
   "QuizGamePage.achievement.fiftyCorrect": "50 richtig",
   "QuizGamePage.achievement.streak5": "5er-Serie",
   "QuizGamePage.achievement.level5": "Level 5",
-  "QuizGamePage.durationLabel": "Zeit"
+  "QuizGamePage.durationLabel": "Zeit",
+  "QuizMath.title": "Mathe",
+  "QuizMath.mixed": "Alle Matheaufgaben · gemischt",
+  "QuizMath.addition": "Addition",
+  "QuizMath.subtraction": "Subtraktion",
+  "QuizMath.multiplication": "Multiplikation",
+  "QuizMath.division": "Division",
+  "QuizMath.fractions": "Bruchrechnung",
+  "QuizMath.solution": "Rechenweg",
+  "QuizMath.explanation": "Lernhinweis"
 }

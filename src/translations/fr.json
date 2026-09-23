@@ -1615,5 +1615,14 @@
   "QuizGamePage.achievement.fiftyCorrect": "50 bonnes",
   "QuizGamePage.achievement.streak5": "Série de 5",
   "QuizGamePage.achievement.level5": "Niveau 5",
-  "QuizGamePage.durationLabel": "Temps"
+  "QuizGamePage.durationLabel": "Temps",
+  "QuizMath.title": "Mathématiques",
+  "QuizMath.mixed": "Tous les calculs · mélangés",
+  "QuizMath.addition": "Addition",
+  "QuizMath.subtraction": "Soustraction",
+  "QuizMath.multiplication": "Multiplication",
+  "QuizMath.division": "Division",
+  "QuizMath.fractions": "Fractions",
+  "QuizMath.solution": "Étapes de calcul",
+  "QuizMath.explanation": "Explication"
 }

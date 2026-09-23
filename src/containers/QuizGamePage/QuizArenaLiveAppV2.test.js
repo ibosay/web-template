@@ -2,7 +2,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import QuizArenaLiveAppV2, { QUESTIONS, isHardQuestion } from './QuizArenaLiveAppV2';
+import QuizArenaLiveAppV2, { QUESTIONS, isHardQuestion } from './QuizArenaLiveAppV2.tsx';
 
 const historyCounts = (category) => {
   const pool = QUESTIONS.filter(question => question.category === category);
@@ -19,10 +19,10 @@ describe('Quiz Arena mobile V2', () => {
   });
 
   it('contains the complete structured history learning pools without duplicate ids', () => {
-    expect(historyCounts('Geschichte Erster Weltkrieg')).toEqual({ total: 150, easy: 100, hard: 50 });
-    expect(historyCounts('Geschichte Zweiter Weltkrieg')).toEqual({ total: 150, easy: 100, hard: 50 });
-    expect(historyCounts('Geschichte Tschetschenien')).toEqual({ total: 80, easy: 50, hard: 30 });
-    expect(historyCounts('Geschichte Japan')).toEqual({ total: 150, easy: 100, hard: 50 });
+    expect(historyCounts('Geschichte ww1')).toEqual({ total: 150, easy: 100, hard: 50 });
+    expect(historyCounts('Geschichte ww2')).toEqual({ total: 150, easy: 100, hard: 50 });
+    expect(historyCounts('Geschichte chechnya')).toEqual({ total: 80, easy: 50, hard: 30 });
+    expect(historyCounts('Geschichte japan')).toEqual({ total: 150, easy: 100, hard: 50 });
 
     const history = QUESTIONS.filter(question => question.category.startsWith('Geschichte '));
     expect(history).toHaveLength(530);
@@ -35,7 +35,7 @@ describe('Quiz Arena mobile V2', () => {
   });
 
   it('keeps Japanese history focused on historical events rather than deity quiz content', () => {
-    const japan = QUESTIONS.filter(question => question.category === 'Geschichte Japan');
+    const japan = QUESTIONS.filter(question => question.category === 'Geschichte japan');
     const visibleQuizText = japan.map(question => [question.question, ...question.answers].join(' ')).join(' ');
     expect(visibleQuizText).not.toMatch(/Götz|Gottheit|Kami|Shinto/i);
   });
@@ -47,7 +47,7 @@ describe('Quiz Arena mobile V2', () => {
     expect(screen.getByText('Erster Weltkrieg')).toBeInTheDocument();
     expect(screen.getByText('Zweiter Weltkrieg')).toBeInTheDocument();
     expect(screen.getByText('Tschetschenische Geschichte')).toBeInTheDocument();
-    expect(screen.getByText('Japanische Geschichte')).toBeInTheDocument();
+    expect(screen.getByText('Geschichte Japans')).toBeInTheDocument();
 
     expect(screen.getAllByText('100').length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText('50')).toBeInTheDocument();

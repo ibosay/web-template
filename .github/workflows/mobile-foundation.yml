@@ -48,6 +48,8 @@ jobs:
         run: >
           yarn test --runInBand --watchAll=false
           src/containers/QuizGamePage/QuizGamePage.test.js
+          src/containers/QuizGamePage/QuizArenaLiveAppV2.test.js
+          src/containers/QuizGamePage/learningExpansion.test.js
           src/containers/QuizGamePage/quizScoring.test.js
           src/containers/QuizGamePage/quizQuestions.test.js
           src/containers/QuizGamePage/quizProgression.test.js

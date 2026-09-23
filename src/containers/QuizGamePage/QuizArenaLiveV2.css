@@ -3,3 +3,17 @@
 .quizArenaRoot .questionExplanation b{color:#176fc2}
 :root[data-quiz-theme='dark'] .quizArenaRoot .questionExplanation{background:#13263b;color:#dcecff}
 :root[data-quiz-theme='dark'] .quizArenaRoot .questionExplanation b{color:#74b8ff}
+
+@media (hover: hover) and (pointer: fine) {
+  .quizArenaRoot .quizShell .answer:hover:not(.locked) {
+    background: #eaf3ff;
+    color: #111318;
+    -webkit-text-fill-color: #111318;
+    box-shadow: 0 0 0 2px #b9d8ff;
+  }
+  :root[data-quiz-theme='dark'] .quizArenaRoot .quizShell .answer:hover:not(.locked) {
+    background: #2c2c2e;
+    color: #f5f5f7;
+    -webkit-text-fill-color: #f5f5f7;
+  }
+}
