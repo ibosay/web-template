@@ -1227,31 +1227,110 @@
                         ctx.fill();
                     }
                 } else if (selectedColor === 'fighter') {
-                    // Kämpfer: Traditionelle Shashka (Schwert)
-                    for(let i=0; i<2; i++) {
+                    // Kämpfer: Feuer Kindschal, Silber und Niello
+                    for (let i = 0; i < 2; i++) {
                         ctx.rotate(Math.PI);
-                        ctx.shadowBlur = 10;
-                        ctx.shadowColor = '#cbd5e1';
+                        ctx.save();
 
-                        // Brauner/Schwarzer Griff, bewusst mit Abstand zum Körper
-                        ctx.fillStyle = '#0f172a';
-                        ctx.fillRect(-2, 27, 4, 10);
+                        // Ganze Waffe nach außen verschieben, ohne ihre Form zu verändern
+                        ctx.translate(0, 32);
 
-                        // Goldener Knauf
-                        ctx.fillStyle = '#eab308';
-                        ctx.fillRect(-3, 35, 6, 3);
+                        const kindschalPulse = Math.sin(Date.now() / 90 + i * Math.PI) * 2;
+                        ctx.shadowBlur = 16 + kindschalPulse;
+                        ctx.shadowColor = '#ff8a1f';
+
+                        // Knauf und silberner Griff
+                        ctx.fillStyle = '#1a1c22';
+                        ctx.fillRect(-5, -3, 10, 3);
+                        ctx.fillStyle = '#dfe3e9';
+                        ctx.fillRect(-4, 0, 8, 14);
+                        ctx.fillStyle = '#7d8490';
+                        ctx.fillRect(2, 0, 2, 14);
+                        ctx.fillStyle = '#f8fafc';
+                        ctx.fillRect(-3, 1, 1.5, 12);
+
+                        // Schwarze Niello Rosette im Griff
+                        ctx.fillStyle = '#101014';
                         ctx.beginPath();
-                        ctx.arc(0, 26, 3, 0, Math.PI); // Runder Abschluss
-                        ctx.fill();
-
-                        // Leicht gebogene, silberne Klinge
-                        ctx.fillStyle = '#e2e8f0';
-                        ctx.beginPath();
-                        ctx.moveTo(-1, 38);
-                        ctx.quadraticCurveTo(-5, 52, 2, 62); // Gebogene Spitze
-                        ctx.quadraticCurveTo(0, 52, 1, 38);
+                        ctx.moveTo(0, 3);
+                        ctx.lineTo(3, 7);
+                        ctx.lineTo(0, 11);
+                        ctx.lineTo(-3, 7);
                         ctx.closePath();
                         ctx.fill();
+                        ctx.fillStyle = '#cbd5e1';
+                        ctx.fillRect(-1, 6, 2, 2);
+
+                        // Silberbeschlag an der Klingenwurzel
+                        ctx.fillStyle = '#17191f';
+                        ctx.fillRect(-6, 14, 12, 2);
+                        ctx.fillStyle = '#dfe3e9';
+                        ctx.fillRect(-5, 16, 10, 5);
+                        ctx.fillStyle = '#101014';
+                        ctx.fillRect(-3, 18, 2, 2);
+                        ctx.fillRect(1, 18, 2, 2);
+
+                        // Gerade, zweischneidige Kindschal Klinge mit langer Spitze
+                        ctx.fillStyle = '#dfe3e9';
+                        ctx.beginPath();
+                        ctx.moveTo(-4, 21);
+                        ctx.lineTo(-4, 43);
+                        ctx.lineTo(0, 57);
+                        ctx.lineTo(4, 43);
+                        ctx.lineTo(4, 21);
+                        ctx.closePath();
+                        ctx.fill();
+
+                        // Stahllicht, dunkle Schneide und außermittige Hohlkehle
+                        ctx.fillStyle = '#f8fafc';
+                        ctx.beginPath();
+                        ctx.moveTo(-3.5, 22);
+                        ctx.lineTo(-3.5, 42);
+                        ctx.lineTo(-1, 51);
+                        ctx.lineTo(-1, 22);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.fillStyle = '#626c7c';
+                        ctx.beginPath();
+                        ctx.moveTo(2.5, 22);
+                        ctx.lineTo(2.5, 43);
+                        ctx.lineTo(0.8, 50);
+                        ctx.lineTo(0.8, 22);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.fillStyle = '#465060';
+                        ctx.fillRect(-1.7, 24, 1.2, 24);
+                        ctx.fillStyle = '#e2e8f0';
+                        ctx.fillRect(-0.3, 24, 0.9, 24);
+
+                        // Feuer liegt nur an den Außenkanten, die Silberform bleibt sichtbar
+                        ctx.strokeStyle = '#ff8a1f';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(-5, 22);
+                        ctx.lineTo(-6 - Math.sin(Date.now() / 80) * 2, 30);
+                        ctx.lineTo(-4.5, 36);
+                        ctx.lineTo(-7 - Math.sin(Date.now() / 65) * 2, 43);
+                        ctx.lineTo(-2, 51);
+                        ctx.moveTo(5, 22);
+                        ctx.lineTo(6 + Math.sin(Date.now() / 75) * 2, 29);
+                        ctx.lineTo(4.5, 36);
+                        ctx.lineTo(7 + Math.sin(Date.now() / 60) * 2, 43);
+                        ctx.lineTo(2, 51);
+                        ctx.stroke();
+
+                        ctx.strokeStyle = '#fde047';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(-4.5, 25);
+                        ctx.lineTo(-5.5, 34);
+                        ctx.lineTo(-3.5, 41);
+                        ctx.moveTo(4.5, 25);
+                        ctx.lineTo(5.5, 34);
+                        ctx.lineTo(3.5, 41);
+                        ctx.stroke();
+
+                        ctx.restore();
                     }
                 } else if (selectedColor === 'blitz') {
                     // Blitz: Energieschwert
