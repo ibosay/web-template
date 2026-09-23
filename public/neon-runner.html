@@ -709,6 +709,19 @@
           startGame();
       });
 
+      function getObstacleVariant() {
+          switch (selectedColor) {
+              case 'overlord': return 'pillar';
+              case 'feuer': return 'water';
+              case 'schwarz': return 'samurai';
+              case 'ssj': return 'energy';
+              case 'fighter': return 'spearman';
+              case 'blitz': return 'tesla';
+              case 'red': return 'ice';
+              default: return 'box';
+          }
+      }
+
       function startGame() {
           resize();
           isRunning = true;
@@ -883,52 +896,44 @@
           // Hindernisse passend zum gewählten Charakter spawnen
           spawnTimer--;
           if (spawnTimer <= 0) {
-              let variant = 'neon';
-              let obsWidth = 34;
-              let obsHeight = 58;
-
-              if (selectedColor === 'overlord') {
-                  variant = 'pillar';
-                  obsWidth = 32;
-                  obsHeight = 82;
-              } else if (selectedColor === 'feuer') {
-                  variant = 'water';
-                  obsWidth = 46;
-                  obsHeight = 50;
-              } else if (selectedColor === 'schwarz') {
-                  variant = 'samurai';
-                  obsWidth = 42;
-                  obsHeight = 70;
-              } else if (selectedColor === 'blitz') {
-                  variant = 'tesla';
-                  obsWidth = 34;
-                  obsHeight = 78;
-              } else if (selectedColor === 'ssj') {
-                  variant = 'energy';
-                  obsWidth = 36;
-                  obsHeight = 68;
-              } else if (selectedColor === 'fighter') {
-                  variant = 'spearman';
-                  obsWidth = 40;
-                  obsHeight = 74;
-              } else if (selectedColor === 'red') {
-                  variant = 'ice';
-                  obsWidth = 38;
-                  obsHeight = 62;
-              } else {
-                  obsWidth = Math.floor(Math.random() * 15) + 28;
-                  obsHeight = Math.floor(Math.random() * 28) + 40;
-              }
-
-              obstacles.push({
+              const variant = getObstacleVariant();
+              const obs = {
                   type: 'theme',
                   variant,
                   x: width + 20,
-                  y: groundY - obsHeight,
-                  w: obsWidth,
-                  h: obsHeight
-              });
+                  y: groundY - 60,
+                  w: 34,
+                  h: 60
+              };
 
+              if (variant === 'pillar') {
+                  obs.w = 32;
+                  obs.h = 82;
+              } else if (variant === 'water') {
+                  obs.w = 46;
+                  obs.h = 50;
+              } else if (variant === 'samurai') {
+                  obs.w = 42;
+                  obs.h = 70;
+              } else if (variant === 'energy') {
+                  obs.w = 36;
+                  obs.h = 68;
+              } else if (variant === 'spearman') {
+                  obs.w = 40;
+                  obs.h = 74;
+              } else if (variant === 'tesla') {
+                  obs.w = 34;
+                  obs.h = 78;
+              } else if (variant === 'ice') {
+                  obs.w = 38;
+                  obs.h = 62;
+              } else {
+                  obs.w = Math.floor(Math.random() * 15) + 28;
+                  obs.h = Math.floor(Math.random() * 28) + 40;
+              }
+
+              obs.y = groundY - obs.h;
+              obstacles.push(obs);
               spawnTimer = Math.floor(Math.random() * 45) + 60;
           }
 
@@ -1907,7 +1912,7 @@
                   ctx.lineTo(obs.x + obs.w * 0.42, obs.y + obs.h - 8);
                   ctx.stroke();
               } else {
-                  // Blau: klassischer Neonblock
+                  // Blau / Standard: klassischer Neonblock
                   ctx.shadowBlur = 18;
                   ctx.shadowColor = '#06b6d4';
                   ctx.fillStyle = '#0891b2';
@@ -1992,12 +1997,12 @@
                   // Sense Item
                   ctx.shadowBlur = 15 + pulse * 10;
                   ctx.shadowColor = '#9333ea';
-                  ctx.fillStyle = '#1e1b4b';
-                  ctx.fillRect(-1, -12, 2, 24); // Stiel
+                  ctx.fillStyle = '#1e1b4b';                  ctx.fillRect(-1, -12, 2, 24); // Stiel
                   ctx.fillStyle = '#d8b4fe';
                   ctx.beginPath();
                   ctx.moveTo(-1, -10);
-                  ctx.quadraticCurveTo(8, -10, 12, 5);                  ctx.quadraticCurveTo(5, -2, -1, -5);
+                  ctx.quadraticCurveTo(8, -10, 12, 5);
+                  ctx.quadraticCurveTo(5, -2, -1, -5);
                   ctx.closePath();
                   ctx.fill();
               } else if (selectedColor === 'fighter') {
