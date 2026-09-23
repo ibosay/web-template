@@ -256,9 +256,10 @@
             w: 44,
             h: 44,
             vy: 0,
-            gravity: 0.72,
-            jumpStrength: -13.5,
-            doubleJumpStrength: -13.0,
+            gravity: 0.6,       // Schwerkraft beim Steigen (leichter = höherer Sprung)
+            fallGravity: 0.8,   // Etwas stärker beim Fallen für ein knackiges Gefühl
+            jumpStrength: -15,
+            doubleJumpStrength: -12.5,
             jumpCount: 0,
             maxJumps: 4,
             trail: []
@@ -319,6 +320,7 @@
         window.addEventListener('keydown', (e) => {
             if (e.code === 'Space' || e.code === 'ArrowUp') {
                 e.preventDefault();
+                if (e.repeat) return; // Gedrückt halten verbraucht nicht alle Sprünge
                 if (!isRunning && uiOverlay.style.display !== 'none') {
                     startGame();
                 } else {
@@ -393,7 +395,7 @@
             gameSpeed += 0.0008;
 
             // Physik Spieler
-            player.vy += player.gravity;
+            player.vy += player.vy < 0 ? player.gravity : player.fallGravity;
             player.y += player.vy;
 
             // Decke einbauen (damit man durch das Klettern nicht aus dem Bildschirm fliegt)
@@ -1530,8 +1532,18 @@
             ctx.shadowBlur = 0;
         }
 
-        function gameLoop() {
-            update();
+        // Feste Physik-Rate (60 Updates/Sekunde), damit das Spiel auf 60/120/144-Hz-Bildschirmen gleich schnell läuft
+        const STEP = 1000 / 60;
+        let lastTime = performance.now();
+        let accumulator = 0;
+
+        function gameLoop(now) {
+            accumulator += Math.min(now - lastTime, 250);
+            lastTime = now;
+            while (accumulator >= STEP) {
+                update();
+                accumulator -= STEP;
+            }
             draw();
             requestAnimationFrame(gameLoop);
         }
@@ -1539,7 +1551,7 @@
         // Startkonfiguration
         resize();
         updateColorTheme();
-        gameLoop();
+        requestAnimationFrame(gameLoop);
     </script>
 </body>
 </html>
