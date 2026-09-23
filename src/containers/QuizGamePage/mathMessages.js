@@ -11,8 +11,17 @@ export const mathMessages = {
     "QuizMath.solution": "Rechenweg",
     "QuizMath.explanation": "Lernhinweis",
     "QuizMath.xpTitle": "Dein Wissen lohnt sich",
-    "QuizMath.xpHelp": "500 XP = 1 Level. Beim Levelaufstieg erhältst du Wissenssterne. 1 Stern = 1 × 50:50.",
-    "QuizMath.xpNext": "Noch {xp} XP bis zum nächsten Level · Schwer: ein Joker pro Runde"
+    "QuizMath.xpHelp": "Richtige Antworten geben XP. XP erhöht dein Level und Level geben dir Wissenssterne für den 50:50 Joker.",
+    "QuizMath.xpStepXp": "XP",
+    "QuizMath.xpStepLevel": "1 Level",
+    "QuizMath.xpStepLevelTitle": "LEVELAUFSTIEG",
+    "QuizMath.xpStepStar": "1 Wissensstern",
+    "QuizMath.xpStepMilestone": "JEDES 5. LEVEL",
+    "QuizMath.xpStepChest": "zusätzlich + Kiste",
+    "QuizMath.xpNext": "Noch {xp} XP bis Level {level}",
+    "QuizMath.xpNextReward": "Belohnung: +1 Wissensstern",
+    "QuizMath.xpNextRewardMilestone": "Belohnung: +3 Wissenssterne + Levelkiste",
+    "QuizMath.xpHardRule": "1 Wissensstern = 1 × 50:50. Im schweren Modus ist der Joker einmal pro Runde nutzbar."
   },
   "EN": {
     "QuizMath.title": "Maths",
@@ -25,7 +34,16 @@ export const mathMessages = {
     "QuizMath.solution": "Solution steps",
     "QuizMath.explanation": "Learning note",
     "QuizMath.xpTitle": "Your knowledge pays off",
-    "QuizMath.xpHelp": "500 XP = 1 level. Level up to earn knowledge stars. 1 star = one 50:50 use.",
-    "QuizMath.xpNext": "{xp} XP to the next level · Hard: one joker per round"
+    "QuizMath.xpHelp": "Correct answers earn XP. XP raises your level, and levels award knowledge stars for the 50:50 joker.",
+    "QuizMath.xpStepXp": "XP",
+    "QuizMath.xpStepLevel": "1 level",
+    "QuizMath.xpStepLevelTitle": "LEVEL UP",
+    "QuizMath.xpStepStar": "1 knowledge star",
+    "QuizMath.xpStepMilestone": "EVERY 5TH LEVEL",
+    "QuizMath.xpStepChest": "extra + chest",
+    "QuizMath.xpNext": "{xp} XP to level {level}",
+    "QuizMath.xpNextReward": "Reward: +1 knowledge star",
+    "QuizMath.xpNextRewardMilestone": "Reward: +3 knowledge stars + level chest",
+    "QuizMath.xpHardRule": "1 knowledge star = one 50:50 use. In Hard mode the joker can be used once per round."
   }
 };
