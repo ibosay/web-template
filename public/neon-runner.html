@@ -1,1637 +1,2118 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0"
+    />
     <title>Neon Runner</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #0f172a;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: none;
-            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background-color: #0f172a;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+        font-family:
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Roboto,
+          'Helvetica Neue',
+          Arial,
+          sans-serif;
+      }
 
-        canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-        }
+      canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+      }
     </style>
-</head>
-<body class="relative w-screen h-screen overflow-hidden flex items-center justify-center">
-
+  </head>
+  <body
+    class="relative w-screen h-screen overflow-hidden flex items-center justify-center"
+  >
     <!-- HUD: Punkteanzeige & Münzen -->
-    <div id="hud" class="absolute top-5 left-5 flex gap-4 pointer-events-none select-none z-10">
-        <div class="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-700 backdrop-blur-md shadow-lg flex items-center gap-2">
-            <span class="text-xs uppercase tracking-wider text-slate-400 font-bold">Score</span>
-            <span id="scoreDisplay" class="text-2xl font-black text-cyan-400 tabular-nums">0</span>
-        </div>
-        <div class="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-700 backdrop-blur-md shadow-lg flex items-center gap-2">
-            <span class="text-xl">🪙</span>
-            <span id="coinsDisplay" class="text-2xl font-black text-amber-400 tabular-nums">0</span>
-        </div>
+    <div
+      id="hud"
+      class="absolute top-5 left-5 flex gap-4 pointer-events-none select-none z-10"
+    >
+      <div
+        class="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-700 backdrop-blur-md shadow-lg flex items-center gap-2"
+      >
+        <span class="text-xs uppercase tracking-wider text-slate-400 font-bold"
+          >Score</span
+        >
+        <span
+          id="scoreDisplay"
+          class="text-2xl font-black text-cyan-400 tabular-nums"
+          >0</span
+        >
+      </div>
+      <div
+        class="px-4 py-2 rounded-xl bg-slate-900/80 border border-slate-700 backdrop-blur-md shadow-lg flex items-center gap-2"
+      >
+        <span class="text-xl">🪙</span>
+        <span
+          id="coinsDisplay"
+          class="text-2xl font-black text-amber-400 tabular-nums"
+          >0</span
+        >
+      </div>
     </div>
 
     <!-- Start & Game Over Screen -->
-    <div id="uiOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-20 transition-all duration-300">
-        <div class="max-w-md w-full text-center space-y-6">
-            <div>
-                <h1 id="titleText" class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 drop-shadow-sm tracking-tight">
-                    NEON RUNNER
-                </h1>
-                <p id="subtitleText" class="text-slate-400 text-sm mt-2">Springe über Hindernisse & sammle Gold!</p>
-            </div>
-
-            <!-- Farbauswahl -->
-            <div id="colorSelectArea" class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl">
-                <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">Wähle deinen Charakter</p>
-                <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-                    <button type="button" id="btnColorBlue" class="relative py-2 sm:py-3 rounded-xl border-2 border-cyan-400 bg-cyan-950/40 text-cyan-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(34,211,238,0.2)]">
-                        <span class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></span>
-                        Blau
-                    </button>
-                    <button type="button" id="btnColorRed" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base">
-                        <span class="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]"></span>
-                        Rot
-                    </button>
-                    <button type="button" id="btnColorBlitz" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base">
-                        <svg class="w-4 h-4 text-fuchsia-500 drop-shadow-[0_0_8px_rgba(217,70,239,1)] animate-pulse" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                        Blitz
-                    </button>
-                    <!-- NEU: Feuer Charakter -->
-                    <button type="button" id="btnColorFeuer" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base">
-                        <span class="text-base drop-shadow-[0_0_8px_rgba(249,115,22,1)] animate-pulse">🔥</span>
-                        Feuer
-                    </button>
-                    <!-- NEU: Schwarz/Laserschwert Charakter -->
-                    <button type="button" id="btnColorSchwarz" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base">
-                        <span class="text-base drop-shadow-[0_0_8px_rgba(16,185,129,1)]">⚔️</span>
-                        Ninja
-                    </button>
-                    <!-- NEU: Super Saiyajin Charakter -->
-                    <button type="button" id="btnColorSSJ" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden">
-                        <span class="text-base drop-shadow-[0_0_12px_rgba(250,204,21,1)] animate-pulse">🌟</span>
-                        Saiyajin
-                    </button>
-                    <!-- NEU: Overlord Charakter -->
-                    <button type="button" id="btnColorOverlord" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden">
-                        <span class="text-base drop-shadow-[0_0_12px_rgba(147,51,234,1)] animate-pulse">💀</span>
-                        Overlord
-                    </button>
-                    <!-- NEU: Kämpfer Charakter (Tschetschenische Nationalkleidung) -->
-                    <button type="button" id="btnColorFighter" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden">
-                        <span class="text-base drop-shadow-[0_0_12px_rgba(255,255,255,1)]">🐺</span>
-                        Kämpfer
-                    </button>
-                </div>
-            </div>
-
-            <!-- Spiel starten Button -->
-            <div>
-                <button type="button" id="startBtn" class="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all">
-                    STARTEN
-                </button>
-                <p class="text-xs text-slate-500 mt-3 font-medium">Tippen oder Leertaste = Springen | Bis zu 4x in der Luft springen (Klettern)!</p>
-            </div>
+    <div
+      id="uiOverlay"
+      class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-20 transition-all duration-300"
+    >
+      <div class="max-w-md w-full text-center space-y-6">
+        <div>
+          <h1
+            id="titleText"
+            class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 drop-shadow-sm tracking-tight"
+          >
+            NEON RUNNER
+          </h1>
+          <p id="subtitleText" class="text-slate-400 text-sm mt-2">
+            Springe über Hindernisse & sammle Gold!
+          </p>
         </div>
+
+        <!-- Farbauswahl -->
+        <div
+          id="colorSelectArea"
+          class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl"
+        >
+          <p
+            class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3"
+          >
+            Wähle deinen Charakter
+          </p>
+          <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+            <button
+              type="button"
+              id="btnColorBlue"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-cyan-400 bg-cyan-950/40 text-cyan-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(34,211,238,0.2)]"
+            >
+              <span
+                class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]"
+              ></span>
+              Blau
+            </button>
+            <button
+              type="button"
+              id="btnColorRed"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"
+            >
+              <span
+                class="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_#f43f5e]"
+              ></span>
+              Rot
+            </button>
+            <button
+              type="button"
+              id="btnColorBlitz"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"
+            >
+              <svg
+                class="w-4 h-4 text-fuchsia-500 drop-shadow-[0_0_8px_rgba(217,70,239,1)] animate-pulse"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
+              Blitz
+            </button>
+            <!-- NEU: Feuer Charakter -->
+            <button
+              type="button"
+              id="btnColorFeuer"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"
+            >
+              <span
+                class="text-base drop-shadow-[0_0_8px_rgba(249,115,22,1)] animate-pulse"
+                >🔥</span
+              >
+              Feuer
+            </button>
+            <!-- NEU: Schwarz/Laserschwert Charakter -->
+            <button
+              type="button"
+              id="btnColorSchwarz"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"
+            >
+              <span class="text-base drop-shadow-[0_0_8px_rgba(16,185,129,1)]"
+                >⚔️</span
+              >
+              Ninja
+            </button>
+            <!-- NEU: Super Saiyajin Charakter -->
+            <button
+              type="button"
+              id="btnColorSSJ"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"
+            >
+              <span
+                class="text-base drop-shadow-[0_0_12px_rgba(250,204,21,1)] animate-pulse"
+                >🌟</span
+              >
+              Saiyajin
+            </button>
+            <!-- NEU: Overlord Charakter -->
+            <button
+              type="button"
+              id="btnColorOverlord"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"
+            >
+              <span
+                class="text-base drop-shadow-[0_0_12px_rgba(147,51,234,1)] animate-pulse"
+                >💀</span
+              >
+              Overlord
+            </button>
+            <!-- NEU: Kämpfer Charakter (Tschetschenische Nationalkleidung) -->
+            <button
+              type="button"
+              id="btnColorFighter"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"
+            >
+              <span class="text-base drop-shadow-[0_0_12px_rgba(255,255,255,1)]"
+                >🐺</span
+              >
+              Kämpfer
+            </button>
+          </div>
+        </div>
+
+        <!-- Spiel starten Button -->
+        <div>
+          <button
+            type="button"
+            id="startBtn"
+            class="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all"
+          >
+            STARTEN
+          </button>
+          <p class="text-xs text-slate-500 mt-3 font-medium">
+            Tippen oder Leertaste = Springen | Bis zu 4x in der Luft springen
+            (Klettern)!
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Canvas -->
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-
-        // UI Elemente
-        const hud = document.getElementById('hud');
-        const scoreDisplay = document.getElementById('scoreDisplay');
-        const coinsDisplay = document.getElementById('coinsDisplay');
-        const uiOverlay = document.getElementById('uiOverlay');
-        const titleText = document.getElementById('titleText');
-        const subtitleText = document.getElementById('subtitleText');
-        const colorSelectArea = document.getElementById('colorSelectArea');
-        const btnColorBlue = document.getElementById('btnColorBlue');
-        const btnColorRed = document.getElementById('btnColorRed');
-        const btnColorBlitz = document.getElementById('btnColorBlitz');
-        const btnColorFeuer = document.getElementById('btnColorFeuer');
-        const btnColorSchwarz = document.getElementById('btnColorSchwarz');
-        const btnColorSSJ = document.getElementById('btnColorSSJ');
-        const btnColorOverlord = document.getElementById('btnColorOverlord');
-        const btnColorFighter = document.getElementById('btnColorFighter');
-        const startBtn = document.getElementById('startBtn');
-
-        // Farbmodi
-        let selectedColor = 'blue'; // 'blue', 'red', 'blitz', 'feuer', 'schwarz', 'ssj', 'overlord' oder 'fighter'
-
-        function updateColorTheme() {
-            btnColorBlue.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorRed.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorBlitz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorFeuer.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorSchwarz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorSSJ.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorOverlord.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-
-            if (selectedColor === 'blue') {
-                btnColorBlue.className = "relative py-2 sm:py-3 rounded-xl border-2 border-cyan-400 bg-cyan-950/40 text-cyan-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(34,211,238,0.2)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-cyan-400 tabular-nums";
-            } else if (selectedColor === 'red') {
-                btnColorRed.className = "relative py-2 sm:py-3 rounded-xl border-2 border-rose-500 bg-rose-950/40 text-rose-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(244,63,94,0.2)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(244,63,94,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-rose-400 tabular-nums";
-            } else if (selectedColor === 'blitz') {
-                btnColorBlitz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-fuchsia-500 bg-fuchsia-950/40 text-fuchsia-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(217,70,239,0.2)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(217,70,239,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-fuchsia-400 tabular-nums";
-            } else if (selectedColor === 'feuer') {
-                btnColorFeuer.className = "relative py-2 sm:py-3 rounded-xl border-2 border-orange-500 bg-orange-950/40 text-orange-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(249,115,22,0.2)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(249,115,22,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-orange-400 tabular-nums";
-            } else if (selectedColor === 'ssj') {
-                btnColorSSJ.className = "relative py-2 sm:py-3 rounded-xl border-2 border-yellow-400 bg-yellow-950/40 text-yellow-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(250,204,21,0.2)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 active:scale-[0.98] text-slate-900 font-extrabold text-lg shadow-[0_0_25px_rgba(250,204,21,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-yellow-400 tabular-nums";
-            } else if (selectedColor === 'overlord') {
-                btnColorOverlord.className = "relative py-2 sm:py-3 rounded-xl border-2 border-purple-500 bg-purple-950/40 text-purple-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(147,51,234,0.3)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(147,51,234,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-purple-400 tabular-nums";
-            } else if (selectedColor === 'fighter') {
-                btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-300 bg-slate-800/60 text-slate-100 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(255,255,255,0.3)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-400 hover:to-slate-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(255,255,255,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-slate-200 tabular-nums";
-            } else {
-                btnColorSchwarz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-emerald-400 bg-emerald-950/40 text-emerald-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(16,185,129,0.2)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-emerald-400 tabular-nums";
-            }
-        }
-
-        btnColorBlue.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'blue';
-            updateColorTheme();
-        });
-
-        btnColorRed.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'red';
-            updateColorTheme();
-        });
-
-        btnColorBlitz.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'blitz';
-            updateColorTheme();
-        });
-
-        btnColorFeuer.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'feuer';
-            updateColorTheme();
-        });
-
-        btnColorSchwarz.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'schwarz';
-            updateColorTheme();
-        });
-
-        btnColorSSJ.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'ssj';
-            updateColorTheme();
-        });
-
-        btnColorOverlord.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'overlord';
-            updateColorTheme();
-        });
-
-        btnColorFighter.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectedColor = 'fighter';
-            updateColorTheme();
-        });
-
-        let width = 0;
-        let height = 0;
-        let groundY = 0;
-
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-            groundY = height - 120;
-            if (player) {
-                if (player.y > groundY - player.h) {
-                    player.y = groundY - player.h;
-                }
-            }
-        }
-        window.addEventListener('resize', resize);
-
-        // Spielstatus
-        let isRunning = false;
-        let score = 0;
-        let coins = 0;
-        let gameSpeed = 6;
-        let spawnTimer = 0;
-        let coinSpawnTimer = 0;
-
-        // Spieler-Objekt
-        const player = {
-            x: 80,
-            y: 0,
-            w: 44,
-            h: 44,
-            vy: 0,
-            gravity: 0.6,       // Schwerkraft beim Steigen (leichter = höherer Sprung)
-            fallGravity: 0.8,   // Etwas stärker beim Fallen für ein knackiges Gefühl
-            jumpStrength: -15,
-            doubleJumpStrength: -12.5,
-            jumpCount: 0,
-            maxJumps: 4,
-            trail: []
-        };
-
-        let obstacles = [];
-        let coinItems = [];
-        let particles = [];
-
-        // --- NEU: Axt Power-Up Variablen ---
-        let axeItems = [];
-        let axeSpawnTimer = 0;
-        let playerHasAxe = false;
-        let axeTimer = 0;
-        let axeAngle = 0;
-
-        // --- NEU: Magnet Power-Up Variablen ---
-        let magnetItems = [];
-        let magnetSpawnTimer = 0;
-        let playerHasMagnet = false;
-        let magnetTimer = 0;
-
-        function jump() {
-            if (!isRunning) return;
-
-            if (player.jumpCount < player.maxJumps) {
-                if (player.jumpCount === 0) {
-                    player.vy = player.jumpStrength;
-                } else {
-                    player.vy = player.doubleJumpStrength;
-                    // Extra Partikel beim Doppelsprung
-                    let pColor = '#38bdf8'; // Blau
-                    if (selectedColor === 'red') pColor = '#fb7185';
-                    if (selectedColor === 'blitz') pColor = '#d946ef'; // Magenta
-                    if (selectedColor === 'feuer') pColor = '#f97316'; // Orange
-                    if (selectedColor === 'schwarz') pColor = '#10b981'; // Smaragd
-                    if (selectedColor === 'ssj') pColor = '#facc15'; // Gold/Gelb
-                    if (selectedColor === 'overlord') pColor = '#a855f7'; // Violett Magie
-                    if (selectedColor === 'fighter') pColor = '#cbd5e1'; // Silber passend zum Kämpfer
-
-                    for (let i = 0; i < 8; i++) {
-                        particles.push({
-                            x: player.x + player.w / 2,
-                            y: player.y + player.h,
-                            vx: (Math.random() - 0.5) * 6,
-                            vy: Math.random() * 4 + 2,
-                            life: 20,
-                            maxLife: 20,
-                            color: pColor,
-                            size: 3
-                        });
-                    }
-                }
-                player.jumpCount++;
-            }
-        }
-
-        // Steuerung
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' || e.code === 'ArrowUp') {
-                e.preventDefault();
-                if (e.repeat) return; // Gedrückt halten verbraucht nicht alle Sprünge
-                if (!isRunning && uiOverlay.style.display !== 'none') {
-                    startGame();
-                } else {
-                    jump();
-                }
-            }
-        });
-
-        window.addEventListener('pointerdown', (e) => {
-            // Ignoriere Klicks auf UI Buttons
-            if (e.target.closest('#colorSelectArea') || e.target.closest('#startBtn')) return;
-            if (isRunning) {
-                jump();
-            }
-        });
-
-        startBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            startGame();
-        });
-
-        function startGame() {
-            resize();
-            isRunning = true;
-            score = 0;
-            coins = 0;
-            gameSpeed = 6.5;
-            spawnTimer = 50;
-            coinSpawnTimer = 30;
-            obstacles = [];
-            coinItems = [];
-            particles = [];
-
-            // Axt-Werte zurücksetzen
-            axeItems = [];
-            axeSpawnTimer = 300; // Dauert kurz, bis die erste Axt kommen kann
-            playerHasAxe = false;
-            axeTimer = 0;
-            axeAngle = 0;
-
-            // Magnet-Werte zurücksetzen
-            magnetItems = [];
-            magnetSpawnTimer = 600;
-            playerHasMagnet = false;
-            magnetTimer = 0;
-
-            player.y = groundY - player.h;
-            player.vy = 0;
-            player.jumpCount = 0;
-            player.trail = [];
-
-            scoreDisplay.textContent = '0';
-            coinsDisplay.textContent = '0';
-            uiOverlay.style.display = 'none';
-        }
-
-        function gameOver() {
-            isRunning = false;
-            titleText.textContent = "GAME OVER";
-            titleText.className = "text-5xl font-black text-rose-500 tracking-tight drop-shadow-[0_0_20px_rgba(244,63,94,0.5)]";
-            subtitleText.innerHTML = `Punkte: <span class="font-bold text-white">${Math.floor(score)}</span> | Münzen: <span class="font-bold text-amber-400">${coins}</span>`;
-            startBtn.textContent = "NOCHMAL SPIELEN";
-            uiOverlay.style.display = 'flex';
-        }
-
-        function update() {
-            if (!isRunning) return;
-
-            // Punkte zählen & Geschwindigkeit steigern
-            score += 0.2;
-            scoreDisplay.textContent = Math.floor(score);
-            gameSpeed += 0.0008;
-
-            // Physik Spieler
-            player.vy += player.vy < 0 ? player.gravity : player.fallGravity;
-            player.y += player.vy;
-
-            // Decke einbauen (damit man durch das Klettern nicht aus dem Bildschirm fliegt)
-            if (player.y < 0) {
-                player.y = 0;
-                player.vy = 0;
-            }
-
-            // Bodenkontakt
-            if (player.y >= groundY - player.h) {
-                player.y = groundY - player.h;
-                player.vy = 0;
-                player.jumpCount = 0;
-            }
-
-            // Schweif
-            player.trail.push({ x: player.x, y: player.y });
-            if (player.trail.length > 12) player.trail.shift(); // Etwas länger gemacht für einen flüssigeren Verlauf
-
-            // --- NEU: Kontinuierliche Feuer-Partikel für Feuer-Charakter ---
-            if (selectedColor === 'feuer' && isRunning) {
-                // Mehr, dichtere und weicher fließende Partikel
-                for (let k = 0; k < 2; k++) {
-                    particles.push({
-                        x: player.x + Math.random() * player.w,
-                        y: player.y + player.h - Math.random() * 15,
-                        vx: -gameSpeed * 0.5 + (Math.random() - 0.5) * 1.5, // Weich nach hinten wehen
-                        vy: -Math.random() * 4 - 1, // Flüssig nach oben steigen
-                        life: 40,
-                        maxLife: 40,
-                        color: Math.random() > 0.4 ? '#f97316' : (Math.random() > 0.5 ? '#fde047' : '#ef4444'), // Gelb/Orange/Rot Mix
-                        size: Math.random() * 6 + 4 // Etwas größer
-                    });
-                }
-            }
-
-            // Hindernisse spawnen
-            spawnTimer--;
-            if (spawnTimer <= 0) {
-                const isFlying = Math.random() > 0.75; // 25% Chance für fliegendes UFO
-
-                if (isFlying) {
-                    obstacles.push({
-                        type: 'ufo',
-                        x: width + 20,
-                        y: groundY - 110 - Math.random() * 40, // Fliegt oben!
-                        w: 36,
-                        h: 18
-                    });
-                } else {
-                    const obsHeight = Math.floor(Math.random() * 32) + 38;
-                    const obsWidth = Math.floor(Math.random() * 15) + 26;
-                    obstacles.push({
-                        type: 'box',
-                        x: width + 20,
-                        y: groundY - obsHeight,
-                        w: obsWidth,
-                        h: obsHeight
-                    });
-                }
-                spawnTimer = Math.floor(Math.random() * 45) + 60;
-            }
-
-            // Münzen spawnen
-            coinSpawnTimer--;
-            if (coinSpawnTimer <= 0) {
-                // Manche Münzen tief, manche hoch - HÖHER gesetzt!
-                const isHigh = Math.random() > 0.45;
-                const baseCoinY = isHigh ? groundY - 145 : groundY - 95;
-
-                // Münzen spawnen jetzt in kleinen Gruppen (1 bis 4)
-                const coinsInCluster = Math.floor(Math.random() * 4) + 1;
-
-                for (let k = 0; k < coinsInCluster; k++) {
-                    coinItems.push({
-                        x: width + 20 + (k * 35), // Leicht versetzt hintereinander
-                        y: baseCoinY - (k * 15), // Leichte Treppenform
-                        r: 12,
-                        angle: 0
-                    });
-                }
-                coinSpawnTimer = Math.floor(Math.random() * 50) + 30; // Spawnen doppelt so oft!
-            }
-
-            // Äxte spawnen
-            axeSpawnTimer--;
-            if (axeSpawnTimer <= 0) {
-                axeItems.push({
-                    x: width + 20,
-                    y: groundY - 120, // HÖHER gesetzt, sicher über den Hindernissen!
-                    w: 24,
-                    h: 24,
-                    angle: 0
-                });
-                axeSpawnTimer = Math.floor(Math.random() * 700) + 600; // Seltenes Power-Up
-            }
-
-            // Magnete spawnen
-            magnetSpawnTimer--;
-            if (magnetSpawnTimer <= 0) {
-                magnetItems.push({
-                    x: width + 20,
-                    y: groundY - 130,
-                    w: 24,
-                    h: 24,
-                    angle: 0
-                });
-                magnetSpawnTimer = Math.floor(Math.random() * 800) + 700;
-            }
-
-            // Magnet-Status vom Spieler updaten
-            if (playerHasMagnet) {
-                magnetTimer--;
-                if (magnetTimer <= 0) {
-                    playerHasMagnet = false;
-                }
-            }
-
-            // Axt-Status vom Spieler updaten
-            if (playerHasAxe) {
-                axeTimer--;
-                axeAngle += 0.25; // Schnelles Drehen der Axt
-                if (axeTimer <= 0) {
-                    playerHasAxe = false; // Zeit abgelaufen
-                }
-            }
-
-            // Hindernisse bewegen & Kollision
-            for (let i = obstacles.length - 1; i >= 0; i--) {
-                const obs = obstacles[i];
-                obs.x -= gameSpeed;
-
-                // Box Kollision
-                const pad = 6;
-                if (
-                    player.x + pad < obs.x + obs.w &&
-                    player.x + player.w - pad > obs.x &&
-                    player.y + pad < obs.y + obs.h &&
-                    player.y + player.h - pad > obs.y
-                ) {
-                    if (playerHasAxe) {
-                        // Hindernis zerstören! (Axt ist aktiv)
-                        const particleColor = selectedColor === 'blue' ? '#f43f5e' : '#06b6d4';
-                        for (let p = 0; p < 15; p++) {
-                            particles.push({
-                                x: obs.x + obs.w / 2,
-                                y: obs.y + obs.h / 2,
-                                vx: (Math.random() - 0.5) * 12,
-                                vy: (Math.random() - 0.5) * 12 - 2,
-                                life: 30,
-                                maxLife: 30,
-                                color: particleColor,
-                                size: Math.random() * 6 + 3
-                            });
-                        }
-                        obstacles.splice(i, 1); // Hindernis verschwindet
-                        score += 100;           // 100 Bonuspunkte!
-                        scoreDisplay.textContent = Math.floor(score);
-                        continue; // Spiel geht normal weiter
-                    } else {
-                        // Normale Kollision -> Game Over
-                        gameOver();
-                        return;
-                    }
-                }
-
-                if (obs.x + obs.w < -20) obstacles.splice(i, 1);
-            }
-
-            // Axt-Items bewegen & Einsammeln
-            for (let i = axeItems.length - 1; i >= 0; i--) {
-                const axe = axeItems[i];
-                axe.x -= gameSpeed;
-                axe.angle += 0.05;
-
-                const distX = Math.abs((player.x + player.w / 2) - (axe.x + axe.w / 2));
-                const distY = Math.abs((player.y + player.h / 2) - (axe.y + axe.h / 2));
-
-                if (distX < (player.w / 2 + axe.w / 2) && distY < (player.h / 2 + axe.h / 2)) {
-                    // Axt eingesammelt!
-                    playerHasAxe = true;
-                    axeTimer = 400; // ca. 6.5 Sekunden unbesiegbar
-
-                    // Feurige Glitzerpartikel
-                    const fireColors = ['#fde047', '#f97316', '#ef4444']; // Gelb, Orange, Rot
-                    for (let p = 0; p < 25; p++) {
-                        particles.push({
-                            x: axe.x + axe.w/2,
-                            y: axe.y + axe.h/2,
-                            vx: (Math.random() - 0.5) * 10,
-                            vy: (Math.random() - 0.5) * 10,
-                            life: 35,
-                            maxLife: 35,
-                            color: fireColors[Math.floor(Math.random() * fireColors.length)],
-                            size: Math.random() * 5 + 3
-                        });
-                    }
-                    axeItems.splice(i, 1);
-                    continue;
-                }
-
-                if (axe.x + axe.w < -20) axeItems.splice(i, 1);
-            }
-
-            // Magnet-Items bewegen & Einsammeln
-            for (let i = magnetItems.length - 1; i >= 0; i--) {
-                const m = magnetItems[i];
-                m.x -= gameSpeed;
-                m.angle += 0.08;
-
-                const distX = Math.abs((player.x + player.w / 2) - (m.x + m.w / 2));
-                const distY = Math.abs((player.y + player.h / 2) - (m.y + m.h / 2));
-
-                if (distX < (player.w / 2 + m.w / 2) && distY < (player.h / 2 + m.h / 2)) {
-                    // Magnet eingesammelt!
-                    playerHasMagnet = true;
-                    magnetTimer = 500; // ca. 8 Sekunden aktiv
-
-                    // Blaue Magnet-Partikel
-                    for (let p = 0; p < 20; p++) {
-                        particles.push({
-                            x: m.x + m.w/2,
-                            y: m.y + m.h/2,
-                            vx: (Math.random() - 0.5) * 10,
-                            vy: (Math.random() - 0.5) * 10,
-                            life: 30,
-                            maxLife: 30,
-                            color: '#3b82f6',
-                            size: Math.random() * 4 + 2
-                        });
-                    }
-                    magnetItems.splice(i, 1);
-                    continue;
-                }
-
-                if (m.x + m.w < -20) magnetItems.splice(i, 1);
-            }
-
-            // Münzen bewegen & Einsammeln
-            for (let i = coinItems.length - 1; i >= 0; i--) {
-                const c = coinItems[i];
-
-                // Wenn Magnet aktiv, ziehe Münze zum Spieler!
-                if (playerHasMagnet) {
-                    const pCenterX = player.x + player.w / 2;
-                    const pCenterY = player.y + player.h / 2;
-                    const dx = pCenterX - c.x;
-                    const dy = pCenterY - c.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-
-                    if (dist < 350) { // Magnet-Reichweite
-                        c.x += (dx / dist) * 12; // Fliegt schnell zum Spieler
-                        c.y += (dy / dist) * 12;
-                    } else {
-                        c.x -= gameSpeed;
-                    }
-                } else {
-                    c.x -= gameSpeed;
-                }
-
-                c.angle += 0.05;
-
-                // Kreis-Box-Distanz
-                const distX = Math.abs((player.x + player.w / 2) - c.x);
-                const distY = Math.abs((player.y + player.h / 2) - c.y);
-
-                if (distX < (player.w / 2 + c.r) && distY < (player.h / 2 + c.r)) {
-                    // Münze eingesammelt!
-                    coins++;
-                    score += 50;
-                    coinsDisplay.textContent = coins;
-                    scoreDisplay.textContent = Math.floor(score);
-
-                    // Glitzerpartikel
-                    for (let p = 0; p < 10; p++) {
-                        particles.push({
-                            x: c.x,
-                            y: c.y,
-                            vx: (Math.random() - 0.5) * 6,
-                            vy: (Math.random() - 0.5) * 6,
-                            life: 25,
-                            maxLife: 25,
-                            color: '#fbbf24',
-                            size: 3
-                        });
-                    }
-                    coinItems.splice(i, 1);
-                    continue;
-                }
-
-                if (c.x + c.r < -20) coinItems.splice(i, 1);
-            }
-
-            // Partikel aktualisieren
-            for (let i = particles.length - 1; i >= 0; i--) {
-                const p = particles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life--;
-                if (p.life <= 0) particles.splice(i, 1);
-            }
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, width, height);
-
-            // Farbauswahl für Boden, Effekte und Hindernisse vorbereiten
-            let primaryColor = '#06b6d4'; // Blau
-            let obstacleColor = '#f43f5e'; // Rot
-
-            if (selectedColor === 'red') {
-                primaryColor = '#f43f5e';
-                obstacleColor = '#06b6d4';
-            } else if (selectedColor === 'blitz') {
-                primaryColor = '#d946ef';
-            } else if (selectedColor === 'feuer') {
-                primaryColor = '#f97316';
-            } else if (selectedColor === 'schwarz') {
-                primaryColor = '#10b981';
-                obstacleColor = '#f43f5e';
-            } else if (selectedColor === 'ssj') {
-                primaryColor = '#facc15';
-                obstacleColor = '#a855f7';
-            } else if (selectedColor === 'overlord') {
-                primaryColor = '#9333ea';
-                obstacleColor = '#10b981';
-            } else if (selectedColor === 'fighter') {
-                primaryColor = '#f8fafc'; // Silber/Weißes Leuchten
-                obstacleColor = '#16a34a'; // Grünes Hindernis (Nationalfarben-Akzent)
-            }
-
-            // Hintergrund-Linien
-            ctx.strokeStyle = '#1e293b';
-            ctx.lineWidth = 1.5;
-            for (let y = 60; y < height; y += 60) {
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                ctx.lineTo(width, y);
-                ctx.stroke();
-            }
-
-            // --- NEU: Straße / Neon-Boden zeichnen ---
-            ctx.save();
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = primaryColor;
-            ctx.strokeStyle = primaryColor;
-            ctx.lineWidth = 3;
-
-            // Leuchtende Linie direkt unter dem Spieler
-            ctx.beginPath();
-            ctx.moveTo(0, groundY);
-            ctx.lineTo(width, groundY);
-            ctx.stroke();
-
-            // Leichter Glow unter der Straße
-            ctx.fillStyle = primaryColor;
-            ctx.globalAlpha = 0.08;
-            ctx.fillRect(0, groundY, width, height - groundY);
-            ctx.restore();
-
-            // --- FEHLENDEN EFFEKT ZURÜCKGEHOLT: Schweif (Trail) ---
-            player.trail.forEach((pos, index) => {
-                const progress = (index + 1) / player.trail.length;
-                // Quadratische Kurve für weicheres Ausblenden (angenehmer)
-                const alpha = Math.pow(progress, 2) * 0.35;
-                // Schweif wird nach hinten hin immer kleiner (wirkt dynamischer und sauberer)
-                const scale = 0.4 + (progress * 0.6);
-
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.shadowBlur = 12 * progress; // Weniger Blur ganz am Ende des Schweifs
-                ctx.shadowColor = primaryColor;
-                ctx.fillStyle = primaryColor;
-
-                ctx.translate(pos.x + player.w / 2, pos.y + player.h / 2);
-                ctx.scale(scale, scale); // Lässt die alten Formen kleiner werden
-
-                ctx.beginPath();
-                if (selectedColor === 'feuer') {
-                    ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 16);
-                } else if (selectedColor === 'ssj') {
-                    ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 4); // Eckiger für SSJ
-                } else {
-                    ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10);
-                }
-                ctx.fill();
-                ctx.restore();
-            });
-
-            // HIER IST DER FIX: Speichern und zum Spieler verschieben, bevor gezeichnet wird!
-            ctx.save();
-            ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
-
-            if (selectedColor === 'blitz') {
-                // Blitz-Charakter (Wieder als Quadrat, aber mit wilden Blitzen, die herausschießen!)
-                const isFlashWhite = Math.floor(Date.now() / 50) % 2 === 0;
-                const glowColor = isFlashWhite ? '#ffffff' : '#d946ef';
-
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = glowColor;
-                ctx.fillStyle = primaryColor; // Magenta Basis
-
-                // Grundform: Wieder das normale Quadrat!
-                ctx.beginPath();
-                ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10);
-                ctx.fill();
-
-                // Zuckende, echte elektrische Entladungen nach außen
-                ctx.strokeStyle = glowColor;
-                ctx.lineWidth = 2.5;
-                for (let i = 0; i < 5; i++) {
-                    ctx.beginPath();
-                    // Blitze starten im Quadrat
-                    let startX = (Math.random() - 0.5) * player.w;
-                    let startY = (Math.random() - 0.5) * player.h;
-                    ctx.moveTo(startX, startY);
-
-                    // Und schlagen wild nach außen
-                    const zacken = Math.floor(Math.random() * 3) + 2;
-                    for(let j = 0; j < zacken; j++) {
-                        startX += (Math.random() - 0.5) * 50;
-                        startY += (Math.random() - 0.5) * 50;
-                        ctx.lineTo(startX, startY);
-                    }
-                    ctx.stroke();
-                }
-            } else if (selectedColor === 'feuer') {
-                // Feuer-Charakter (Glühender Kern, flüssigere Form)
-                const firePulse = Math.sin(Date.now() / 150) * 8;
-                ctx.shadowBlur = 25 + firePulse;
-                ctx.shadowColor = '#f97316';
-
-                // Basis Quadrat: Stark abgerundet für weicheren "Tropfen/Feuer" Look
-                ctx.fillStyle = '#fde047';
-                ctx.beginPath();
-                ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 16);
-                ctx.fill();
-
-                // Lodernder Außenrand (rot/orange)
-                ctx.strokeStyle = '#ef4444';
-                ctx.lineWidth = 4;
-                ctx.stroke();
-
-                // Inneres pulsierendes "Herz" statt der eckigen Flammen-Dreiecke
-                ctx.fillStyle = '#f97316';
-                ctx.beginPath();
-                ctx.arc(0, 0, player.w/3 + Math.sin(Date.now()/100)*3, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (selectedColor === 'schwarz') {
-                // Echter Ninja (Ohne Laserschwert)
-
-                // 1. Dunkler Körper (Ninja-Anzug)
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#10b981'; // Leichtes grünes Ninja-Glow
-                ctx.fillStyle = '#020617'; // Fast pures Schwarz
-                ctx.strokeStyle = '#10b981'; // Smaragd-grüner Rand für den Neon-Look
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
-                ctx.fill();
-                ctx.stroke();
-
-                // 2. Ninja Maske (Haut-Schlitz)
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = '#fbcfe8'; // Helle Hautfarbe
-                ctx.fillRect(-player.w/2 + 2, -10, player.w - 4, 12);
-
-                // 3. Böse, leuchtende Augen
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#10b981';
-                ctx.fillStyle = '#10b981';
-                ctx.beginPath();
-                // Linkes Auge
-                ctx.moveTo(-12, -6);
-                ctx.lineTo(-3, -2);
-                ctx.lineTo(-12, 1);
-                ctx.fill();
-                // Rechtes Auge
-                ctx.moveTo(12, -6);
-                ctx.lineTo(3, -2);
-                ctx.lineTo(12, 1);
-                ctx.fill();
-
-                // 4. Wehendes grünes Stirnband
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = '#059669'; // Dunkleres Grün fürs Stirnband
-                ctx.fillRect(-player.w/2, -14, player.w, 4);
-
-                // Stirnband-Enden flattern im Wind (links am Kopf)
-                const bandFlap = Math.sin(Date.now() / 150) * 3;
-                ctx.beginPath();
-                ctx.moveTo(-player.w/2, -12);
-                ctx.lineTo(-player.w/2 - 14, -16 + bandFlap);
-                ctx.lineTo(-player.w/2 - 10, -8 + bandFlap);
-                ctx.fill();
-
-            } else if (selectedColor === 'ssj') {
-                // Überarbeiteter Super Saiyajin Charakter
-                const time = Date.now();
-
-                // 1. Lodernde, weich fließende goldene Aura
-                const auraPulse = Math.sin(time / 150) * 0.1 + 0.9;
-                ctx.shadowBlur = 35 * auraPulse;
-                ctx.shadowColor = '#facc15';
-                ctx.fillStyle = `rgba(250, 204, 21, ${0.3 * auraPulse})`;
-
-                ctx.beginPath();
-                // Weiche, wellenartige Flammen (kein nerviges Flackern mehr)
-                for (let i = 0; i <= 24; i++) {
-                    let angle = (i / 24) * Math.PI * 2;
-                    let wave = Math.sin(angle * 5 - time / 150) * 6; // Fließende Bewegung
-                    let rX = player.w * 0.9 + wave;
-                    let rY = player.h * 1.1 + wave;
-                    let px = Math.cos(angle) * rX;
-                    let py = Math.sin(angle) * rY - 10;
-                    if (i === 0) ctx.moveTo(px, py);
-                    else ctx.lineTo(px, py);
-                }
-                ctx.closePath();
-                ctx.fill();
-
-                // Innere, hellere Aura
-                ctx.fillStyle = `rgba(254, 240, 138, ${0.4 * auraPulse})`;
-                ctx.beginPath();
-                ctx.ellipse(0, -5, player.w*0.75, player.h*0.85, 0, 0, Math.PI*2);
-                ctx.fill();
-
-                // 2. Körper (Oranger Gi)
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#ea580c';
-                ctx.fillStyle = '#f97316'; // Kräftiges Orange
-                ctx.beginPath();
-                ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
-                ctx.fill();
-
-                // Blauer V-Ausschnitt (Shirt darunter)
-                ctx.fillStyle = '#1e3a8a'; // Dunkelblau
-                ctx.beginPath();
-                ctx.moveTo(-player.w/2.5, -player.h/2);
-                ctx.lineTo(player.w/2.5, -player.h/2);
-                ctx.lineTo(0, -player.h/6);
-                ctx.closePath();
-                ctx.fill();
-
-                // Blauer Gürtel
-                ctx.fillRect(-player.w/2, 4, player.w, 7);
-
-                // 3. Verbesserte, proportionierte SSJ Haare
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#fef08a';
-                ctx.fillStyle = '#fde047'; // Leuchtendes Goldgelb
-                ctx.strokeStyle = '#eab308'; // Kontur für die Strähnen
-                ctx.lineWidth = 1.5;
-
-                ctx.beginPath();
-                // Start am Kopf links unten
-                ctx.moveTo(-player.w/2 - 2, -player.h/2 + 5);
-
-                // Spitze 1 (Links)
-                ctx.lineTo(-player.w/2 - 12, -player.h/2 - 12);
-                ctx.lineTo(-player.w/3, -player.h/2 - 6);
-
-                // Spitze 2 (Halb-links)
-                ctx.lineTo(-player.w/4 - 6, -player.h/2 - 28);
-                ctx.lineTo(0, -player.h/2 - 10);
-
-                // Spitze 3 (Mitte/Rechts - Hauptspitze)
-                ctx.lineTo(player.w/4 + 4, -player.h/2 - 32);
-                ctx.lineTo(player.w/3, -player.h/2 - 8);
-
-                // Spitze 4 (Rechts außen)
-                ctx.lineTo(player.w/2 + 10, -player.h/2 - 18);
-                ctx.lineTo(player.w/2 + 2, -player.h/2 + 5);
-
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke(); // Zeichnet die feine Kontur
-
-                // Feine Haarlinien für noch mehr Detail
-                ctx.beginPath();
-                ctx.moveTo(-player.w/4, -player.h/2 - 6);
-                ctx.lineTo(-player.w/4 - 3, -player.h/2 - 18);
-                ctx.moveTo(player.w/6, -player.h/2 - 10);
-                ctx.lineTo(player.w/4, -player.h/2 - 22);
-                ctx.stroke();
-
-            } else if (selectedColor === 'overlord') {
-                // Overlord Charakter (Ainz Ooal Gown Anime Style)
-
-                // 1. Violette, mystische Dunkelmagie-Aura
-                const auraPulse = Math.sin(Date.now() / 200) * 0.2 + 0.8;
-                ctx.shadowBlur = 30 * auraPulse;
-                ctx.shadowColor = '#9333ea';
-                ctx.fillStyle = `rgba(147, 51, 234, ${0.4 * auraPulse})`;
-                ctx.beginPath();
-                ctx.arc(0, 0, player.w * 0.8 + Math.sin(Date.now() / 150) * 4, 0, Math.PI * 2);
-                ctx.fill();
-
-                // 2. Schwarze Robe & Körper
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#000000';
-                ctx.fillStyle = '#1e1b4b'; // Sehr dunkles Violett/Schwarz
-                ctx.beginPath();
-                ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
-                ctx.fill();
-
-                // Goldene Schulterpolster / Kragen
-                ctx.fillStyle = '#eab308'; // Gold
-                ctx.fillRect(-player.w/2 - 2, -player.h/2 + 5, player.w + 4, 8);
-                ctx.fillStyle = '#713f12'; // Dunkleres Gold zur Tiefe
-                ctx.fillRect(-player.w/2, -player.h/2 + 7, player.w, 3);
-
-                // 3. Knochenmaske (Skelett Gesicht)
-                ctx.shadowBlur = 5;
-                ctx.shadowColor = '#ffffff';
-                ctx.fillStyle = '#f8fafc'; // Knochenweiß
-                ctx.beginPath();
-                ctx.roundRect(-12, -player.h/2 - 5, 24, 22, 6);
-                ctx.fill();
-
-                // Wangenknochen-Einkerbung
-                ctx.fillStyle = '#1e1b4b'; // Farbe der Robe für den Durchblick
-                ctx.fillRect(-13, -player.h/2 + 10, 5, 6); // Linke Wange
-                ctx.fillRect(8, -player.h/2 + 10, 5, 6);   // Rechte Wange
-
-                // Zähne (Feine schwarze Striche)
-                ctx.strokeStyle = '#000000';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(-5, -player.h/2 + 14); ctx.lineTo(-5, -player.h/2 + 17);
-                ctx.moveTo(0, -player.h/2 + 14); ctx.lineTo(0, -player.h/2 + 17);
-                ctx.moveTo(5, -player.h/2 + 14); ctx.lineTo(5, -player.h/2 + 17);
-                ctx.stroke();
-
-                // 4. Glühende Rote Augen
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ef4444';
-                ctx.fillStyle = '#ef4444';
-                ctx.beginPath();
-                ctx.arc(-5, -player.h/2 + 3, 2.5, 0, Math.PI*2);
-                ctx.arc(5, -player.h/2 + 3, 2.5, 0, Math.PI*2);
-                ctx.fill();
-
-                // 5. Stab von Ainz Ooal Gown
-                const staffSwing = Math.sin(Date.now() / 200) * 0.1;
-                ctx.save();
-                ctx.translate(player.w/2 + 6, 4); // Hält den Stab an der rechten Seite
-                ctx.rotate(Math.PI / 8 + staffSwing);
-
-                // Goldener Stab (Griff)
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = '#eab308';
-                ctx.fillRect(-2, -32, 4, 45);
-
-                // Stabspitze (Verzierung, die die Kugel hält)
-                ctx.strokeStyle = '#eab308';
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.arc(0, -32, 6, 0, Math.PI); // Halbbogen unter der Kugel
-                ctx.stroke();
-
-                // Rote Weltkugel an der Spitze
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#ef4444';
-                ctx.fillStyle = '#ef4444';
-                ctx.beginPath();
-                ctx.arc(0, -38, 5, 0, Math.PI*2);
-                ctx.fill();
-
-                ctx.restore();
-
-            } else if (selectedColor === 'fighter') {
-                // Tschetschenischer Kämpfer
-
-                // 1. Körper (Dunkelgraue/Schwarze tschetschenische Nationalkleidung)
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#f8fafc';
-                ctx.fillStyle = '#1e293b';
-                ctx.beginPath();
-                ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
-                ctx.fill();
-
-                // 2. V-Ausschnitt & helles Unterhemd
-                ctx.fillStyle = '#e2e8f0';
-                ctx.beginPath();
-                ctx.moveTo(-player.w/3.5, -player.h/2);
-                ctx.lineTo(player.w/3.5, -player.h/2);
-                ctx.lineTo(0, -player.h/6);
-                ctx.closePath();
-                ctx.fill();
-
-                // 3. Ikonische Patronentaschen auf der Brust
-                ctx.shadowBlur = 0;
-                ctx.fillStyle = '#cbd5e1'; // Silberne Röhrchen
-                const gY = -player.h/4 - 2;
-                // Links
-                ctx.fillRect(-player.w/2 + 3, gY, 2.5, 9);
-                ctx.fillRect(-player.w/2 + 7, gY + 1, 2.5, 9);
-                ctx.fillRect(-player.w/2 + 11, gY + 2, 2.5, 9);
-                // Rechts
-                ctx.fillRect(player.w/2 - 5.5, gY, 2.5, 9);
-                ctx.fillRect(player.w/2 - 9.5, gY + 1, 2.5, 9);
-                ctx.fillRect(player.w/2 - 13.5, gY + 2, 2.5, 9);
-
-                // 4. Gürtel & Tschetschenischer Dolch (Shälta)
-                ctx.fillStyle = '#020617'; // Schwarzer Gürtel
-                ctx.fillRect(-player.w/2, player.h/5, player.w, 4);
-
-                // Dolch (Scheide)
-                ctx.fillStyle = '#0f172a';
-                ctx.fillRect(-2, player.h/5 + 4, 4, 11);
-                // Silberne Verzierungen am Dolch
-                ctx.fillStyle = '#f8fafc';
-                ctx.fillRect(-3, player.h/5 + 1, 6, 3); // Knauf/Griff oben
-                ctx.beginPath();
-                ctx.moveTo(-2, player.h/5 + 15);
-                ctx.lineTo(2, player.h/5 + 15);
-                ctx.lineTo(0, player.h/5 + 19); // Spitze
-                ctx.fill();
-
-                // 5. Traditionelle tschetschenische Wollmütze (Kuy) auf dem Kopf
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = '#000000';
-                ctx.fillStyle = '#334155'; // Dunkelgraue Wolle
-                ctx.beginPath();
-                // Fluffige Basis-Form
-                ctx.roundRect(-player.w/2 - 3, -player.h/2 - 10, player.w + 6, 14, 6);
-                ctx.fill();
-
-                // Details in der Wolle (fluffige Wölbungen)
-                ctx.fillStyle = '#475569';
-                ctx.beginPath();
-                ctx.arc(-10, -player.h/2 - 6, 5, 0, Math.PI*2);
-                ctx.arc(10, -player.h/2 - 6, 5, 0, Math.PI*2);
-                ctx.arc(0, -player.h/2 - 10, 6, 0, Math.PI*2);
-                ctx.fill();
-
-            } else {
-                // Normaler Charakter (Blau / Rot)
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = primaryColor;
-                ctx.fillStyle = primaryColor;
-                ctx.beginPath();
-                ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10);
-                ctx.fill();
-            }
-
-            // --- BEHOBEN: Sichtbare Axt um den Spieler, wenn aktiv ---
-            if (playerHasAxe) {
-                ctx.save();
-                ctx.rotate(axeAngle);
-
-                if (selectedColor === 'schwarz') {
-                    // Ninja: Shuriken
-                    for(let i=0; i<2; i++) {
-                        ctx.rotate(Math.PI);
-                        ctx.shadowBlur = 15;
-                        ctx.shadowColor = '#10b981';
-                        ctx.fillStyle = '#10b981';
-
-                        ctx.save();
-                        ctx.translate(0, 30);
-                        ctx.rotate(axeAngle * 2); // Shuriken dreht sich noch mal in sich selbst
-
-                        ctx.beginPath();
-                        ctx.moveTo(0, -15); ctx.lineTo(4, -4);
-                        ctx.lineTo(15, 0); ctx.lineTo(4, 4);
-                        ctx.lineTo(0, 15); ctx.lineTo(-4, 4);
-                        ctx.lineTo(-15, 0); ctx.lineTo(-4, -4);
-                        ctx.closePath();
-                        ctx.fill();
-
-                        // Silbernes Zentrum
-                        ctx.fillStyle = '#cbd5e1';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 4, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                    }
-                } else if (selectedColor === 'ssj') {
-                    // Saiyajin: Energiescheibe (Kienzan)
-                    for(let i=0; i<2; i++) {
-                        ctx.rotate(Math.PI);
-                        ctx.shadowBlur = 20;
-                        ctx.shadowColor = '#facc15';
-
-                        ctx.save();
-                        ctx.translate(0, 35);
-                        ctx.rotate(axeAngle * -3); // Scheibe dreht sich rasend schnell
-
-                        // Äußere Klinge (gezackt)
-                        ctx.fillStyle = '#fef08a';
-                        ctx.beginPath();
-                        for(let j=0; j<8; j++) {
-                            const ang = (j / 8) * Math.PI * 2;
-                            ctx.lineTo(Math.cos(ang) * 16, Math.sin(ang) * 16);
-                            const ang2 = ((j + 0.5) / 8) * Math.PI * 2;
-                            ctx.lineTo(Math.cos(ang2) * 12, Math.sin(ang2) * 12);
-                        }
-                        ctx.closePath();
-                        ctx.fill();
-
-                        // Innerer Ring
-                        ctx.fillStyle = '#facc15';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, 8, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.restore();
-                    }
-                } else if (selectedColor === 'overlord') {
-                    // Overlord: Todessense
-                    for(let i=0; i<2; i++) {
-                        ctx.rotate(Math.PI);
-                        ctx.shadowBlur = 15;
-                        ctx.shadowColor = '#9333ea';
-
-                        // Langer schwarzer Griff
-                        ctx.fillStyle = '#1e1b4b';
-                        ctx.fillRect(-2, 10, 4, 35);
-
-                        // Violette, scharfe Sense (Klinge)
-                        ctx.fillStyle = '#d8b4fe';
-                        ctx.beginPath();
-                        ctx.moveTo(-2, 45); // Spitze des Stiels
-                        ctx.quadraticCurveTo(-15, 45, -25, 20); // Schwung nach unten/außen
-                        ctx.quadraticCurveTo(-10, 30, 2, 35);  // Innere Kante
-                        ctx.closePath();
-                        ctx.fill();
-                    }
-                } else if (selectedColor === 'fighter') {
-                    // Kämpfer: Feuer Kindschal, Silber und Niello
-                    for (let i = 0; i < 2; i++) {
-                        ctx.rotate(Math.PI);
-                        ctx.save();
-
-                        // Ganze Waffe nach außen verschieben, ohne ihre Form zu verändern
-                        ctx.translate(0, 32);
-
-                        const kindschalPulse = Math.sin(Date.now() / 90 + i * Math.PI) * 2;
-                        ctx.shadowBlur = 16 + kindschalPulse;
-                        ctx.shadowColor = '#ff8a1f';
-
-                        // Knauf und silberner Griff
-                        ctx.fillStyle = '#1a1c22';
-                        ctx.fillRect(-5, -3, 10, 3);
-                        ctx.fillStyle = '#dfe3e9';
-                        ctx.fillRect(-4, 0, 8, 14);
-                        ctx.fillStyle = '#7d8490';
-                        ctx.fillRect(2, 0, 2, 14);
-                        ctx.fillStyle = '#f8fafc';
-                        ctx.fillRect(-3, 1, 1.5, 12);
-
-                        // Schwarze Niello Rosette im Griff
-                        ctx.fillStyle = '#101014';
-                        ctx.beginPath();
-                        ctx.moveTo(0, 3);
-                        ctx.lineTo(3, 7);
-                        ctx.lineTo(0, 11);
-                        ctx.lineTo(-3, 7);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.fillStyle = '#cbd5e1';
-                        ctx.fillRect(-1, 6, 2, 2);
-
-                        // Silberbeschlag an der Klingenwurzel
-                        ctx.fillStyle = '#17191f';
-                        ctx.fillRect(-6, 14, 12, 2);
-                        ctx.fillStyle = '#dfe3e9';
-                        ctx.fillRect(-5, 16, 10, 5);
-                        ctx.fillStyle = '#101014';
-                        ctx.fillRect(-3, 18, 2, 2);
-                        ctx.fillRect(1, 18, 2, 2);
-
-                        // Gerade, zweischneidige Kindschal Klinge mit langer Spitze
-                        ctx.fillStyle = '#dfe3e9';
-                        ctx.beginPath();
-                        ctx.moveTo(-4, 21);
-                        ctx.lineTo(-4, 43);
-                        ctx.lineTo(0, 57);
-                        ctx.lineTo(4, 43);
-                        ctx.lineTo(4, 21);
-                        ctx.closePath();
-                        ctx.fill();
-
-                        // Stahllicht, dunkle Schneide und außermittige Hohlkehle
-                        ctx.fillStyle = '#f8fafc';
-                        ctx.beginPath();
-                        ctx.moveTo(-3.5, 22);
-                        ctx.lineTo(-3.5, 42);
-                        ctx.lineTo(-1, 51);
-                        ctx.lineTo(-1, 22);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.fillStyle = '#626c7c';
-                        ctx.beginPath();
-                        ctx.moveTo(2.5, 22);
-                        ctx.lineTo(2.5, 43);
-                        ctx.lineTo(0.8, 50);
-                        ctx.lineTo(0.8, 22);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.fillStyle = '#465060';
-                        ctx.fillRect(-1.7, 24, 1.2, 24);
-                        ctx.fillStyle = '#e2e8f0';
-                        ctx.fillRect(-0.3, 24, 0.9, 24);
-
-                        // Feuer liegt nur an den Außenkanten, die Silberform bleibt sichtbar
-                        ctx.strokeStyle = '#ff8a1f';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.moveTo(-5, 22);
-                        ctx.lineTo(-6 - Math.sin(Date.now() / 80) * 2, 30);
-                        ctx.lineTo(-4.5, 36);
-                        ctx.lineTo(-7 - Math.sin(Date.now() / 65) * 2, 43);
-                        ctx.lineTo(-2, 51);
-                        ctx.moveTo(5, 22);
-                        ctx.lineTo(6 + Math.sin(Date.now() / 75) * 2, 29);
-                        ctx.lineTo(4.5, 36);
-                        ctx.lineTo(7 + Math.sin(Date.now() / 60) * 2, 43);
-                        ctx.lineTo(2, 51);
-                        ctx.stroke();
-
-                        ctx.strokeStyle = '#fde047';
-                        ctx.lineWidth = 1;
-                        ctx.beginPath();
-                        ctx.moveTo(-4.5, 25);
-                        ctx.lineTo(-5.5, 34);
-                        ctx.lineTo(-3.5, 41);
-                        ctx.moveTo(4.5, 25);
-                        ctx.lineTo(5.5, 34);
-                        ctx.lineTo(3.5, 41);
-                        ctx.stroke();
-
-                        ctx.restore();
-                    }
-                } else if (selectedColor === 'blitz') {
-                    // Blitz: Energieschwert
-                    for(let i=0; i<2; i++) {
-                        ctx.rotate(Math.PI);
-                        ctx.shadowBlur = 15;
-                        ctx.shadowColor = '#d946ef';
-
-                        // Klinge aus purer Energie
-                        ctx.fillStyle = '#fdf4ff';
-                        ctx.strokeStyle = '#d946ef';
-                        ctx.lineWidth = 2;
-
-                        ctx.beginPath();
-                        ctx.moveTo(-3, 20);
-                        ctx.lineTo(-6, 35);
-                        ctx.lineTo(0, 48);
-                        ctx.lineTo(6, 35);
-                        ctx.lineTo(3, 20);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.stroke();
-
-                        // Kleine zuckende Blitze um die Klinge
-                        ctx.beginPath();
-                        ctx.moveTo(0, 20);
-                        ctx.lineTo((Math.random() - 0.5) * 15, 30);
-                        ctx.lineTo(0, 40);
-                        ctx.stroke();
-                    }
-                } else {
-                    // Standard & Feuer: Die lodernde Doppelaxt
-                    for(let i=0; i<2; i++) {
-                        ctx.rotate(Math.PI); // 180 Grad drehen für die zweite Klinge
-
-                        const pulse = Math.sin(Date.now() / 100) * 0.5 + 0.5;
-                        ctx.shadowBlur = 15 + pulse * 15; // Flacker-Effekt
-
-                        if (selectedColor === 'feuer') {
-                            ctx.shadowColor = '#ef4444';
-                            ctx.fillStyle = '#fde047';
-                            ctx.strokeStyle = '#ef4444';
-                        } else {
-                            ctx.shadowColor = '#06b6d4';
-                            ctx.fillStyle = '#e0f2fe';
-                            ctx.strokeStyle = '#06b6d4';
-                        }
-
-                        // Griff
-                        const handleColor = selectedColor === 'feuer' ? '#7c2d12' : '#334155';
-                        ctx.fillStyle = handleColor;
-                        ctx.fillRect(-3, 18, 6, 28);
-
-                        // Klinge
-                        if (selectedColor === 'feuer') {
-                            ctx.fillStyle = '#fde047';
-                            ctx.strokeStyle = '#ef4444';
-                        } else {
-                            ctx.fillStyle = '#e0f2fe';
-                            ctx.strokeStyle = '#06b6d4';
-                        }
-
-                        ctx.lineWidth = 2.5;
-                        ctx.beginPath();
-                        ctx.moveTo(3, 25);
-                        ctx.lineTo(20, 42);
-                        ctx.lineTo(28, 25);
-                        ctx.lineTo(20, 8);
-                        ctx.lineTo(3, 20);
-                        ctx.closePath();
-                        ctx.fill();
-                        ctx.stroke();
-                    }
-                }
-                ctx.restore();
-            }
-
-            ctx.restore();
-
-            // Hindernisse
-            obstacles.forEach(obs => {
-                if (obs.type === 'ufo') {
-                    // Fliegendes Alien-UFO Hindernis
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = '#a855f7'; // Lila Leuchten
-                    ctx.fillStyle = '#9333ea';
-
-                    ctx.beginPath();
-                    ctx.ellipse(obs.x + obs.w/2, obs.y + obs.h/2, obs.w/2, obs.h/2, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Heller, pulsierender Kern
-                    const ufoPulse = Math.abs(Math.sin(Date.now() / 200));
-                    ctx.fillStyle = `rgba(233, 213, 255, ${ufoPulse})`; // Weiß-Lila
-                    ctx.beginPath();
-                    ctx.ellipse(obs.x + obs.w/2, obs.y + obs.h/2 - 2, obs.w/4, obs.h/5, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                } else {
-                    // Normale Boden-Hindernisse
-                    ctx.shadowBlur = 18;
-                    ctx.shadowColor = obstacleColor;
-                    ctx.fillStyle = obstacleColor;
-                    ctx.beginPath();
-                    ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 6);
-                    ctx.fill();
-                }
-            });
-
-            // Magnet-Items zum Einsammeln zeichnen
-            magnetItems.forEach(m => {
-                ctx.save();
-                ctx.translate(m.x + m.w/2, m.y + m.h/2);
-                ctx.rotate(m.angle);
-
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#3b82f6'; // Blaues Magnet-Glow
-
-                // Hufeisen-Form
-                ctx.strokeStyle = '#ef4444'; // Roter Körper
-                ctx.lineWidth = 6;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.arc(0, -3, 8, Math.PI, 0); // Bogen oben
-                ctx.lineTo(8, 8);
-                ctx.moveTo(-8, -3);
-                ctx.lineTo(-8, 8);
-                ctx.stroke();
-
-                // Silberne Magnetpole
-                ctx.strokeStyle = '#d1d5db';
-                ctx.beginPath();
-                ctx.moveTo(-8, 5); ctx.lineTo(-8, 8);
-                ctx.moveTo(8, 5); ctx.lineTo(8, 8);
-                ctx.stroke();
-
-                ctx.restore();
-            });
-
-            // Waffen-Items zum Einsammeln zeichnen
-            axeItems.forEach(axe => {
-                ctx.save();
-                ctx.translate(axe.x + axe.w/2, axe.y + axe.h/2);
-                ctx.rotate(axe.angle);
-
-                const pulse = Math.sin(Date.now() / 100) * 0.5 + 0.5;
-
-                if (selectedColor === 'schwarz') {
-                    // Shuriken Item
-                    ctx.shadowBlur = 15 + pulse * 10;
-                    ctx.shadowColor = '#10b981';
-                    ctx.fillStyle = '#10b981';
-                    ctx.beginPath();
-                    ctx.moveTo(0, -10); ctx.lineTo(3, -3);
-                    ctx.lineTo(10, 0); ctx.lineTo(3, 3);
-                    ctx.lineTo(0, 10); ctx.lineTo(-3, 3);
-                    ctx.lineTo(-10, 0); ctx.lineTo(-3, -3);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.fillStyle = '#cbd5e1';
-                    ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
-                } else if (selectedColor === 'ssj') {
-                    // Energiescheibe Item
-                    ctx.shadowBlur = 15 + pulse * 10;
-                    ctx.shadowColor = '#facc15';
-                    ctx.fillStyle = '#fef08a';
-                    ctx.beginPath();
-                    for(let j=0; j<8; j++) {
-                        const ang = (j / 8) * Math.PI * 2;
-                        ctx.lineTo(Math.cos(ang) * 10, Math.sin(ang) * 10);
-                        const ang2 = ((j + 0.5) / 8) * Math.PI * 2;
-                        ctx.lineTo(Math.cos(ang2) * 7, Math.sin(ang2) * 7);
-                    }
-                    ctx.closePath();
-                    ctx.fill();
-                } else if (selectedColor === 'overlord') {
-                    // Sense Item
-                    ctx.shadowBlur = 15 + pulse * 10;
-                    ctx.shadowColor = '#9333ea';
-                    ctx.fillStyle = '#1e1b4b';
-                    ctx.fillRect(-1, -12, 2, 24); // Stiel
-                    ctx.fillStyle = '#d8b4fe';
-                    ctx.beginPath();
-                    ctx.moveTo(-1, -10);
-                    ctx.quadraticCurveTo(8, -10, 12, 5);
-                    ctx.quadraticCurveTo(5, -2, -1, -5);
-                    ctx.closePath();
-                    ctx.fill();
-                } else if (selectedColor === 'fighter') {
-                    // Schwert Item
-                    ctx.shadowBlur = 15 + pulse * 10;
-                    ctx.shadowColor = '#cbd5e1';
-                    ctx.fillStyle = '#0f172a';
-                    ctx.fillRect(-1, -2, 2, 8); // Griff
-                    ctx.fillStyle = '#eab308';
-                    ctx.fillRect(-2, 5, 4, 2); // Knauf
-                    ctx.fillStyle = '#e2e8f0';
-                    ctx.beginPath();
-                    ctx.moveTo(-0.5, 5);
-                    ctx.quadraticCurveTo(2, -8, -1, -15); // Klinge
-                    ctx.quadraticCurveTo(0, -8, -0.5, 5);
-                    ctx.closePath();
-                    ctx.fill();
-                } else if (selectedColor === 'blitz') {
-                    // Blitzschwert Item
-                    ctx.shadowBlur = 15 + pulse * 10;
-                    ctx.shadowColor = '#d946ef';
-                    ctx.fillStyle = '#fdf4ff';
-                    ctx.strokeStyle = '#d946ef';
-                    ctx.lineWidth = 1.5;
-                    ctx.beginPath();
-                    ctx.moveTo(-2, 0); ctx.lineTo(-4, -10); ctx.lineTo(0, -18);
-                    ctx.lineTo(4, -10); ctx.lineTo(2, 0);
-                    ctx.closePath();
-                    ctx.fill(); ctx.stroke();
-                } else {
-                    // Axt Item (Standard / Feuer)
-                    ctx.shadowBlur = 15 + pulse * 10;
-                    if (selectedColor === 'feuer') {
-                        ctx.shadowColor = '#f97316';
-                        ctx.fillStyle = '#7c2d12';
-                    } else {
-                        ctx.shadowColor = '#06b6d4';
-                        ctx.fillStyle = '#334155';
-                    }
-
-                    ctx.fillRect(-3, -16, 6, 32); // Griff
-
-                    if (selectedColor === 'feuer') {
-                        ctx.fillStyle = '#fde047';
-                        ctx.strokeStyle = '#ef4444';
-                    } else {
-                        ctx.fillStyle = '#e0f2fe';
-                        ctx.strokeStyle = '#06b6d4';
-                    }
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(3, -12); ctx.lineTo(16, -20); ctx.lineTo(22, -10);
-                    ctx.lineTo(16, 0); ctx.lineTo(3, -6);
-                    ctx.closePath();
-                    ctx.fill(); ctx.stroke();
-                }
-
-                ctx.restore();
-            });
-
-            // Münzen (Klassisch glänzendes Gold)
-            coinItems.forEach(c => {
-                ctx.save();
-                ctx.translate(c.x, c.y);
-
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = '#eab308';
-                ctx.fillStyle = '#f59e0b';
-                ctx.beginPath();
-                ctx.arc(0, 0, c.r, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Innerer Goldring
-                ctx.strokeStyle = '#fef08a';
-                ctx.lineWidth = 2.5;
-                ctx.beginPath();
-                ctx.arc(0, 0, c.r - 3, 0, Math.PI * 2);
-                ctx.stroke();
-
-                ctx.restore();
-            });
-
-            // Partikel
-            particles.forEach(p => {
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = p.color;
-                ctx.fillStyle = p.color;
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.size * (p.life / p.maxLife), 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            ctx.shadowBlur = 0;
-        }
-
-        // Feste Physik-Rate (60 Updates/Sekunde), damit das Spiel auf 60/120/144-Hz-Bildschirmen gleich schnell läuft
-        const STEP = 1000 / 60;
-        let lastTime = performance.now();
-        let accumulator = 0;
-
-        function gameLoop(now) {
-            accumulator += Math.min(now - lastTime, 250);
-            lastTime = now;
-            while (accumulator >= STEP) {
-                update();
-                accumulator -= STEP;
-            }
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        // Startkonfiguration
-        resize();
-        updateColorTheme();
-        requestAnimationFrame(gameLoop);
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // UI Elemente
+      const hud = document.getElementById('hud');
+      const scoreDisplay = document.getElementById('scoreDisplay');
+      const coinsDisplay = document.getElementById('coinsDisplay');
+      const uiOverlay = document.getElementById('uiOverlay');
+      const titleText = document.getElementById('titleText');
+      const subtitleText = document.getElementById('subtitleText');
+      const colorSelectArea = document.getElementById('colorSelectArea');
+      const btnColorBlue = document.getElementById('btnColorBlue');
+      const btnColorRed = document.getElementById('btnColorRed');
+      const btnColorBlitz = document.getElementById('btnColorBlitz');
+      const btnColorFeuer = document.getElementById('btnColorFeuer');
+      const btnColorSchwarz = document.getElementById('btnColorSchwarz');
+      const btnColorSSJ = document.getElementById('btnColorSSJ');
+      const btnColorOverlord = document.getElementById('btnColorOverlord');
+      const btnColorFighter = document.getElementById('btnColorFighter');
+      const startBtn = document.getElementById('startBtn');
+
+      // Farbmodi
+      let selectedColor = 'blue'; // 'blue', 'red', 'blitz', 'feuer', 'schwarz', 'ssj', 'overlord' oder 'fighter'
+
+      function updateColorTheme() {
+          btnColorBlue.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorRed.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorBlitz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorFeuer.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorSchwarz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorSSJ.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorOverlord.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+
+          if (selectedColor === 'blue') {
+              btnColorBlue.className = "relative py-2 sm:py-3 rounded-xl border-2 border-cyan-400 bg-cyan-950/40 text-cyan-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(34,211,238,0.2)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-cyan-400 tabular-nums";
+          } else if (selectedColor === 'red') {
+              btnColorRed.className = "relative py-2 sm:py-3 rounded-xl border-2 border-rose-500 bg-rose-950/40 text-rose-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(244,63,94,0.2)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-400 hover:to-red-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(244,63,94,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-rose-400 tabular-nums";
+          } else if (selectedColor === 'blitz') {
+              btnColorBlitz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-fuchsia-500 bg-fuchsia-950/40 text-fuchsia-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(217,70,239,0.2)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-fuchsia-500 to-purple-600 hover:from-fuchsia-400 hover:to-purple-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(217,70,239,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-fuchsia-400 tabular-nums";
+          } else if (selectedColor === 'feuer') {
+              btnColorFeuer.className = "relative py-2 sm:py-3 rounded-xl border-2 border-orange-500 bg-orange-950/40 text-orange-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(249,115,22,0.2)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(249,115,22,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-orange-400 tabular-nums";
+          } else if (selectedColor === 'ssj') {
+              btnColorSSJ.className = "relative py-2 sm:py-3 rounded-xl border-2 border-yellow-400 bg-yellow-950/40 text-yellow-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(250,204,21,0.2)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 active:scale-[0.98] text-slate-900 font-extrabold text-lg shadow-[0_0_25px_rgba(250,204,21,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-yellow-400 tabular-nums";
+          } else if (selectedColor === 'overlord') {
+              btnColorOverlord.className = "relative py-2 sm:py-3 rounded-xl border-2 border-purple-500 bg-purple-950/40 text-purple-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(147,51,234,0.3)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(147,51,234,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-purple-400 tabular-nums";
+          } else if (selectedColor === 'fighter') {
+              btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-300 bg-slate-800/60 text-slate-100 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(255,255,255,0.3)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-400 hover:to-slate-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(255,255,255,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-slate-200 tabular-nums";
+          } else {
+              btnColorSchwarz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-emerald-400 bg-emerald-950/40 text-emerald-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(16,185,129,0.2)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-emerald-400 tabular-nums";
+          }
+      }
+
+      btnColorBlue.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'blue';
+          updateColorTheme();
+      });
+
+      btnColorRed.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'red';
+          updateColorTheme();
+      });
+
+      btnColorBlitz.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'blitz';
+          updateColorTheme();
+      });
+
+      btnColorFeuer.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'feuer';
+          updateColorTheme();
+      });
+
+      btnColorSchwarz.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'schwarz';
+          updateColorTheme();
+      });
+
+      btnColorSSJ.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'ssj';
+          updateColorTheme();
+      });
+
+      btnColorOverlord.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'overlord';
+          updateColorTheme();
+      });
+
+      btnColorFighter.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'fighter';
+          updateColorTheme();
+      });
+
+      let width = 0;
+      let height = 0;
+      let groundY = 0;
+
+      function resize() {
+          const dpr = window.devicePixelRatio || 1;
+          width = window.innerWidth;
+          height = window.innerHeight;
+          canvas.width = Math.round(width * dpr);
+          canvas.height = Math.round(height * dpr);
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          groundY = height - 120;
+          if (player) {
+              if (player.y > groundY - player.h) {
+                  player.y = groundY - player.h;
+              }
+          }
+      }
+      window.addEventListener('resize', resize);
+
+      // Spielstatus
+      let isRunning = false;
+      let playerExploding = false;
+      let deathExplosionTimer = 0;
+      let score = 0;
+      let coins = 0;
+      let gameSpeed = 6;
+      let spawnTimer = 0;
+      let coinSpawnTimer = 0;
+
+      // Spieler-Objekt
+      const player = {
+          x: 80,
+          y: 0,
+          w: 44,
+          h: 44,
+          vy: 0,
+          gravity: 0.72,
+          jumpStrength: -13.5,
+          doubleJumpStrength: -13.0,
+          jumpCount: 0,
+          maxJumps: 4,
+          trail: []
+      };
+
+      let obstacles = [];
+      let coinItems = [];
+      let particles = [];
+
+      // --- NEU: Axt Power-Up Variablen ---
+      let axeItems = [];
+      let axeSpawnTimer = 0;
+      let playerHasAxe = false;
+      let axeTimer = 0;
+      let axeAngle = 0;
+
+      // --- NEU: Magnet Power-Up Variablen ---
+      let magnetItems = [];
+      let magnetSpawnTimer = 0;
+      let playerHasMagnet = false;
+      let magnetTimer = 0;
+
+      // Exakter Feuer Kindschal aus der Referenz des Nutzers, als wiederverwendbare Pixel Sprite
+      const fighterKindschal = (() => {
+          const W = 80;
+          const H = 120;
+          const sprite = document.createElement('canvas');
+          sprite.width = W;
+          sprite.height = H;
+          const sctx = sprite.getContext('2d');
+          const img = sctx.createImageData(W, H);
+          const buf = img.data;
+
+          const stops = [
+              [0, [20, 4, 2]],
+              [4, [90, 10, 5]],
+              [10, [175, 28, 5]],
+              [16, [230, 70, 10]],
+              [22, [252, 120, 20]],
+              [28, [255, 178, 40]],
+              [32, [255, 224, 110]],
+              [36, [255, 255, 240]]
+          ];
+          const palette = [];
+          for (let i = 0; i < 37; i++) {
+              let k = 0;
+              while (stops[k + 1][0] < i) k++;
+              const [i0, c0] = stops[k];
+              const [i1, c1] = stops[k + 1];
+              const t = (i - i0) / (i1 - i0);
+              palette.push(c0.map((v, j) => Math.round(v + (c1[j] - v) * t)));
+          }
+
+          const map = new Map();
+          const seeds = [];
+          const add = (x, y, t) => map.set(y * W + x, { x, y, t, f: 0 });
+          const CX = 30;
+          const TOP = 30;
+          const BLADE_END = 78;
+          const FULLER_START = TOP + 18;
+          const hwBlade = i => i < 2 ? 0 : i < 5 ? 1 : i < 9 ? 2 : i < 26 ? 3 : 4;
+
+          for (let y = TOP; y <= BLADE_END; y++) {
+              const i = y - TOP;
+              const hw = hwBlade(i);
+              for (let dx = -hw; dx <= hw; dx++) {
+                  let t;
+                  if (hw === 0) t = 'lite';
+                  else if (Math.abs(dx) === hw) t = 'out';
+                  else if (y >= FULLER_START && dx === -1) t = 'groove';
+                  else if (y >= FULLER_START && dx === 0) t = 'gHi';
+                  else if (dx === -hw + 1) t = 'lite';
+                  else if (dx === hw - 1) t = 'dark';
+                  else if (dx === 0) t = 'core';
+                  else t = 'mid';
+                  add(CX + dx, y, t);
+                  seeds.push({ x: CX + dx, y, min: 30, p: 0.9 });
+              }
+              if (i >= 3) {
+                  for (const d of [hw + 1, hw + 2]) {
+                      seeds.push({ x: CX - d, y, min: 16, p: 0.55 });
+                      seeds.push({ x: CX + d, y, min: 16, p: 0.55 });
+                  }
+              }
+          }
+
+          const boss = [
+              ['b2', 'b1', 'b2'],
+              ['b1', 'b2', 'b3'],
+              ['b2', 'b3', 'b3']
+          ];
+          const shade = (dx, hw) => dx <= -hw + 1 ? 's1' : dx >= hw - 1 ? 's3' : 's2';
+
+          for (let dx = -5; dx <= 5; dx++) {
+              add(CX + dx, 79, 'sO');
+              add(CX + dx, 85, 'sO');
+          }
+          for (let y = 80; y <= 84; y++) {
+              add(CX - 5, y, 'sO');
+              add(CX + 5, y, 'sO');
+              for (let dx = -4; dx <= 4; dx++) {
+                  let t = shade(dx, 5);
+                  if (y === 80 || y === 84) t = ((dx % 2) + 2) % 2 === 0 ? 's1' : 's2';
+                  else if (Math.abs(dx) === 3) t = 'nL';
+                  else if (Math.abs(dx) <= 1) t = boss[y - 81][dx + 1];
+                  add(CX + dx, y, t);
+              }
+          }
+
+          for (let y = 86; y <= 104; y++) {
+              add(CX - 3, y, 'sO');
+              add(CX + 3, y, 'sO');
+              const wave = [0, 1, 0, -1][y % 4];
+              for (let dx = -2; dx <= 2; dx++) {
+                  let t = shade(dx, 3);
+                  if (dx === wave && dx !== -2) t = 's3';
+                  add(CX + dx, y, t);
+              }
+          }
+
+          add(CX, 92, 'nL');
+          add(CX, 98, 'nL');
+          for (let dx = -1; dx <= 1; dx++) {
+              add(CX + dx, 93, 'nL');
+              add(CX + dx, 97, 'nL');
+          }
+          for (let y = 94; y <= 96; y++) {
+              add(CX - 2, y, 'nL');
+              add(CX + 2, y, 'nL');
+              for (let dx = -1; dx <= 1; dx++) add(CX + dx, y, boss[y - 94][dx + 1]);
+          }
+
+          const pommelWidths = [3, 4, 5, 5, 5, 5, 5, 4, 3];
+          pommelWidths.forEach((hw, k) => {
+              const y = 105 + k;
+              for (let dx = -hw; dx <= hw; dx++) {
+                  let t;
+                  if (Math.abs(dx) === hw) t = 'sO';
+                  else if (k === 0) t = ((dx % 2) + 2) % 2 === 0 ? 's1' : 's2';
+                  else if (Math.abs(dx) <= 1 && k >= 3 && k <= 5) t = boss[k - 3][dx + 1];
+                  else if (Math.abs(dx) === 2 && k >= 3 && k <= 5) t = 's3';
+                  else if (Math.abs(dx) <= 1 && (k === 2 || k === 6)) t = 's3';
+                  else t = shade(dx, hw);
+                  add(CX + dx, y, t);
+              }
+          });
+          for (let dx = -2; dx <= 2; dx++) add(CX + dx, 114, 'sO');
+
+          const sword = [...map.values()];
+          const blade = sword.filter(p => ['out', 'lite', 'mid', 'core', 'dark', 'groove', 'gHi'].includes(p.t));
+          const staticColors = {
+              sO: [26, 28, 34],
+              s1: [246, 248, 251],
+              s2: [196, 202, 210],
+              s3: [132, 138, 150],
+              nL: [16, 16, 20],
+              b1: [255, 255, 255],
+              b2: [214, 218, 226],
+              b3: [118, 122, 132]
+          };
+          const steel = {
+              out: [18, 22, 30],
+              lite: [236, 242, 248],
+              mid: [172, 184, 198],
+              core: [214, 222, 232],
+              dark: [98, 108, 124],
+              groove: [70, 80, 96],
+              gHi: [226, 232, 240]
+          };
+          const hot = { lite: 34, mid: 31, core: 36, dark: 28, groove: 25, gHi: 35 };
+          const warm = [255, 140, 50];
+
+          for (const p of sword) p.w = 0.4 * Math.max(0, 1 - (p.y - 79) / 36);
+
+          let heat = new Uint8Array(W * H);
+          let next = new Uint8Array(W * H);
+          let time = 0;
+          let lastStep = performance.now();
+
+          const mix = (a, b, t) => [
+              a[0] + (b[0] - a[0]) * t,
+              a[1] + (b[1] - a[1]) * t,
+              a[2] + (b[2] - a[2]) * t
+          ];
+
+          function step(now) {
+              const dt = Math.min(0.1, (now - lastStep) / 1000);
+              if (dt < 1 / 30) return;
+              lastStep = now;
+              time += dt;
+
+              for (const s of seeds) {
+                  if (Math.random() > s.p) continue;
+                  const v = Math.min(36, Math.floor(s.min + Math.random() * (37 - s.min)));
+                  const idx = s.y * W + s.x;
+                  if (v > heat[idx]) heat[idx] = v;
+              }
+
+              next.fill(0);
+              for (let y = 1; y < H; y++) {
+                  for (let x = 0; x < W; x++) {
+                      const v = heat[y * W + x];
+                      if (!v) continue;
+                      const nx = x - ((Math.random() * 3) | 0) + 1;
+                      if (nx < 0 || nx >= W) continue;
+                      const d = (Math.random() * 3.6) | 0;
+                      const nv = v > d ? v - d : 0;
+                      const j = (y - 1) * W + nx;
+                      if (nv > next[j]) next[j] = nv;
+                  }
+              }
+              [heat, next] = [next, heat];
+
+              for (const p of blade) {
+                  p.f = Math.round(Math.sin(time * 9 + p.y * 0.55) * 1.2 + (Math.random() - 0.5) * 1.6);
+              }
+          }
+
+          function render(now) {
+              step(now);
+              buf.fill(0);
+
+              for (let i = 0; i < heat.length; i++) {
+                  const h = heat[i];
+                  if (!h) continue;
+                  const c = palette[h];
+                  const o = i * 4;
+                  buf[o] = c[0];
+                  buf[o + 1] = c[1];
+                  buf[o + 2] = c[2];
+                  buf[o + 3] = Math.min(255, h * 42);
+              }
+
+              for (const p of sword) {
+                  let c;
+                  if (staticColors[p.t]) c = mix(staticColors[p.t], warm, p.w);
+                  else if (p.t === 'out') c = mix(steel.out, [175, 52, 0], 0.72);
+                  else c = mix(steel[p.t], palette[Math.max(0, Math.min(36, hot[p.t] + p.f))], 0.82);
+
+                  const o = (p.y * W + p.x) * 4;
+                  buf[o] = c[0];
+                  buf[o + 1] = c[1];
+                  buf[o + 2] = c[2];
+                  buf[o + 3] = 255;
+              }
+
+              sctx.putImageData(img, 0, 0);
+          }
+
+          function draw(target, x, y, scale = 0.55, rotation = 0) {
+              const now = performance.now();
+              render(now);
+              target.save();
+              target.translate(x, y);
+              target.rotate(rotation);
+              target.imageSmoothingEnabled = false;
+              target.shadowBlur = 13;
+              target.shadowColor = '#ff8a1f';
+              const sx = 18;
+              const sy = 22;
+              const sw = 25;
+              const sh = 95;
+              target.drawImage(
+                  sprite,
+                  sx, sy, sw, sh,
+                  -sw * scale / 2, -sh * scale / 2,
+                  sw * scale, sh * scale
+              );
+              target.restore();
+          }
+
+          return { draw };
+      })();
+
+      function jump() {
+          if (!isRunning) return;
+
+          if (player.jumpCount < player.maxJumps) {
+              if (player.jumpCount === 0) {
+                  player.vy = player.jumpStrength;
+              } else {
+                  player.vy = player.doubleJumpStrength;
+                  // Extra Partikel beim Doppelsprung
+                  let pColor = '#38bdf8'; // Blau
+                  if (selectedColor === 'red') pColor = '#fb7185';
+                  if (selectedColor === 'blitz') pColor = '#d946ef'; // Magenta
+                  if (selectedColor === 'feuer') pColor = '#f97316'; // Orange
+                  if (selectedColor === 'schwarz') pColor = '#10b981'; // Smaragd
+                  if (selectedColor === 'ssj') pColor = '#facc15'; // Gold/Gelb
+                  if (selectedColor === 'overlord') pColor = '#a855f7'; // Violett Magie
+                  if (selectedColor === 'fighter') pColor = '#cbd5e1'; // Silber passend zum Kämpfer
+
+                  for (let i = 0; i < 8; i++) {
+                      particles.push({
+                          x: player.x + player.w / 2,
+                          y: player.y + player.h,
+                          vx: (Math.random() - 0.5) * 6,
+                          vy: Math.random() * 4 + 2,
+                          life: 20,
+                          maxLife: 20,
+                          color: pColor,
+                          size: 3
+                      });
+                  }
+              }
+              player.jumpCount++;
+          }
+      }
+
+      // Steuerung
+      window.addEventListener('keydown', (e) => {
+          if (e.code === 'Space' || e.code === 'ArrowUp') {
+              e.preventDefault();
+              if (!isRunning && uiOverlay.style.display !== 'none') {
+                  startGame();
+              } else {
+                  jump();
+              }
+          }
+      });
+
+      window.addEventListener('pointerdown', (e) => {
+          // Ignoriere Klicks auf UI Buttons
+          if (e.target.closest('#colorSelectArea') || e.target.closest('#startBtn')) return;
+          if (isRunning) {
+              jump();
+          }
+      });
+
+      startBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          startGame();
+      });
+
+      function startGame() {
+          resize();
+          isRunning = true;
+          playerExploding = false;
+          deathExplosionTimer = 0;
+          score = 0;
+          coins = 0;
+          gameSpeed = 6.5;
+          spawnTimer = 50;
+          coinSpawnTimer = 30;
+          obstacles = [];
+          coinItems = [];
+          particles = [];
+
+          // Axt-Werte zurücksetzen
+          axeItems = [];
+          axeSpawnTimer = 300; // Dauert kurz, bis die erste Axt kommen kann
+          playerHasAxe = false;
+          axeTimer = 0;
+          axeAngle = 0;
+
+          // Magnet-Werte zurücksetzen
+          magnetItems = [];
+          magnetSpawnTimer = 600;
+          playerHasMagnet = false;
+          magnetTimer = 0;
+
+          player.x = 80;
+          player.y = groundY - player.h;
+          player.vy = 0;
+          player.jumpCount = 0;
+          player.trail = [];
+
+          scoreDisplay.textContent = '0';
+          coinsDisplay.textContent = '0';
+          uiOverlay.style.display = 'none';
+      }
+
+      function triggerDeathExplosion() {
+          if (playerExploding) return;
+
+          playerExploding = true;
+          isRunning = false;
+          deathExplosionTimer = 42;
+
+          const centerX = player.x + player.w / 2;
+          const centerY = player.y + player.h / 2;
+          const colorSets = {
+              blue: ['#22d3ee', '#67e8f9', '#ffffff'],
+              red: ['#f43f5e', '#fb7185', '#ffffff'],
+              blitz: ['#d946ef', '#f0abfc', '#ffffff'],
+              feuer: ['#ef4444', '#f97316', '#fde047'],
+              schwarz: ['#10b981', '#34d399', '#e2e8f0'],
+              ssj: ['#facc15', '#fef08a', '#ffffff'],
+              overlord: ['#9333ea', '#d8b4fe', '#ef4444'],
+              fighter: ['#f8fafc', '#cbd5e1', '#16a34a']
+          };
+          const deathColors = colorSets[selectedColor] || colorSets.blue;
+
+          for (let p = 0; p < 34; p++) {
+              const angle = Math.random() * Math.PI * 2;
+              const speed = Math.random() * 10 + 4;
+              particles.push({
+                  x: centerX,
+                  y: centerY,
+                  vx: Math.cos(angle) * speed,
+                  vy: Math.sin(angle) * speed - 2,
+                  life: Math.floor(Math.random() * 18) + 28,
+                  maxLife: 46,
+                  color: deathColors[Math.floor(Math.random() * deathColors.length)],
+                  size: Math.random() * 7 + 4,
+                  shape: 'fragment',
+                  rotation: Math.random() * Math.PI,
+                  spin: (Math.random() - 0.5) * 0.5
+              });
+          }
+
+          for (let p = 0; p < 20; p++) {
+              const angle = Math.random() * Math.PI * 2;
+              const speed = Math.random() * 14 + 6;
+              particles.push({
+                  x: centerX,
+                  y: centerY,
+                  vx: Math.cos(angle) * speed,
+                  vy: Math.sin(angle) * speed,
+                  life: 24,
+                  maxLife: 24,
+                  color: '#ffffff',
+                  size: Math.random() * 3 + 1
+              });
+          }
+
+          player.trail = [];
+          player.x = -1000;
+      }
+
+      function gameOver() {
+          isRunning = false;
+          titleText.textContent = "GAME OVER";
+          titleText.className = "text-5xl font-black text-rose-500 tracking-tight drop-shadow-[0_0_20px_rgba(244,63,94,0.5)]";
+          subtitleText.innerHTML = `Punkte: <span class="font-bold text-white">${Math.floor(score)}</span> | Münzen: <span class="font-bold text-amber-400">${coins}</span>`;
+          startBtn.textContent = "NOCHMAL SPIELEN";
+          uiOverlay.style.display = 'flex';
+      }
+
+      function update() {
+          if (playerExploding) {
+              deathExplosionTimer--;
+
+              for (let i = particles.length - 1; i >= 0; i--) {
+                  const p = particles[i];
+                  p.x += p.vx;
+                  p.y += p.vy;
+                  p.vy += 0.16;
+                  if (p.rotation !== undefined) p.rotation += p.spin || 0;
+                  p.life--;
+                  if (p.life <= 0) particles.splice(i, 1);
+              }
+
+              if (deathExplosionTimer <= 0) {
+                  playerExploding = false;
+                  gameOver();
+              }
+              return;
+          }
+
+          if (!isRunning) return;
+
+          // Punkte zählen & Geschwindigkeit steigern
+          score += 0.2;
+          scoreDisplay.textContent = Math.floor(score);
+          gameSpeed += 0.0008;
+
+          // Physik Spieler
+          player.vy += player.gravity;
+          player.y += player.vy;
+
+          // Decke einbauen (damit man durch das Klettern nicht aus dem Bildschirm fliegt)
+          if (player.y < 0) {
+              player.y = 0;
+              player.vy = 0;
+          }
+
+          // Bodenkontakt
+          if (player.y >= groundY - player.h) {
+              player.y = groundY - player.h;
+              player.vy = 0;
+              player.jumpCount = 0;
+          }
+
+          // Schweif
+          player.trail.push({ x: player.x, y: player.y });
+          if (player.trail.length > 12) player.trail.shift(); // Etwas länger gemacht für einen flüssigeren Verlauf
+
+          // --- NEU: Kontinuierliche Feuer-Partikel für Feuer-Charakter ---
+          if (selectedColor === 'feuer' && isRunning) {
+              // Mehr, dichtere und weicher fließende Partikel
+              for (let k = 0; k < 2; k++) {
+                  particles.push({
+                      x: player.x + Math.random() * player.w,
+                      y: player.y + player.h - Math.random() * 15,
+                      vx: -gameSpeed * 0.5 + (Math.random() - 0.5) * 1.5, // Weich nach hinten wehen
+                      vy: -Math.random() * 4 - 1, // Flüssig nach oben steigen
+                      life: 40,
+                      maxLife: 40,
+                      color: Math.random() > 0.4 ? '#f97316' : (Math.random() > 0.5 ? '#fde047' : '#ef4444'), // Gelb/Orange/Rot Mix
+                      size: Math.random() * 6 + 4 // Etwas größer
+                  });
+              }
+          }
+
+          // Hindernisse passend zum gewählten Charakter spawnen
+          spawnTimer--;
+          if (spawnTimer <= 0) {
+              let variant = 'neon';
+              let obsWidth = 34;
+              let obsHeight = 58;
+
+              if (selectedColor === 'overlord') {
+                  variant = 'pillar';
+                  obsWidth = 32;
+                  obsHeight = 82;
+              } else if (selectedColor === 'feuer') {
+                  variant = 'water';
+                  obsWidth = 46;
+                  obsHeight = 50;
+              } else if (selectedColor === 'schwarz') {
+                  variant = 'samurai';
+                  obsWidth = 42;
+                  obsHeight = 70;
+              } else if (selectedColor === 'blitz') {
+                  variant = 'tesla';
+                  obsWidth = 34;
+                  obsHeight = 78;
+              } else if (selectedColor === 'ssj') {
+                  variant = 'energy';
+                  obsWidth = 36;
+                  obsHeight = 68;
+              } else if (selectedColor === 'fighter') {
+                  variant = 'spearman';
+                  obsWidth = 40;
+                  obsHeight = 74;
+              } else if (selectedColor === 'red') {
+                  variant = 'ice';
+                  obsWidth = 38;
+                  obsHeight = 62;
+              } else {
+                  obsWidth = Math.floor(Math.random() * 15) + 28;
+                  obsHeight = Math.floor(Math.random() * 28) + 40;
+              }
+
+              obstacles.push({
+                  type: 'theme',
+                  variant,
+                  x: width + 20,
+                  y: groundY - obsHeight,
+                  w: obsWidth,
+                  h: obsHeight
+              });
+
+              spawnTimer = Math.floor(Math.random() * 45) + 60;
+          }
+
+          // Münzen spawnen
+          coinSpawnTimer--;
+          if (coinSpawnTimer <= 0) {
+              // Manche Münzen tief, manche hoch - HÖHER gesetzt!
+              const isHigh = Math.random() > 0.45;
+              const baseCoinY = isHigh ? groundY - 145 : groundY - 95;
+
+              // Münzen spawnen jetzt in kleinen Gruppen (1 bis 4)
+              const coinsInCluster = Math.floor(Math.random() * 4) + 1;
+
+              for (let k = 0; k < coinsInCluster; k++) {
+                  coinItems.push({
+                      x: width + 20 + (k * 35), // Leicht versetzt hintereinander
+                      y: baseCoinY - (k * 15), // Leichte Treppenform
+                      r: 12,
+                      angle: 0
+                  });
+              }
+              coinSpawnTimer = Math.floor(Math.random() * 50) + 30; // Spawnen doppelt so oft!
+          }
+
+          // Äxte spawnen
+          axeSpawnTimer--;
+          if (axeSpawnTimer <= 0) {
+              axeItems.push({
+                  x: width + 20,
+                  y: groundY - 120, // HÖHER gesetzt, sicher über den Hindernissen!
+                  w: 24,
+                  h: 24,
+                  angle: 0
+              });
+              axeSpawnTimer = Math.floor(Math.random() * 700) + 600; // Seltenes Power-Up
+          }
+
+          // Magnete spawnen
+          magnetSpawnTimer--;
+          if (magnetSpawnTimer <= 0) {
+              magnetItems.push({
+                  x: width + 20,
+                  y: groundY - 130,
+                  w: 24,
+                  h: 24,
+                  angle: 0
+              });
+              magnetSpawnTimer = Math.floor(Math.random() * 800) + 700;
+          }
+
+          // Magnet-Status vom Spieler updaten
+          if (playerHasMagnet) {
+              magnetTimer--;
+              if (magnetTimer <= 0) {
+                  playerHasMagnet = false;
+              }
+          }
+
+          // Axt-Status vom Spieler updaten
+          if (playerHasAxe) {
+              axeTimer--;
+              axeAngle += 0.25; // Schnelles Drehen der Axt
+              if (axeTimer <= 0) {
+                  playerHasAxe = false; // Zeit abgelaufen
+              }
+          }
+
+          // Hindernisse bewegen & Kollision
+          for (let i = obstacles.length - 1; i >= 0; i--) {
+              const obs = obstacles[i];
+              obs.x -= gameSpeed;
+
+              // Box Kollision
+              const pad = 6;
+              if (
+                  player.x + pad < obs.x + obs.w &&
+                  player.x + player.w - pad > obs.x &&
+                  player.y + pad < obs.y + obs.h &&
+                  player.y + player.h - pad > obs.y
+              ) {
+                  if (playerHasAxe) {
+                      // Hindernis zerstören! (Axt ist aktiv)
+                      const particleColor = selectedColor === 'blue' ? '#f43f5e' : '#06b6d4';
+                      for (let p = 0; p < 15; p++) {
+                          particles.push({
+                              x: obs.x + obs.w / 2,
+                              y: obs.y + obs.h / 2,
+                              vx: (Math.random() - 0.5) * 12,
+                              vy: (Math.random() - 0.5) * 12 - 2,
+                              life: 30,
+                              maxLife: 30,
+                              color: particleColor,
+                              size: Math.random() * 6 + 3
+                          });
+                      }
+                      obstacles.splice(i, 1); // Hindernis verschwindet
+                      score += 100;           // 100 Bonuspunkte!
+                      scoreDisplay.textContent = Math.floor(score);
+                      continue; // Spiel geht normal weiter
+                  } else {
+                      // Normale Kollision -> sichtbare Explosion, danach Game Over
+                      triggerDeathExplosion();
+                      return;
+                  }
+              }
+
+              if (obs.x + obs.w < -20) obstacles.splice(i, 1);
+          }
+
+          // Axt-Items bewegen & Einsammeln
+          for (let i = axeItems.length - 1; i >= 0; i--) {
+              const axe = axeItems[i];
+              axe.x -= gameSpeed;
+              axe.angle += 0.05;
+
+              const distX = Math.abs((player.x + player.w / 2) - (axe.x + axe.w / 2));
+              const distY = Math.abs((player.y + player.h / 2) - (axe.y + axe.h / 2));
+
+              if (distX < (player.w / 2 + axe.w / 2) && distY < (player.h / 2 + axe.h / 2)) {
+                  // Axt eingesammelt!
+                  playerHasAxe = true;
+                  axeTimer = 400; // ca. 6.5 Sekunden unbesiegbar
+
+                  // Feurige Glitzerpartikel
+                  const fireColors = ['#fde047', '#f97316', '#ef4444']; // Gelb, Orange, Rot
+                  for (let p = 0; p < 25; p++) {
+                      particles.push({
+                          x: axe.x + axe.w/2,
+                          y: axe.y + axe.h/2,
+                          vx: (Math.random() - 0.5) * 10,
+                          vy: (Math.random() - 0.5) * 10,
+                          life: 35,
+                          maxLife: 35,
+                          color: fireColors[Math.floor(Math.random() * fireColors.length)],
+                          size: Math.random() * 5 + 3
+                      });
+                  }
+                  axeItems.splice(i, 1);
+                  continue;
+              }
+
+              if (axe.x + axe.w < -20) axeItems.splice(i, 1);
+          }
+
+          // Magnet-Items bewegen & Einsammeln
+          for (let i = magnetItems.length - 1; i >= 0; i--) {
+              const m = magnetItems[i];
+              m.x -= gameSpeed;
+              m.angle += 0.08;
+
+              const distX = Math.abs((player.x + player.w / 2) - (m.x + m.w / 2));
+              const distY = Math.abs((player.y + player.h / 2) - (m.y + m.h / 2));
+
+              if (distX < (player.w / 2 + m.w / 2) && distY < (player.h / 2 + m.h / 2)) {
+                  // Magnet eingesammelt!
+                  playerHasMagnet = true;
+                  magnetTimer = 500; // ca. 8 Sekunden aktiv
+
+                  // Blaue Magnet-Partikel
+                  for (let p = 0; p < 20; p++) {
+                      particles.push({
+                          x: m.x + m.w/2,
+                          y: m.y + m.h/2,
+                          vx: (Math.random() - 0.5) * 10,
+                          vy: (Math.random() - 0.5) * 10,
+                          life: 30,
+                          maxLife: 30,
+                          color: '#3b82f6',
+                          size: Math.random() * 4 + 2
+                      });
+                  }
+                  magnetItems.splice(i, 1);
+                  continue;
+              }
+
+              if (m.x + m.w < -20) magnetItems.splice(i, 1);
+          }
+
+          // Münzen bewegen & Einsammeln
+          for (let i = coinItems.length - 1; i >= 0; i--) {
+              const c = coinItems[i];
+
+              // Wenn Magnet aktiv, ziehe Münze zum Spieler!
+              if (playerHasMagnet) {
+                  const pCenterX = player.x + player.w / 2;
+                  const pCenterY = player.y + player.h / 2;
+                  const dx = pCenterX - c.x;
+                  const dy = pCenterY - c.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy);
+
+                  if (dist < 350) { // Magnet-Reichweite
+                      c.x += (dx / dist) * 12; // Fliegt schnell zum Spieler
+                      c.y += (dy / dist) * 12;
+                  } else {
+                      c.x -= gameSpeed;
+                  }
+              } else {
+                  c.x -= gameSpeed;
+              }
+
+              c.angle += 0.05;
+
+              // Kreis-Box-Distanz
+              const distX = Math.abs((player.x + player.w / 2) - c.x);
+              const distY = Math.abs((player.y + player.h / 2) - c.y);
+
+              if (distX < (player.w / 2 + c.r) && distY < (player.h / 2 + c.r)) {
+                  // Münze eingesammelt!
+                  coins++;
+                  score += 50;
+                  coinsDisplay.textContent = coins;
+                  scoreDisplay.textContent = Math.floor(score);
+
+                  // Glitzerpartikel
+                  for (let p = 0; p < 10; p++) {
+                      particles.push({
+                          x: c.x,
+                          y: c.y,
+                          vx: (Math.random() - 0.5) * 6,
+                          vy: (Math.random() - 0.5) * 6,
+                          life: 25,
+                          maxLife: 25,
+                          color: '#fbbf24',
+                          size: 3
+                      });
+                  }
+                  coinItems.splice(i, 1);
+                  continue;
+              }
+
+              if (c.x + c.r < -20) coinItems.splice(i, 1);
+          }
+
+          // Partikel aktualisieren
+          for (let i = particles.length - 1; i >= 0; i--) {
+              const p = particles[i];
+              p.x += p.vx;
+              p.y += p.vy;
+              if (p.rotation !== undefined) p.rotation += p.spin || 0;
+              p.life--;
+              if (p.life <= 0) particles.splice(i, 1);
+          }
+      }
+
+      function draw() {
+          ctx.clearRect(0, 0, width, height);
+
+          // Farbauswahl für Boden, Effekte und Hindernisse vorbereiten
+          let primaryColor = '#06b6d4'; // Blau
+          let obstacleColor = '#f43f5e'; // Rot
+
+          if (selectedColor === 'red') {
+              primaryColor = '#f43f5e';
+              obstacleColor = '#06b6d4';
+          } else if (selectedColor === 'blitz') {
+              primaryColor = '#d946ef';
+          } else if (selectedColor === 'feuer') {
+              primaryColor = '#f97316';
+          } else if (selectedColor === 'schwarz') {
+              primaryColor = '#10b981';
+              obstacleColor = '#f43f5e';
+          } else if (selectedColor === 'ssj') {
+              primaryColor = '#facc15';
+              obstacleColor = '#a855f7';
+          } else if (selectedColor === 'overlord') {
+              primaryColor = '#9333ea';
+              obstacleColor = '#10b981';
+          } else if (selectedColor === 'fighter') {
+              primaryColor = '#f8fafc'; // Silber/Weißes Leuchten
+              obstacleColor = '#16a34a'; // Grünes Hindernis (Nationalfarben-Akzent)
+          }
+
+          // Hintergrund-Linien
+          ctx.strokeStyle = '#1e293b';
+          ctx.lineWidth = 1.5;
+          for (let y = 60; y < height; y += 60) {
+              ctx.beginPath();
+              ctx.moveTo(0, y);
+              ctx.lineTo(width, y);
+              ctx.stroke();
+          }
+
+          // --- NEU: Straße / Neon-Boden zeichnen ---
+          ctx.save();
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = primaryColor;
+          ctx.strokeStyle = primaryColor;
+          ctx.lineWidth = 3;
+
+          // Leuchtende Linie direkt unter dem Spieler
+          ctx.beginPath();
+          ctx.moveTo(0, groundY);
+          ctx.lineTo(width, groundY);
+          ctx.stroke();
+
+          // Leichter Glow unter der Straße
+          ctx.fillStyle = primaryColor;
+          ctx.globalAlpha = 0.08;
+          ctx.fillRect(0, groundY, width, height - groundY);
+          ctx.restore();
+
+          // --- FEHLENDEN EFFEKT ZURÜCKGEHOLT: Schweif (Trail) ---
+          player.trail.forEach((pos, index) => {
+              const progress = (index + 1) / player.trail.length;
+              // Quadratische Kurve für weicheres Ausblenden (angenehmer)
+              const alpha = Math.pow(progress, 2) * 0.35;
+              // Schweif wird nach hinten hin immer kleiner (wirkt dynamischer und sauberer)
+              const scale = 0.4 + (progress * 0.6);
+
+              ctx.save();
+              ctx.globalAlpha = alpha;
+              ctx.shadowBlur = 12 * progress; // Weniger Blur ganz am Ende des Schweifs
+              ctx.shadowColor = primaryColor;
+              ctx.fillStyle = primaryColor;
+
+              ctx.translate(pos.x + player.w / 2, pos.y + player.h / 2);
+              ctx.scale(scale, scale); // Lässt die alten Formen kleiner werden
+
+              ctx.beginPath();
+              if (selectedColor === 'feuer') {
+                  ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 16);
+              } else if (selectedColor === 'ssj') {
+                  ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 4); // Eckiger für SSJ
+              } else {
+                  ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10);
+              }
+              ctx.fill();
+              ctx.restore();
+          });
+
+          // HIER IST DER FIX: Speichern und zum Spieler verschieben, bevor gezeichnet wird!
+          ctx.save();
+          ctx.translate(player.x + player.w / 2, player.y + player.h / 2);
+
+          if (selectedColor === 'blitz') {
+              // Blitz-Charakter (Wieder als Quadrat, aber mit wilden Blitzen, die herausschießen!)
+              const isFlashWhite = Math.floor(Date.now() / 50) % 2 === 0;
+              const glowColor = isFlashWhite ? '#ffffff' : '#d946ef';
+
+              ctx.shadowBlur = 20;
+              ctx.shadowColor = glowColor;
+              ctx.fillStyle = primaryColor; // Magenta Basis
+
+              // Grundform: Wieder das normale Quadrat!
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10);
+              ctx.fill();
+
+              // Zuckende, echte elektrische Entladungen nach außen
+              ctx.strokeStyle = glowColor;
+              ctx.lineWidth = 2.5;
+              for (let i = 0; i < 5; i++) {
+                  ctx.beginPath();
+                  // Blitze starten im Quadrat
+                  let startX = (Math.random() - 0.5) * player.w;
+                  let startY = (Math.random() - 0.5) * player.h;
+                  ctx.moveTo(startX, startY);
+
+                  // Und schlagen wild nach außen
+                  const zacken = Math.floor(Math.random() * 3) + 2;
+                  for(let j = 0; j < zacken; j++) {
+                      startX += (Math.random() - 0.5) * 50;
+                      startY += (Math.random() - 0.5) * 50;
+                      ctx.lineTo(startX, startY);
+                  }
+                  ctx.stroke();
+              }
+          } else if (selectedColor === 'feuer') {
+              // Feuer-Charakter (Glühender Kern, flüssigere Form)
+              const firePulse = Math.sin(Date.now() / 150) * 8;
+              ctx.shadowBlur = 25 + firePulse;
+              ctx.shadowColor = '#f97316';
+
+              // Basis Quadrat: Stark abgerundet für weicheren "Tropfen/Feuer" Look
+              ctx.fillStyle = '#fde047';
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 16);
+              ctx.fill();
+
+              // Lodernder Außenrand (rot/orange)
+              ctx.strokeStyle = '#ef4444';
+              ctx.lineWidth = 4;
+              ctx.stroke();
+
+              // Inneres pulsierendes "Herz" statt der eckigen Flammen-Dreiecke
+              ctx.fillStyle = '#f97316';
+              ctx.beginPath();
+              ctx.arc(0, 0, player.w/3 + Math.sin(Date.now()/100)*3, 0, Math.PI * 2);
+              ctx.fill();
+          } else if (selectedColor === 'schwarz') {
+              // Echter Ninja (Ohne Laserschwert)
+
+              // 1. Dunkler Körper (Ninja-Anzug)
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#10b981'; // Leichtes grünes Ninja-Glow
+              ctx.fillStyle = '#020617'; // Fast pures Schwarz
+              ctx.strokeStyle = '#10b981'; // Smaragd-grüner Rand für den Neon-Look
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
+              ctx.fill();
+              ctx.stroke();
+
+              // 2. Ninja Maske (Haut-Schlitz)
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = '#fbcfe8'; // Helle Hautfarbe
+              ctx.fillRect(-player.w/2 + 2, -10, player.w - 4, 12);
+
+              // 3. Böse, leuchtende Augen
+              ctx.shadowBlur = 8;
+              ctx.shadowColor = '#10b981';
+              ctx.fillStyle = '#10b981';
+              ctx.beginPath();
+              // Linkes Auge
+              ctx.moveTo(-12, -6);
+              ctx.lineTo(-3, -2);
+              ctx.lineTo(-12, 1);
+              ctx.fill();
+              // Rechtes Auge
+              ctx.moveTo(12, -6);
+              ctx.lineTo(3, -2);
+              ctx.lineTo(12, 1);
+              ctx.fill();
+
+              // 4. Wehendes grünes Stirnband
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = '#059669'; // Dunkleres Grün fürs Stirnband
+              ctx.fillRect(-player.w/2, -14, player.w, 4);
+
+              // Stirnband-Enden flattern im Wind (links am Kopf)
+              const bandFlap = Math.sin(Date.now() / 150) * 3;
+              ctx.beginPath();
+              ctx.moveTo(-player.w/2, -12);
+              ctx.lineTo(-player.w/2 - 14, -16 + bandFlap);
+              ctx.lineTo(-player.w/2 - 10, -8 + bandFlap);
+              ctx.fill();
+
+          } else if (selectedColor === 'ssj') {
+              // Überarbeiteter Super Saiyajin Charakter
+              const time = Date.now();
+
+              // 1. Lodernde, weich fließende goldene Aura
+              const auraPulse = Math.sin(time / 150) * 0.1 + 0.9;
+              ctx.shadowBlur = 35 * auraPulse;
+              ctx.shadowColor = '#facc15';
+              ctx.fillStyle = `rgba(250, 204, 21, ${0.3 * auraPulse})`;
+
+              ctx.beginPath();
+              // Weiche, wellenartige Flammen (kein nerviges Flackern mehr)
+              for (let i = 0; i <= 24; i++) {
+                  let angle = (i / 24) * Math.PI * 2;
+                  let wave = Math.sin(angle * 5 - time / 150) * 6; // Fließende Bewegung
+                  let rX = player.w * 0.9 + wave;
+                  let rY = player.h * 1.1 + wave;
+                  let px = Math.cos(angle) * rX;
+                  let py = Math.sin(angle) * rY - 10;
+                  if (i === 0) ctx.moveTo(px, py);
+                  else ctx.lineTo(px, py);
+              }
+              ctx.closePath();
+              ctx.fill();
+
+              // Innere, hellere Aura
+              ctx.fillStyle = `rgba(254, 240, 138, ${0.4 * auraPulse})`;
+              ctx.beginPath();
+              ctx.ellipse(0, -5, player.w*0.75, player.h*0.85, 0, 0, Math.PI*2);
+              ctx.fill();
+
+              // 2. Körper (Oranger Gi)
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = '#ea580c';
+              ctx.fillStyle = '#f97316'; // Kräftiges Orange
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
+              ctx.fill();
+
+              // Blauer V-Ausschnitt (Shirt darunter)
+              ctx.fillStyle = '#1e3a8a'; // Dunkelblau
+              ctx.beginPath();
+              ctx.moveTo(-player.w/2.5, -player.h/2);
+              ctx.lineTo(player.w/2.5, -player.h/2);
+              ctx.lineTo(0, -player.h/6);
+              ctx.closePath();
+              ctx.fill();
+
+              // Blauer Gürtel
+              ctx.fillRect(-player.w/2, 4, player.w, 7);
+
+              // 3. Verbesserte, proportionierte SSJ Haare
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#fef08a';
+              ctx.fillStyle = '#fde047'; // Leuchtendes Goldgelb
+              ctx.strokeStyle = '#eab308'; // Kontur für die Strähnen
+              ctx.lineWidth = 1.5;
+
+              ctx.beginPath();
+              // Start am Kopf links unten
+              ctx.moveTo(-player.w/2 - 2, -player.h/2 + 5);
+
+              // Spitze 1 (Links)
+              ctx.lineTo(-player.w/2 - 12, -player.h/2 - 12);
+              ctx.lineTo(-player.w/3, -player.h/2 - 6);
+
+              // Spitze 2 (Halb-links)
+              ctx.lineTo(-player.w/4 - 6, -player.h/2 - 28);
+              ctx.lineTo(0, -player.h/2 - 10);
+
+              // Spitze 3 (Mitte/Rechts - Hauptspitze)
+              ctx.lineTo(player.w/4 + 4, -player.h/2 - 32);
+              ctx.lineTo(player.w/3, -player.h/2 - 8);
+
+              // Spitze 4 (Rechts außen)
+              ctx.lineTo(player.w/2 + 10, -player.h/2 - 18);
+              ctx.lineTo(player.w/2 + 2, -player.h/2 + 5);
+
+              ctx.closePath();
+              ctx.fill();
+              ctx.stroke(); // Zeichnet die feine Kontur
+
+              // Feine Haarlinien für noch mehr Detail
+              ctx.beginPath();
+              ctx.moveTo(-player.w/4, -player.h/2 - 6);
+              ctx.lineTo(-player.w/4 - 3, -player.h/2 - 18);
+              ctx.moveTo(player.w/6, -player.h/2 - 10);
+              ctx.lineTo(player.w/4, -player.h/2 - 22);
+              ctx.stroke();
+
+          } else if (selectedColor === 'overlord') {
+              // Overlord Charakter (Ainz Ooal Gown Anime Style)
+
+              // 1. Violette, mystische Dunkelmagie-Aura
+              const auraPulse = Math.sin(Date.now() / 200) * 0.2 + 0.8;
+              ctx.shadowBlur = 30 * auraPulse;
+              ctx.shadowColor = '#9333ea';
+              ctx.fillStyle = `rgba(147, 51, 234, ${0.4 * auraPulse})`;
+              ctx.beginPath();
+              ctx.arc(0, 0, player.w * 0.8 + Math.sin(Date.now() / 150) * 4, 0, Math.PI * 2);
+              ctx.fill();
+
+              // 2. Schwarze Robe & Körper
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#000000';
+              ctx.fillStyle = '#1e1b4b'; // Sehr dunkles Violett/Schwarz
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
+              ctx.fill();
+
+              // Goldene Schulterpolster / Kragen
+              ctx.fillStyle = '#eab308'; // Gold
+              ctx.fillRect(-player.w/2 - 2, -player.h/2 + 5, player.w + 4, 8);
+              ctx.fillStyle = '#713f12'; // Dunkleres Gold zur Tiefe
+              ctx.fillRect(-player.w/2, -player.h/2 + 7, player.w, 3);
+
+              // 3. Knochenmaske (Skelett Gesicht)
+              ctx.shadowBlur = 5;
+              ctx.shadowColor = '#ffffff';
+              ctx.fillStyle = '#f8fafc'; // Knochenweiß
+              ctx.beginPath();
+              ctx.roundRect(-12, -player.h/2 - 5, 24, 22, 6);
+              ctx.fill();
+
+              // Wangenknochen-Einkerbung
+              ctx.fillStyle = '#1e1b4b'; // Farbe der Robe für den Durchblick
+              ctx.fillRect(-13, -player.h/2 + 10, 5, 6); // Linke Wange
+              ctx.fillRect(8, -player.h/2 + 10, 5, 6);   // Rechte Wange
+
+              // Zähne (Feine schwarze Striche)
+              ctx.strokeStyle = '#000000';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(-5, -player.h/2 + 14); ctx.lineTo(-5, -player.h/2 + 17);
+              ctx.moveTo(0, -player.h/2 + 14); ctx.lineTo(0, -player.h/2 + 17);
+              ctx.moveTo(5, -player.h/2 + 14); ctx.lineTo(5, -player.h/2 + 17);
+              ctx.stroke();
+
+              // 4. Glühende Rote Augen
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#ef4444';
+              ctx.fillStyle = '#ef4444';
+              ctx.beginPath();
+              ctx.arc(-5, -player.h/2 + 3, 2.5, 0, Math.PI*2);
+              ctx.arc(5, -player.h/2 + 3, 2.5, 0, Math.PI*2);
+              ctx.fill();
+
+              // 5. Stab von Ainz Ooal Gown
+              const staffSwing = Math.sin(Date.now() / 200) * 0.1;
+              ctx.save();
+              ctx.translate(player.w/2 + 6, 4); // Hält den Stab an der rechten Seite
+              ctx.rotate(Math.PI / 8 + staffSwing);
+
+              // Goldener Stab (Griff)
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = '#eab308';
+              ctx.fillRect(-2, -32, 4, 45);
+
+              // Stabspitze (Verzierung, die die Kugel hält)
+              ctx.strokeStyle = '#eab308';
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.arc(0, -32, 6, 0, Math.PI); // Halbbogen unter der Kugel
+              ctx.stroke();
+
+              // Rote Weltkugel an der Spitze
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#ef4444';
+              ctx.fillStyle = '#ef4444';
+              ctx.beginPath();
+              ctx.arc(0, -38, 5, 0, Math.PI*2);
+              ctx.fill();
+
+              ctx.restore();
+
+          } else if (selectedColor === 'fighter') {
+              // Tschetschenischer Kämpfer
+
+              // 1. Körper (Dunkelgraue/Schwarze tschetschenische Nationalkleidung)
+              ctx.shadowBlur = 10;
+              ctx.shadowColor = '#f8fafc';
+              ctx.fillStyle = '#1e293b';
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6);
+              ctx.fill();
+
+              // 2. V-Ausschnitt & helles Unterhemd
+              ctx.fillStyle = '#e2e8f0';
+              ctx.beginPath();
+              ctx.moveTo(-player.w/3.5, -player.h/2);
+              ctx.lineTo(player.w/3.5, -player.h/2);
+              ctx.lineTo(0, -player.h/6);
+              ctx.closePath();
+              ctx.fill();
+
+              // 3. Ikonische Patronentaschen auf der Brust
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = '#cbd5e1'; // Silberne Röhrchen
+              const gY = -player.h/4 - 2;
+              // Links
+              ctx.fillRect(-player.w/2 + 3, gY, 2.5, 9);
+              ctx.fillRect(-player.w/2 + 7, gY + 1, 2.5, 9);
+              ctx.fillRect(-player.w/2 + 11, gY + 2, 2.5, 9);
+              // Rechts
+              ctx.fillRect(player.w/2 - 5.5, gY, 2.5, 9);
+              ctx.fillRect(player.w/2 - 9.5, gY + 1, 2.5, 9);
+              ctx.fillRect(player.w/2 - 13.5, gY + 2, 2.5, 9);
+
+              // 4. Gürtel und der echte Feuer Kindschal aus der Referenz
+              ctx.fillStyle = '#020617';
+              ctx.fillRect(-player.w/2, player.h/5, player.w, 4);
+
+              // Die komplette Kindschal Sprite sitzt sichtbar rechts neben dem Körper
+              fighterKindschal.draw(ctx, player.w / 2 + 15, 3, 0.43, 0.05);
+
+              // 5. Traditionelle tschetschenische Wollmütze (Kuy) auf dem Kopf
+              ctx.shadowBlur = 8;
+              ctx.shadowColor = '#000000';
+              ctx.fillStyle = '#334155'; // Dunkelgraue Wolle
+              ctx.beginPath();
+              // Fluffige Basis-Form
+              ctx.roundRect(-player.w/2 - 3, -player.h/2 - 10, player.w + 6, 14, 6);
+              ctx.fill();
+
+              // Details in der Wolle (fluffige Wölbungen)
+              ctx.fillStyle = '#475569';
+              ctx.beginPath();
+              ctx.arc(-10, -player.h/2 - 6, 5, 0, Math.PI*2);
+              ctx.arc(10, -player.h/2 - 6, 5, 0, Math.PI*2);
+              ctx.arc(0, -player.h/2 - 10, 6, 0, Math.PI*2);
+              ctx.fill();
+
+          } else {
+              // Normaler Charakter (Blau / Rot)
+              ctx.shadowBlur = 20;
+              ctx.shadowColor = primaryColor;
+              ctx.fillStyle = primaryColor;
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10);
+              ctx.fill();
+          }
+
+          // --- BEHOBEN: Sichtbare Axt um den Spieler, wenn aktiv ---
+          if (playerHasAxe) {
+              ctx.save();
+              ctx.rotate(axeAngle);
+
+              if (selectedColor === 'schwarz') {
+                  // Ninja: Shuriken
+                  for(let i=0; i<2; i++) {
+                      ctx.rotate(Math.PI);
+                      ctx.shadowBlur = 15;
+                      ctx.shadowColor = '#10b981';
+                      ctx.fillStyle = '#10b981';
+
+                      ctx.save();
+                      ctx.translate(0, 30);
+                      ctx.rotate(axeAngle * 2); // Shuriken dreht sich noch mal in sich selbst
+
+                      ctx.beginPath();
+                      ctx.moveTo(0, -15); ctx.lineTo(4, -4);
+                      ctx.lineTo(15, 0); ctx.lineTo(4, 4);
+                      ctx.lineTo(0, 15); ctx.lineTo(-4, 4);
+                      ctx.lineTo(-15, 0); ctx.lineTo(-4, -4);
+                      ctx.closePath();
+                      ctx.fill();
+
+                      // Silbernes Zentrum
+                      ctx.fillStyle = '#cbd5e1';
+                      ctx.beginPath();
+                      ctx.arc(0, 0, 4, 0, Math.PI * 2);
+                      ctx.fill();
+                      ctx.restore();
+                  }
+              } else if (selectedColor === 'ssj') {
+                  // Saiyajin: Energiescheibe (Kienzan)
+                  for(let i=0; i<2; i++) {
+                      ctx.rotate(Math.PI);
+                      ctx.shadowBlur = 20;
+                      ctx.shadowColor = '#facc15';
+
+                      ctx.save();
+                      ctx.translate(0, 35);
+                      ctx.rotate(axeAngle * -3); // Scheibe dreht sich rasend schnell
+
+                      // Äußere Klinge (gezackt)
+                      ctx.fillStyle = '#fef08a';
+                      ctx.beginPath();
+                      for(let j=0; j<8; j++) {
+                          const ang = (j / 8) * Math.PI * 2;
+                          ctx.lineTo(Math.cos(ang) * 16, Math.sin(ang) * 16);
+                          const ang2 = ((j + 0.5) / 8) * Math.PI * 2;
+                          ctx.lineTo(Math.cos(ang2) * 12, Math.sin(ang2) * 12);
+                      }
+                      ctx.closePath();
+                      ctx.fill();
+
+                      // Innerer Ring
+                      ctx.fillStyle = '#facc15';
+                      ctx.beginPath();
+                      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+                      ctx.fill();
+                      ctx.restore();
+                  }
+              } else if (selectedColor === 'overlord') {
+                  // Overlord: Todessense
+                  for(let i=0; i<2; i++) {
+                      ctx.rotate(Math.PI);
+                      ctx.shadowBlur = 15;
+                      ctx.shadowColor = '#9333ea';
+
+                      // Langer schwarzer Griff
+                      ctx.fillStyle = '#1e1b4b';
+                      ctx.fillRect(-2, 10, 4, 35);
+
+                      // Violette, scharfe Sense (Klinge)
+                      ctx.fillStyle = '#d8b4fe';
+                      ctx.beginPath();
+                      ctx.moveTo(-2, 45); // Spitze des Stiels
+                      ctx.quadraticCurveTo(-15, 45, -25, 20); // Schwung nach unten/außen
+                      ctx.quadraticCurveTo(-10, 30, 2, 35);  // Innere Kante
+                      ctx.closePath();
+                      ctx.fill();
+                  }
+              } else if (selectedColor === 'fighter') {
+                  // Kämpfer: exakt dieselbe animierte Feuer Kindschal Sprite als Power Up
+                  for (let i = 0; i < 2; i++) {
+                      ctx.rotate(Math.PI);
+                      fighterKindschal.draw(ctx, 0, 45, 0.58, 0);
+                  }
+              } else if (selectedColor === 'blitz') {
+                  // Blitz: Energieschwert
+                  for(let i=0; i<2; i++) {
+                      ctx.rotate(Math.PI);
+                      ctx.shadowBlur = 15;
+                      ctx.shadowColor = '#d946ef';
+
+                      // Klinge aus purer Energie
+                      ctx.fillStyle = '#fdf4ff';
+                      ctx.strokeStyle = '#d946ef';
+                      ctx.lineWidth = 2;
+
+                      ctx.beginPath();
+                      ctx.moveTo(-3, 20);
+                      ctx.lineTo(-6, 35);
+                      ctx.lineTo(0, 48);
+                      ctx.lineTo(6, 35);
+                      ctx.lineTo(3, 20);
+                      ctx.closePath();
+                      ctx.fill();
+                      ctx.stroke();
+
+                      // Kleine zuckende Blitze um die Klinge
+                      ctx.beginPath();
+                      ctx.moveTo(0, 20);
+                      ctx.lineTo((Math.random() - 0.5) * 15, 30);
+                      ctx.lineTo(0, 40);
+                      ctx.stroke();
+                  }
+              } else {
+                  // Standard & Feuer: Die lodernde Doppelaxt
+                  for(let i=0; i<2; i++) {
+                      ctx.rotate(Math.PI); // 180 Grad drehen für die zweite Klinge
+
+                      const pulse = Math.sin(Date.now() / 100) * 0.5 + 0.5;
+                      ctx.shadowBlur = 15 + pulse * 15; // Flacker-Effekt
+
+                      if (selectedColor === 'feuer') {
+                          ctx.shadowColor = '#ef4444';
+                          ctx.fillStyle = '#fde047';
+                          ctx.strokeStyle = '#ef4444';
+                      } else {
+                          ctx.shadowColor = '#06b6d4';
+                          ctx.fillStyle = '#e0f2fe';
+                          ctx.strokeStyle = '#06b6d4';
+                      }
+
+                      // Griff
+                      const handleColor = selectedColor === 'feuer' ? '#7c2d12' : '#334155';
+                      ctx.fillStyle = handleColor;
+                      ctx.fillRect(-3, 18, 6, 28);
+
+                      // Klinge
+                      if (selectedColor === 'feuer') {
+                          ctx.fillStyle = '#fde047';
+                          ctx.strokeStyle = '#ef4444';
+                      } else {
+                          ctx.fillStyle = '#e0f2fe';
+                          ctx.strokeStyle = '#06b6d4';
+                      }
+
+                      ctx.lineWidth = 2.5;
+                      ctx.beginPath();
+                      ctx.moveTo(3, 25);
+                      ctx.lineTo(20, 42);
+                      ctx.lineTo(28, 25);
+                      ctx.lineTo(20, 8);
+                      ctx.lineTo(3, 20);
+                      ctx.closePath();
+                      ctx.fill();
+                      ctx.stroke();
+                  }
+              }
+              ctx.restore();
+          }
+
+          ctx.restore();
+
+          // Hindernisse passend zum gewählten Charakter
+          obstacles.forEach(obs => {
+              ctx.save();
+
+              if (obs.variant === 'pillar') {
+                  // Overlord: massive verfluchte Säule
+                  ctx.shadowBlur = 18;
+                  ctx.shadowColor = '#9333ea';
+                  ctx.fillStyle = '#312e81';
+                  ctx.fillRect(obs.x + 5, obs.y + 8, obs.w - 10, obs.h - 16);
+                  ctx.fillStyle = '#6d28d9';
+                  ctx.fillRect(obs.x, obs.y, obs.w, 10);
+                  ctx.fillRect(obs.x - 3, obs.y + obs.h - 12, obs.w + 6, 12);
+                  ctx.strokeStyle = '#d8b4fe';
+                  ctx.lineWidth = 2;
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x + 8, obs.y + 20);
+                  ctx.lineTo(obs.x + obs.w - 8, obs.y + 34);
+                  ctx.lineTo(obs.x + 9, obs.y + 48);
+                  ctx.stroke();
+              } else if (obs.variant === 'water') {
+                  // Feuer: Wasserfontäne
+                  ctx.shadowBlur = 18;
+                  ctx.shadowColor = '#38bdf8';
+                  ctx.fillStyle = '#0ea5e9';
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x, obs.y + obs.h);
+                  ctx.quadraticCurveTo(obs.x + obs.w * 0.15, obs.y + 12, obs.x + obs.w * 0.36, obs.y + 4);
+                  ctx.quadraticCurveTo(obs.x + obs.w * 0.54, obs.y + 20, obs.x + obs.w * 0.68, obs.y + 7);
+                  ctx.quadraticCurveTo(obs.x + obs.w * 0.9, obs.y + 16, obs.x + obs.w, obs.y + obs.h);
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.fillStyle = '#bae6fd';
+                  ctx.beginPath();
+                  ctx.arc(obs.x + obs.w * 0.3, obs.y + 18, 4, 0, Math.PI * 2);
+                  ctx.arc(obs.x + obs.w * 0.72, obs.y + 24, 3, 0, Math.PI * 2);
+                  ctx.fill();
+              } else if (obs.variant === 'samurai') {
+                  // Ninja: Samurai Gegner
+                  ctx.shadowBlur = 12;
+                  ctx.shadowColor = '#ef4444';
+                  ctx.fillStyle = '#7f1d1d';
+                  ctx.fillRect(obs.x + 9, obs.y + 24, obs.w - 18, obs.h - 24);
+                  ctx.fillStyle = '#111827';
+                  ctx.beginPath();
+                  ctx.arc(obs.x + obs.w / 2, obs.y + 17, 12, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.fillRect(obs.x + 4, obs.y + 13, obs.w - 8, 7);
+                  ctx.fillStyle = '#f8fafc';
+                  ctx.fillRect(obs.x + 13, obs.y + 17, obs.w - 26, 3);
+                  ctx.strokeStyle = '#cbd5e1';
+                  ctx.lineWidth = 4;
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x + obs.w - 4, obs.y + 20);
+                  ctx.lineTo(obs.x + obs.w + 7, obs.y + obs.h - 6);
+                  ctx.stroke();
+              } else if (obs.variant === 'tesla') {
+                  // Blitz: Stromsäule
+                  ctx.shadowBlur = 20;
+                  ctx.shadowColor = '#d946ef';
+                  ctx.fillStyle = '#581c87';
+                  ctx.fillRect(obs.x + 7, obs.y + 10, obs.w - 14, obs.h - 10);
+                  ctx.fillStyle = '#d946ef';
+                  ctx.beginPath();
+                  ctx.arc(obs.x + obs.w / 2, obs.y + 8, 10, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.strokeStyle = '#fdf4ff';
+                  ctx.lineWidth = 3;
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x + obs.w / 2, obs.y + 18);
+                  ctx.lineTo(obs.x + 8, obs.y + 34);
+                  ctx.lineTo(obs.x + obs.w - 8, obs.y + 43);
+                  ctx.lineTo(obs.x + 10, obs.y + 58);
+                  ctx.stroke();
+              } else if (obs.variant === 'energy') {
+                  // Saiyajin: Energiebarriere
+                  const pulse = 0.72 + Math.abs(Math.sin(Date.now() / 160)) * 0.28;
+                  ctx.shadowBlur = 25;
+                  ctx.shadowColor = '#facc15';
+                  ctx.fillStyle = `rgba(250, 204, 21, ${0.55 * pulse})`;
+                  ctx.beginPath();
+                  ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 16);
+                  ctx.fill();
+                  ctx.strokeStyle = '#fef08a';
+                  ctx.lineWidth = 3;
+                  ctx.stroke();
+                  ctx.fillStyle = '#ffffff';
+                  ctx.beginPath();
+                  ctx.arc(obs.x + obs.w / 2, obs.y + obs.h / 2, 5 + pulse * 3, 0, Math.PI * 2);
+                  ctx.fill();
+              } else if (obs.variant === 'spearman') {
+                  // Kämpfer: Speerkrieger
+                  ctx.shadowBlur = 12;
+                  ctx.shadowColor = '#cbd5e1';
+                  ctx.fillStyle = '#334155';
+                  ctx.fillRect(obs.x + 10, obs.y + 24, obs.w - 20, obs.h - 24);
+                  ctx.fillStyle = '#94a3b8';
+                  ctx.beginPath();
+                  ctx.arc(obs.x + obs.w / 2, obs.y + 16, 10, 0, Math.PI * 2);
+                  ctx.fill();
+                  ctx.strokeStyle = '#e2e8f0';
+                  ctx.lineWidth = 3;
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x + obs.w - 5, obs.y + 2);
+                  ctx.lineTo(obs.x + obs.w - 5, obs.y + obs.h);
+                  ctx.stroke();
+                  ctx.fillStyle = '#f8fafc';
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x + obs.w - 5, obs.y);
+                  ctx.lineTo(obs.x + obs.w - 11, obs.y + 12);
+                  ctx.lineTo(obs.x + obs.w + 1, obs.y + 12);
+                  ctx.closePath();
+                  ctx.fill();
+              } else if (obs.variant === 'ice') {
+                  // Rot: Eiskristall
+                  ctx.shadowBlur = 18;
+                  ctx.shadowColor = '#67e8f9';
+                  ctx.fillStyle = '#a5f3fc';
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x + obs.w / 2, obs.y);
+                  ctx.lineTo(obs.x + obs.w, obs.y + obs.h * 0.38);
+                  ctx.lineTo(obs.x + obs.w * 0.78, obs.y + obs.h);
+                  ctx.lineTo(obs.x + obs.w * 0.2, obs.y + obs.h);
+                  ctx.lineTo(obs.x, obs.y + obs.h * 0.38);
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.strokeStyle = '#ecfeff';
+                  ctx.lineWidth = 2;
+                  ctx.beginPath();
+                  ctx.moveTo(obs.x + obs.w / 2, obs.y + 8);
+                  ctx.lineTo(obs.x + obs.w * 0.42, obs.y + obs.h - 8);
+                  ctx.stroke();
+              } else {
+                  // Blau: klassischer Neonblock
+                  ctx.shadowBlur = 18;
+                  ctx.shadowColor = '#06b6d4';
+                  ctx.fillStyle = '#0891b2';
+                  ctx.beginPath();
+                  ctx.roundRect(obs.x, obs.y, obs.w, obs.h, 6);
+                  ctx.fill();
+                  ctx.strokeStyle = '#67e8f9';
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+              }
+
+              ctx.restore();
+          });
+
+          // Magnet-Items zum Einsammeln zeichnen
+          magnetItems.forEach(m => {
+              ctx.save();
+              ctx.translate(m.x + m.w/2, m.y + m.h/2);
+              ctx.rotate(m.angle);
+
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#3b82f6'; // Blaues Magnet-Glow
+
+              // Hufeisen-Form
+              ctx.strokeStyle = '#ef4444'; // Roter Körper
+              ctx.lineWidth = 6;
+              ctx.lineCap = 'round';
+              ctx.beginPath();
+              ctx.arc(0, -3, 8, Math.PI, 0); // Bogen oben
+              ctx.lineTo(8, 8);
+              ctx.moveTo(-8, -3);
+              ctx.lineTo(-8, 8);
+              ctx.stroke();
+
+              // Silberne Magnetpole
+              ctx.strokeStyle = '#d1d5db';
+              ctx.beginPath();
+              ctx.moveTo(-8, 5); ctx.lineTo(-8, 8);
+              ctx.moveTo(8, 5); ctx.lineTo(8, 8);
+              ctx.stroke();
+
+              ctx.restore();
+          });
+
+          // Waffen-Items zum Einsammeln zeichnen
+          axeItems.forEach(axe => {
+              ctx.save();
+              ctx.translate(axe.x + axe.w/2, axe.y + axe.h/2);
+              ctx.rotate(axe.angle);
+
+              const pulse = Math.sin(Date.now() / 100) * 0.5 + 0.5;
+
+              if (selectedColor === 'schwarz') {
+                  // Shuriken Item
+                  ctx.shadowBlur = 15 + pulse * 10;
+                  ctx.shadowColor = '#10b981';
+                  ctx.fillStyle = '#10b981';
+                  ctx.beginPath();
+                  ctx.moveTo(0, -10); ctx.lineTo(3, -3);
+                  ctx.lineTo(10, 0); ctx.lineTo(3, 3);
+                  ctx.lineTo(0, 10); ctx.lineTo(-3, 3);
+                  ctx.lineTo(-10, 0); ctx.lineTo(-3, -3);
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.fillStyle = '#cbd5e1';
+                  ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
+              } else if (selectedColor === 'ssj') {
+                  // Energiescheibe Item
+                  ctx.shadowBlur = 15 + pulse * 10;
+                  ctx.shadowColor = '#facc15';
+                  ctx.fillStyle = '#fef08a';
+                  ctx.beginPath();
+                  for(let j=0; j<8; j++) {
+                      const ang = (j / 8) * Math.PI * 2;
+                      ctx.lineTo(Math.cos(ang) * 10, Math.sin(ang) * 10);
+                      const ang2 = ((j + 0.5) / 8) * Math.PI * 2;
+                      ctx.lineTo(Math.cos(ang2) * 7, Math.sin(ang2) * 7);
+                  }
+                  ctx.closePath();
+                  ctx.fill();
+              } else if (selectedColor === 'overlord') {
+                  // Sense Item
+                  ctx.shadowBlur = 15 + pulse * 10;
+                  ctx.shadowColor = '#9333ea';
+                  ctx.fillStyle = '#1e1b4b';
+                  ctx.fillRect(-1, -12, 2, 24); // Stiel
+                  ctx.fillStyle = '#d8b4fe';
+                  ctx.beginPath();
+                  ctx.moveTo(-1, -10);
+                  ctx.quadraticCurveTo(8, -10, 12, 5);                  ctx.quadraticCurveTo(5, -2, -1, -5);
+                  ctx.closePath();
+                  ctx.fill();
+              } else if (selectedColor === 'fighter') {
+                  // Schwert Item
+                  ctx.shadowBlur = 15 + pulse * 10;
+                  ctx.shadowColor = '#cbd5e1';
+                  ctx.fillStyle = '#0f172a';
+                  ctx.fillRect(-1, -2, 2, 8); // Griff
+                  ctx.fillStyle = '#eab308';
+                  ctx.fillRect(-2, 5, 4, 2); // Knauf
+                  ctx.fillStyle = '#e2e8f0';
+                  ctx.beginPath();
+                  ctx.moveTo(-0.5, 5);
+                  ctx.quadraticCurveTo(2, -8, -1, -15); // Klinge
+                  ctx.quadraticCurveTo(0, -8, -0.5, 5);
+                  ctx.closePath();
+                  ctx.fill();
+              } else if (selectedColor === 'blitz') {
+                  // Blitzschwert Item
+                  ctx.shadowBlur = 15 + pulse * 10;
+                  ctx.shadowColor = '#d946ef';
+                  ctx.fillStyle = '#fdf4ff';
+                  ctx.strokeStyle = '#d946ef';
+                  ctx.lineWidth = 1.5;
+                  ctx.beginPath();
+                  ctx.moveTo(-2, 0); ctx.lineTo(-4, -10); ctx.lineTo(0, -18);
+                  ctx.lineTo(4, -10); ctx.lineTo(2, 0);
+                  ctx.closePath();
+                  ctx.fill(); ctx.stroke();
+              } else {
+                  // Axt Item (Standard / Feuer)
+                  ctx.shadowBlur = 15 + pulse * 10;
+                  if (selectedColor === 'feuer') {
+                      ctx.shadowColor = '#f97316';
+                      ctx.fillStyle = '#7c2d12';
+                  } else {
+                      ctx.shadowColor = '#06b6d4';
+                      ctx.fillStyle = '#334155';
+                  }
+
+                  ctx.fillRect(-3, -16, 6, 32); // Griff
+
+                  if (selectedColor === 'feuer') {
+                      ctx.fillStyle = '#fde047';
+                      ctx.strokeStyle = '#ef4444';
+                  } else {
+                      ctx.fillStyle = '#e0f2fe';
+                      ctx.strokeStyle = '#06b6d4';
+                  }
+                  ctx.lineWidth = 2;
+                  ctx.beginPath();
+                  ctx.moveTo(3, -12); ctx.lineTo(16, -20); ctx.lineTo(22, -10);
+                  ctx.lineTo(16, 0); ctx.lineTo(3, -6);
+                  ctx.closePath();
+                  ctx.fill(); ctx.stroke();
+              }
+
+              ctx.restore();
+          });
+
+          // Münzen (Klassisch glänzendes Gold)
+          coinItems.forEach(c => {
+              ctx.save();
+              ctx.translate(c.x, c.y);
+
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#eab308';
+              ctx.fillStyle = '#f59e0b';
+              ctx.beginPath();
+              ctx.arc(0, 0, c.r, 0, Math.PI * 2);
+              ctx.fill();
+
+              // Innerer Goldring
+              ctx.strokeStyle = '#fef08a';
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.arc(0, 0, c.r - 3, 0, Math.PI * 2);
+              ctx.stroke();
+
+              ctx.restore();
+          });
+
+          // Partikel
+          particles.forEach(p => {
+              ctx.shadowBlur = 8;
+              ctx.shadowColor = p.color;
+              ctx.fillStyle = p.color;
+              const particleSize = p.size * (p.life / p.maxLife);
+
+              if (p.shape === 'fragment') {
+                  ctx.save();
+                  ctx.translate(p.x, p.y);
+                  ctx.rotate(p.rotation || 0);
+                  ctx.fillRect(-particleSize / 2, -particleSize / 2, particleSize, particleSize);
+                  ctx.restore();
+              } else {
+                  ctx.beginPath();
+                  ctx.arc(p.x, p.y, particleSize, 0, Math.PI * 2);
+                  ctx.fill();
+              }
+          });
+
+          ctx.shadowBlur = 0;
+      }
+
+      function gameLoop() {
+          update();
+          draw();
+          requestAnimationFrame(gameLoop);
+      }
+
+      // Startkonfiguration
+      resize();
+      updateColorTheme();
+      gameLoop();
     </script>
-</body>
+  </body>
 </html>
