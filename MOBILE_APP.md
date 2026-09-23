@@ -87,7 +87,7 @@ Do not merge or call the store build finished until all required checks are sati
 9. Signing, bundle identifiers, version numbers and store metadata are finalized.
 10. Signed App Store and Play Store release builds are produced.
 
-The current bundle identifier is `at.ibosay.quiz`. The native display name is `Quiz Arena`.
+The current bundle identifier is `at.ibosay.quiz`. The native display name is `Quiz Arena`. The synchronized Android and iOS marketing version is `1.0.0`, with initial native build number `1`.
 
 ## Splash screen
 
