@@ -298,6 +298,7 @@
                     if (selectedColor === 'schwarz') pColor = '#10b981'; // Smaragd
                     if (selectedColor === 'ssj') pColor = '#facc15'; // Gold/Gelb
                     if (selectedColor === 'overlord') pColor = '#a855f7'; // Violett Magie
+                    if (selectedColor === 'fighter') pColor = '#cbd5e1'; // Silber passend zum Kämpfer
 
                     for (let i = 0; i < 8; i++) {
                         particles.push({
@@ -1232,23 +1233,23 @@
                         ctx.shadowBlur = 10;
                         ctx.shadowColor = '#cbd5e1';
 
-                        // Brauner/Schwarzer Griff
+                        // Brauner/Schwarzer Griff, bewusst mit Abstand zum Körper
                         ctx.fillStyle = '#0f172a';
-                        ctx.fillRect(-2, 15, 4, 10);
+                        ctx.fillRect(-2, 27, 4, 10);
 
                         // Goldener Knauf
                         ctx.fillStyle = '#eab308';
-                        ctx.fillRect(-3, 23, 6, 3);
+                        ctx.fillRect(-3, 35, 6, 3);
                         ctx.beginPath();
-                        ctx.arc(0, 14, 3, 0, Math.PI); // Runder Abschluss
+                        ctx.arc(0, 26, 3, 0, Math.PI); // Runder Abschluss
                         ctx.fill();
 
                         // Leicht gebogene, silberne Klinge
                         ctx.fillStyle = '#e2e8f0';
                         ctx.beginPath();
-                        ctx.moveTo(-1, 26);
-                        ctx.quadraticCurveTo(-5, 40, 2, 50); // Gebogene Spitze
-                        ctx.quadraticCurveTo(0, 40, 1, 26);
+                        ctx.moveTo(-1, 38);
+                        ctx.quadraticCurveTo(-5, 52, 2, 62); // Gebogene Spitze
+                        ctx.quadraticCurveTo(0, 52, 1, 38);
                         ctx.closePath();
                         ctx.fill();
                     }
