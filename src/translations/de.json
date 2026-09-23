@@ -1624,5 +1624,8 @@
   "QuizMath.division": "Division",
   "QuizMath.fractions": "Bruchrechnung",
   "QuizMath.solution": "Rechenweg",
-  "QuizMath.explanation": "Lernhinweis"
+  "QuizMath.explanation": "Lernhinweis",
+  "QuizMath.xpTitle": "Dein Wissen lohnt sich",
+  "QuizMath.xpHelp": "500 XP = 1 Level. Beim Levelaufstieg erhältst du Wissenssterne. 1 Stern = 1 × 50:50.",
+  "QuizMath.xpNext": "Noch {xp} XP bis zum nächsten Level · Schwer: ein Joker pro Runde"
 }

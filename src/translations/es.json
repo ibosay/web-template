@@ -1624,5 +1624,8 @@
   "QuizMath.division": "División",
   "QuizMath.fractions": "Fracciones",
   "QuizMath.solution": "Procedimiento",
-  "QuizMath.explanation": "Explicación"
+  "QuizMath.explanation": "Explicación",
+  "QuizMath.xpTitle": "Tu conocimiento tiene recompensa",
+  "QuizMath.xpHelp": "500 XP = 1 nivel. Al subir de nivel recibes estrellas. 1 estrella = un uso de 50:50.",
+  "QuizMath.xpNext": "{xp} XP para el próximo nivel · Difícil: una ayuda por ronda"
 }

@@ -18,6 +18,18 @@ describe('Quiz Arena mobile V2', () => {
     window.localStorage.clear();
   });
 
+  it('requires a category choice and explains XP with simple controls', () => {
+    render(<QuizArenaLiveAppV2 />);
+    const start = screen.getByRole('button', {name:'Spiel starten'});
+    expect(start).toBeDisabled();
+    expect(document.querySelector('.categoryRow.active')).toBeNull();
+    expect(start.querySelector('svg')).toBeNull();
+    expect(screen.getByRole('button',{name:'Meine Statistik'}).textContent).toBe('Meine Statistik');
+    expect(screen.getByText(/500 XP = 1 Level/)).toBeInTheDocument();
+    fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
+    expect(start).toBeEnabled();
+  });
+
   it('contains the complete structured history learning pools without duplicate ids', () => {
     expect(historyCounts('Geschichte ww1')).toEqual({ total: 150, easy: 100, hard: 50 });
     expect(historyCounts('Geschichte ww2')).toEqual({ total: 150, easy: 100, hard: 50 });
@@ -68,6 +80,7 @@ describe('Quiz Arena mobile V2', () => {
     }));
 
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
 
     const joker = screen.getByRole('button', { name: '50:50 · 1 ★' });

@@ -1624,5 +1624,8 @@
   "QuizMath.division": "Division",
   "QuizMath.fractions": "Fractions",
   "QuizMath.solution": "Étapes de calcul",
-  "QuizMath.explanation": "Explication"
+  "QuizMath.explanation": "Explication",
+  "QuizMath.xpTitle": "Tes connaissances sont récompensées",
+  "QuizMath.xpHelp": "500 XP = 1 niveau. Chaque niveau apporte des étoiles. 1 étoile = une utilisation du 50:50.",
+  "QuizMath.xpNext": "{xp} XP avant le prochain niveau · Difficile : une aide par partie"
 }

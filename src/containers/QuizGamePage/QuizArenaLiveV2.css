@@ -17,3 +17,60 @@
     -webkit-text-fill-color: #f5f5f7;
   }
 }
+
+/* Clear home actions and calm category color accents. */
+.gameHome .playButton,
+.gameHome .statsButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 0;
+  min-height: 60px;
+  padding: 18px 24px;
+}
+.gameHome .playButton:disabled {
+  background: #d9e1eb;
+  color: #566578;
+  box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
+}
+.xpGuide {
+  margin: 0 0 24px;
+  padding: 16px 18px;
+  border: 1px solid #eedba5;
+  border-radius: 20px;
+  background: linear-gradient(120deg, #fff8e5, #fffdf6);
+  color: #6b4b15;
+}
+.xpGuide strong { font-size: 14px; }
+.xpGuide p { margin: 7px 0; font-size: 13px; line-height: 1.55; }
+.xpGuide small { display: block; font-size: 11px; line-height: 1.5; }
+.categoryRow[data-category] { --category-accent: #3765a5; --category-tint: #edf3ff; }
+.categoryRow[data-category='Islam'] { --category-accent: #17795a; --category-tint: #e6f5ed; }
+.categoryRow[data-category='Allgemeinwissen'] { --category-accent: #8056b2; --category-tint: #f1eafa; }
+.categoryRow[data-category='Geografie'] { --category-accent: #167a8a; --category-tint: #e5f5f7; }
+.categoryRow[data-category='Wissenschaft'] { --category-accent: #ad5426; --category-tint: #fff0e5; }
+.categoryRow[data-category='Mathe'] { --category-accent: #5256b3; --category-tint: #eeedff; }
+.categoryRow[data-category='Geschichte'] { --category-accent: #946319; --category-tint: #faf1dd; }
+.categoryRow[data-category='EU'] { --category-accent: #3065ba; --category-tint: #eaf1ff; }
+.categoryRow[data-category='Staatsbürgerschaft'] { --category-accent: #ad4860; --category-tint: #fcebf0; }
+.gameHome .categoryRow[data-category]:not(.active) {
+  border-left: 4px solid var(--category-accent);
+  background: linear-gradient(100deg, var(--category-tint), #fff 60%);
+}
+.gameHome .categoryRow[data-category]:not(.active) .categoryIcon {
+  color: var(--category-accent);
+  background: var(--category-tint);
+  border-radius: 12px;
+}
+:root[data-quiz-theme='dark'] .xpGuide { background: #30291d; border-color: #64532c; color: #f3d995; }
+:root[data-quiz-theme='dark'] .gameHome .categoryRow[data-category]:not(.active) {
+  background: #202126;
+}
+:root[data-quiz-theme='dark'] .gameHome .categoryRow[data-category]:not(.active) .categoryIcon {
+  background: var(--category-tint);
+  color: var(--category-accent);
+}
+:root[data-quiz-theme='dark'] .gameHome .playButton:disabled { background: #30333b; color: #a7b0be; }
