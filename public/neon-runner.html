@@ -388,6 +388,7 @@
       let axeItems = [];
       let axeSpawnTimer = 0;
       let playerHasAxe = false;
+      const axeDuration = 400;
       let axeTimer = 0;
       let axeAngle = 0;
 
@@ -1055,7 +1056,7 @@
               if (distX < (player.w / 2 + axe.w / 2) && distY < (player.h / 2 + axe.h / 2)) {
                   // Axt eingesammelt!
                   playerHasAxe = true;
-                  axeTimer = 400; // ca. 6.5 Sekunden unbesiegbar
+                  axeTimer = axeDuration; // ca. 6.5 Sekunden, volle Wirkung bis zum letzten Tick
 
                   // Feurige Glitzerpartikel
                   const fireColors = ['#fde047', '#f97316', '#ef4444']; // Gelb, Orange, Rot
@@ -1613,9 +1614,11 @@
               ctx.fill();
           }
 
-          // --- BEHOBEN: Sichtbare Axt um den Spieler, wenn aktiv ---
+          // Aktive Waffe: volle Wirkung bis zum Ende, visuell aber immer schwächer
           if (playerHasAxe) {
               ctx.save();
+              const weaponLifeRatio = Math.max(0, Math.min(1, axeTimer / axeDuration));
+              ctx.globalAlpha = Math.pow(weaponLifeRatio, 0.65);
               ctx.rotate(axeAngle);
 
               if (selectedColor === 'schwarz') {
@@ -1994,10 +1997,10 @@
                   ctx.closePath();
                   ctx.fill();
               } else if (selectedColor === 'overlord') {
-                  // Sense Item
-                  ctx.shadowBlur = 15 + pulse * 10;
+                  // Sense Item                  ctx.shadowBlur = 15 + pulse * 10;
                   ctx.shadowColor = '#9333ea';
-                  ctx.fillStyle = '#1e1b4b';                  ctx.fillRect(-1, -12, 2, 24); // Stiel
+                  ctx.fillStyle = '#1e1b4b';
+                  ctx.fillRect(-1, -12, 2, 24); // Stiel
                   ctx.fillStyle = '#d8b4fe';
                   ctx.beginPath();
                   ctx.moveTo(-1, -10);
