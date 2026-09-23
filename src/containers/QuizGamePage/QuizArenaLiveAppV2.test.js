@@ -32,6 +32,25 @@ describe('Quiz Arena mobile V2', () => {
     expect(start).toBeEnabled();
   });
 
+  it('shows the fifth-level bonus as the next reward', () => {
+    window.localStorage.setItem('quiz-arena-progress', JSON.stringify({
+      xp: 1500,
+      rounds: 0,
+      correct: 0,
+      bestStreak: 0,
+      gifts: 0,
+      stars: 0,
+      levelChests: 0,
+      wrong: 0,
+      jokerUses: 0,
+    }));
+
+    render(<QuizArenaLiveAppV2 />);
+
+    expect(screen.getByText('Noch 500 XP bis Level 5')).toBeInTheDocument();
+    expect(screen.getByText('Belohnung: +3 Wissenssterne + Levelkiste')).toBeInTheDocument();
+  });
+
   it('contains the complete structured history learning pools without duplicate ids', () => {
     expect(historyCounts('Geschichte ww1')).toEqual({ total: 150, easy: 100, hard: 50 });
     expect(historyCounts('Geschichte ww2')).toEqual({ total: 150, easy: 100, hard: 50 });
