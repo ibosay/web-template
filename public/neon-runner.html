@@ -99,7 +99,7 @@
           >
             Wähle deinen Charakter
           </p>
-          <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+          <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2">
             <button
               type="button"
               id="btnColorBlue"
@@ -192,6 +192,14 @@
               >
               Kämpfer
             </button>
+            <button
+              type="button"
+              id="btnColorHubschrauber"
+              class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"
+            >
+              <span class="text-base drop-shadow-[0_0_12px_rgba(14,165,233,1)]">🚁</span>
+              Heli
+            </button>
           </div>
         </div>
 
@@ -235,6 +243,7 @@
       const btnColorSSJ = document.getElementById('btnColorSSJ');
       const btnColorOverlord = document.getElementById('btnColorOverlord');
       const btnColorFighter = document.getElementById('btnColorFighter');
+      const btnColorHubschrauber = document.getElementById('btnColorHubschrauber');
       const startBtn = document.getElementById('startBtn');
 
       // Farbmodi
@@ -249,6 +258,7 @@
           btnColorSSJ.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
           btnColorOverlord.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
           btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+          btnColorHubschrauber.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden";
 
           if (selectedColor === 'blue') {
               btnColorBlue.className = "relative py-2 sm:py-3 rounded-xl border-2 border-cyan-400 bg-cyan-950/40 text-cyan-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(34,211,238,0.2)]";
@@ -278,6 +288,10 @@
               btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-300 bg-slate-800/60 text-slate-100 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(255,255,255,0.3)]";
               startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-400 hover:to-slate-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(255,255,255,0.4)] transition-all";
               scoreDisplay.className = "text-2xl font-black text-slate-200 tabular-nums";
+          } else if (selectedColor === 'hubschrauber') {
+              btnColorHubschrauber.className = "relative py-2 sm:py-3 rounded-xl border-2 border-lime-500 bg-lime-950/40 text-lime-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(132,204,22,0.2)]";
+              startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-lime-600 to-green-700 hover:from-lime-500 hover:to-green-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(132,204,22,0.4)] transition-all";
+              scoreDisplay.className = "text-2xl font-black text-lime-400 tabular-nums";
           } else {
               btnColorSchwarz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-emerald-400 bg-emerald-950/40 text-emerald-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(16,185,129,0.2)]";
               startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(16,185,129,0.4)] transition-all";
@@ -330,6 +344,12 @@
       btnColorFighter.addEventListener('click', (e) => {
           e.stopPropagation();
           selectedColor = 'fighter';
+          updateColorTheme();
+      });
+
+      btnColorHubschrauber.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectedColor = 'hubschrauber';
           updateColorTheme();
       });
 
@@ -667,6 +687,7 @@
                   if (selectedColor === 'ssj') pColor = '#facc15'; // Gold/Gelb
                   if (selectedColor === 'overlord') pColor = '#a855f7'; // Violett Magie
                   if (selectedColor === 'fighter') pColor = '#cbd5e1'; // Silber passend zum Kämpfer
+                  if (selectedColor === 'hubschrauber') pColor = '#bae6fd';
 
                   for (let i = 0; i < 8; i++) {
                       particles.push({
@@ -719,6 +740,7 @@
               case 'fighter': return 'spearman';
               case 'blitz': return 'tesla';
               case 'red': return 'ice';
+              case 'hubschrauber': return 'turret';
               default: return 'box';
           }
       }
@@ -778,7 +800,8 @@
               schwarz: ['#10b981', '#34d399', '#e2e8f0'],
               ssj: ['#facc15', '#fef08a', '#ffffff'],
               overlord: ['#9333ea', '#d8b4fe', '#ef4444'],
-              fighter: ['#f8fafc', '#cbd5e1', '#16a34a']
+              fighter: ['#f8fafc', '#cbd5e1', '#16a34a'],
+              hubschrauber: ['#65a30d', '#3f6212', '#ef4444']
           };
           const deathColors = colorSets[selectedColor] || colorSets.blue;
 
@@ -928,6 +951,9 @@
               } else if (variant === 'ice') {
                   obs.w = 38;
                   obs.h = 62;
+              } else if (variant === 'turret') {
+                  obs.w = 46;
+                  obs.h = 66;
               } else {
                   obs.w = Math.floor(Math.random() * 15) + 28;
                   obs.h = Math.floor(Math.random() * 28) + 40;
@@ -935,6 +961,25 @@
 
               obs.y = groundY - obs.h;
               obstacles.push(obs);
+
+              // Neue Hindernisse schieben bereits gespawnte Sammelobjekte aus ihrem Kollisionsbereich.
+              const safePad = 40;
+              coinItems.forEach(c => {
+                  if (c.x > obs.x - 35 && c.x < obs.x + obs.w + 35 && c.y > obs.y - safePad) {
+                      c.y = obs.y - safePad;
+                  }
+              });
+              axeItems.forEach(axe => {
+                  if (axe.x > obs.x - 35 && axe.x < obs.x + obs.w + 35 && axe.y > obs.y - safePad) {
+                      axe.y = obs.y - safePad;
+                  }
+              });
+              magnetItems.forEach(m => {
+                  if (m.x > obs.x - 35 && m.x < obs.x + obs.w + 35 && m.y > obs.y - safePad) {
+                      m.y = obs.y - safePad;
+                  }
+              });
+
               spawnTimer = Math.floor(Math.random() * 45) + 60;
           }
 
@@ -949,9 +994,19 @@
               const coinsInCluster = Math.floor(Math.random() * 4) + 1;
 
               for (let k = 0; k < coinsInCluster; k++) {
+                  const cX = width + 20 + (k * 35);
+                  let cY = baseCoinY - (k * 15);
+                  const safePad = 40;
+
+                  obstacles.forEach(obs => {
+                      if (cX > obs.x - 35 && cX < obs.x + obs.w + 35 && cY > obs.y - safePad) {
+                          cY = obs.y - safePad;
+                      }
+                  });
+
                   coinItems.push({
-                      x: width + 20 + (k * 35), // Leicht versetzt hintereinander
-                      y: baseCoinY - (k * 15), // Leichte Treppenform
+                      x: cX,
+                      y: cY,
                       r: 12,
                       angle: 0
                   });
@@ -962,9 +1017,19 @@
           // Äxte spawnen
           axeSpawnTimer--;
           if (axeSpawnTimer <= 0) {
+              const itemX = width + 20;
+              let itemY = groundY - 120;
+              const safePad = 40;
+
+              obstacles.forEach(obs => {
+                  if (itemX > obs.x - 35 && itemX < obs.x + obs.w + 35 && itemY > obs.y - safePad) {
+                      itemY = obs.y - safePad;
+                  }
+              });
+
               axeItems.push({
-                  x: width + 20,
-                  y: groundY - 120, // HÖHER gesetzt, sicher über den Hindernissen!
+                  x: itemX,
+                  y: itemY,
                   w: 24,
                   h: 24,
                   angle: 0
@@ -975,9 +1040,19 @@
           // Magnete spawnen
           magnetSpawnTimer--;
           if (magnetSpawnTimer <= 0) {
+              const itemX = width + 20;
+              let itemY = groundY - 130;
+              const safePad = 40;
+
+              obstacles.forEach(obs => {
+                  if (itemX > obs.x - 35 && itemX < obs.x + obs.w + 35 && itemY > obs.y - safePad) {
+                      itemY = obs.y - safePad;
+                  }
+              });
+
               magnetItems.push({
-                  x: width + 20,
-                  y: groundY - 130,
+                  x: itemX,
+                  y: itemY,
                   w: 24,
                   h: 24,
                   angle: 0
@@ -1017,7 +1092,9 @@
               ) {
                   if (playerHasAxe) {
                       // Hindernis zerstören! (Axt ist aktiv)
-                      const particleColor = selectedColor === 'blue' ? '#f43f5e' : '#06b6d4';
+                      const particleColor = selectedColor === 'hubschrauber'
+                          ? '#ef4444'
+                          : (selectedColor === 'blue' ? '#f43f5e' : '#06b6d4');
                       for (let p = 0; p < 15; p++) {
                           particles.push({
                               x: obs.x + obs.w / 2,
@@ -1205,6 +1282,9 @@
           } else if (selectedColor === 'fighter') {
               primaryColor = '#f8fafc'; // Silber/Weißes Leuchten
               obstacleColor = '#16a34a'; // Grünes Hindernis (Nationalfarben-Akzent)
+          } else if (selectedColor === 'hubschrauber') {
+              primaryColor = '#65a30d';
+              obstacleColor = '#ef4444';
           }
 
           // Hintergrund-Linien
@@ -1258,6 +1338,8 @@
                   ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 16);
               } else if (selectedColor === 'ssj') {
                   ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 4); // Eckiger für SSJ
+              } else if (selectedColor === 'hubschrauber') {
+                  ctx.ellipse(2, -4, player.w/2 + 2, player.h/2 - 6, 0, 0, Math.PI * 2);
               } else {
                   ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10);
               }
@@ -1604,6 +1686,95 @@
               ctx.arc(0, -player.h/2 - 10, 6, 0, Math.PI*2);
               ctx.fill();
 
+          } else if (selectedColor === 'hubschrauber') {
+              // Militärischer Heli aus der neuen Vorlage
+              const heliTime = Date.now();
+
+              ctx.shadowBlur = 0;
+              ctx.strokeStyle = '#94a3b8';
+              ctx.lineWidth = 2.5;
+              ctx.beginPath();
+              ctx.moveTo(-player.w/2, player.h/2 - 2);
+              ctx.lineTo(player.w/2, player.h/2 - 2);
+              ctx.stroke();
+              ctx.beginPath();
+              ctx.moveTo(-player.w/4, player.h/2 - 10);
+              ctx.lineTo(-player.w/4, player.h/2 - 2);
+              ctx.moveTo(player.w/4, player.h/2 - 10);
+              ctx.lineTo(player.w/4, player.h/2 - 2);
+              ctx.stroke();
+
+              ctx.shadowBlur = 15;
+              ctx.shadowColor = '#65a30d';
+              ctx.save();
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h - 10, 6);
+              ctx.clip();
+              ctx.fillStyle = '#65a30d';
+              ctx.fillRect(-player.w, -player.h, player.w*2, player.h*2);
+              ctx.fillStyle = '#3f6212';
+              ctx.beginPath();
+              ctx.arc(-10, -10, 15, 0, Math.PI*2);
+              ctx.fill();
+              ctx.beginPath();
+              ctx.arc(15, 5, 12, 0, Math.PI*2);
+              ctx.fill();
+              ctx.fillStyle = '#713f12';
+              ctx.beginPath();
+              ctx.arc(10, -15, 10, 0, Math.PI*2);
+              ctx.fill();
+              ctx.beginPath();
+              ctx.arc(-15, 10, 14, 0, Math.PI*2);
+              ctx.fill();
+              ctx.restore();
+
+              ctx.shadowBlur = 0;
+              ctx.strokeStyle = '#3f6212';
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h - 10, 6);
+              ctx.stroke();
+
+              ctx.fillStyle = '#0284c7';
+              ctx.beginPath();
+              ctx.roundRect(4, -player.h/2 + 4, player.w/2 - 8, player.h/2 - 4, 4);
+              ctx.fill();
+
+              ctx.fillStyle = '#3f6212';
+              ctx.fillRect(-player.w/2 - 16, -4, 16, 6);
+
+              ctx.save();
+              ctx.translate(-player.w/2 - 14, -1);
+              ctx.rotate(heliTime / 60);
+              for (let j = 0; j < 3; j++) {
+                  ctx.rotate((Math.PI * 2) / 3);
+                  ctx.fillStyle = 'rgba(200, 200, 200, 0.9)';
+                  ctx.beginPath();
+                  ctx.roundRect(0, -1.5, 12, 3, 1.5);
+                  ctx.fill();
+                  ctx.fillStyle = '#ef4444';
+                  ctx.beginPath();
+                  ctx.roundRect(9, -1.5, 3, 3, 1);
+                  ctx.fill();
+              }
+              ctx.restore();
+
+              ctx.save();
+              ctx.translate(0, -player.h/2);
+              ctx.fillStyle = '#475569';
+              ctx.fillRect(-2, -10, 4, 10);
+              ctx.translate(0, -10);
+              ctx.scale(Math.cos(heliTime / 30), 1);
+              ctx.fillStyle = 'rgba(200, 200, 200, 0.9)';
+              const bladeRadius = player.w + 10;
+              ctx.beginPath();
+              ctx.roundRect(-bladeRadius, -2, bladeRadius * 2, 4, 2);
+              ctx.fill();
+              ctx.fillStyle = '#ef4444';
+              ctx.fillRect(bladeRadius - 8, -2, 8, 4);
+              ctx.fillRect(-bladeRadius, -2, 8, 4);
+              ctx.restore();
+
           } else {
               // Normaler Charakter (Blau / Rot)
               ctx.shadowBlur = 20;
@@ -1703,6 +1874,41 @@
                   for (let i = 0; i < 2; i++) {
                       ctx.rotate(Math.PI);
                       fighterKindschal.draw(ctx, 0, 45, 0.58, 0);
+                  }
+              } else if (selectedColor === 'hubschrauber') {
+                  // Heli: zwei rotierende Raketen
+                  for (let i = 0; i < 2; i++) {
+                      ctx.rotate(Math.PI);
+                      ctx.save();
+                      ctx.translate(0, 35);
+                      ctx.rotate(Math.PI / 2);
+                      ctx.shadowBlur = 15;
+                      ctx.shadowColor = '#ef4444';
+                      ctx.fillStyle = '#cbd5e1';
+                      ctx.beginPath();
+                      ctx.moveTo(-12, -4);
+                      ctx.lineTo(8, -4);
+                      ctx.lineTo(14, 0);
+                      ctx.lineTo(8, 4);
+                      ctx.lineTo(-12, 4);
+                      ctx.closePath();
+                      ctx.fill();
+                      ctx.fillStyle = '#ef4444';
+                      ctx.beginPath();
+                      ctx.moveTo(8, -4);
+                      ctx.lineTo(14, 0);
+                      ctx.lineTo(8, 4);
+                      ctx.closePath();
+                      ctx.fill();
+                      const fire = Math.random() * 8 + 6;
+                      ctx.fillStyle = '#facc15';
+                      ctx.shadowColor = '#facc15';
+                      ctx.beginPath();
+                      ctx.moveTo(-12, -2);
+                      ctx.lineTo(-12 - fire, 0);
+                      ctx.lineTo(-12, 2);
+                      ctx.fill();
+                      ctx.restore();
                   }
               } else if (selectedColor === 'blitz') {
                   // Blitz: Energieschwert
@@ -1895,6 +2101,27 @@
                   ctx.lineTo(obs.x + obs.w + 1, obs.y + 12);
                   ctx.closePath();
                   ctx.fill();
+              } else if (obs.variant === 'turret') {
+                  // Heli: Bodenabwehr Geschütz
+                  ctx.shadowBlur = 14;
+                  ctx.shadowColor = '#ef4444';
+                  ctx.fillStyle = '#475569';
+                  ctx.beginPath();
+                  ctx.roundRect(obs.x, obs.y + 18, obs.w, obs.h - 18, 5);
+                  ctx.fill();
+                  ctx.fillStyle = '#334155';
+                  ctx.fillRect(obs.x - 5, obs.y + obs.h - 22, obs.w + 10, 22);
+                  ctx.save();
+                  ctx.translate(obs.x + obs.w / 2, obs.y + 18);
+                  ctx.rotate(-Math.PI / 4);
+                  ctx.fillStyle = '#1e293b';
+                  ctx.fillRect(-12, -8, 24, 16);
+                  ctx.fillStyle = '#ef4444';
+                  ctx.beginPath();
+                  ctx.arc(-12, -4, 4, Math.PI/2, Math.PI*1.5);
+                  ctx.arc(-12, 4, 4, Math.PI/2, Math.PI*1.5);
+                  ctx.fill();
+                  ctx.restore();
               } else if (obs.variant === 'ice') {
                   // Rot: Eiskristall
                   ctx.shadowBlur = 18;
@@ -2012,6 +2239,31 @@
                   // Einsammelbares Waffen Item: der echte Feuer Kindschal, keine Hülle
                   const pickupScale = 0.36 + pulse * 0.035;
                   fighterKindschal.draw(ctx, 0, 0, pickupScale, 0);
+              } else if (selectedColor === 'hubschrauber') {
+                  // Raketen Item
+                  ctx.shadowBlur = 15 + pulse * 10;
+                  ctx.shadowColor = '#ef4444';
+                  ctx.fillStyle = '#cbd5e1';
+                  ctx.beginPath();
+                  ctx.moveTo(-10, -3);
+                  ctx.lineTo(6, -3);
+                  ctx.lineTo(12, 0);
+                  ctx.lineTo(6, 3);
+                  ctx.lineTo(-10, 3);
+                  ctx.closePath();
+                  ctx.fill();
+                  ctx.fillStyle = '#ef4444';
+                  ctx.beginPath();
+                  ctx.moveTo(6, -3);
+                  ctx.lineTo(12, 0);
+                  ctx.lineTo(6, 3);
+                  ctx.fill();
+                  ctx.fillStyle = '#facc15';
+                  ctx.beginPath();
+                  ctx.moveTo(-10, -2);
+                  ctx.lineTo(-16, 0);
+                  ctx.lineTo(-10, 2);
+                  ctx.fill();
               } else if (selectedColor === 'blitz') {
                   // Blitzschwert Item
                   ctx.shadowBlur = 15 + pulse * 10;
