@@ -25,7 +25,9 @@ describe('Quiz Arena mobile V2', () => {
     expect(document.querySelector('.categoryRow.active')).toBeNull();
     expect(start.querySelector('svg')).toBeNull();
     expect(screen.getByRole('button',{name:'Meine Statistik'}).textContent).toBe('Meine Statistik');
-    expect(screen.getByText(/500 XP = 1 Level/)).toBeInTheDocument();
+    expect(screen.getByText('500 XP')).toBeInTheDocument();
+    expect(screen.getByText('Belohnung: +1 Wissensstern')).toBeInTheDocument();
+    expect(screen.getByText(/1 Wissensstern = 1 × 50:50/)).toBeInTheDocument();
     fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
     expect(start).toBeEnabled();
   });
