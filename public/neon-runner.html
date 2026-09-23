@@ -1578,8 +1578,8 @@
               ctx.fillStyle = '#020617';
               ctx.fillRect(-player.w/2, player.h/5, player.w, 4);
 
-              // Die komplette Kindschal Sprite sitzt sichtbar rechts neben dem Körper
-              fighterKindschal.draw(ctx, player.w / 2 + 15, 3, 0.43, 0.05);
+              // Kindschal etwas größer und näher am Körper
+              fighterKindschal.draw(ctx, player.w / 2 + 9, 3, 0.50, 0.035);
 
               // 5. Traditionelle tschetschenische Wollmütze (Kuy) auf dem Kopf
               ctx.shadowBlur = 8;
@@ -2001,20 +2001,9 @@
                   ctx.closePath();
                   ctx.fill();
               } else if (selectedColor === 'fighter') {
-                  // Schwert Item
-                  ctx.shadowBlur = 15 + pulse * 10;
-                  ctx.shadowColor = '#cbd5e1';
-                  ctx.fillStyle = '#0f172a';
-                  ctx.fillRect(-1, -2, 2, 8); // Griff
-                  ctx.fillStyle = '#eab308';
-                  ctx.fillRect(-2, 5, 4, 2); // Knauf
-                  ctx.fillStyle = '#e2e8f0';
-                  ctx.beginPath();
-                  ctx.moveTo(-0.5, 5);
-                  ctx.quadraticCurveTo(2, -8, -1, -15); // Klinge
-                  ctx.quadraticCurveTo(0, -8, -0.5, 5);
-                  ctx.closePath();
-                  ctx.fill();
+                  // Einsammelbares Waffen Item: der echte Feuer Kindschal, keine Hülle
+                  const pickupScale = 0.36 + pulse * 0.035;
+                  fighterKindschal.draw(ctx, 0, 0, pickupScale, 0);
               } else if (selectedColor === 'blitz') {
                   // Blitzschwert Item
                   ctx.shadowBlur = 15 + pulse * 10;
