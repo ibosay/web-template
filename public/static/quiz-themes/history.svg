@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1600" fill="none">
+<defs><linearGradient id="h" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#D0A15E"/><stop offset="1" stop-color="#8B5A2B"/></linearGradient></defs>
+<g opacity=".23" stroke="url(#h)" stroke-width="4" fill="none">
+       <path d="M120 620h660M160 620V310h580v310M210 310q240-210 480 0"/>
+       <path d="M225 620V370M330 620V350M450 620V330M570 620V350M675 620V370"/>
+       <path d="M105 650h690"/>
+     </g>
+     <g opacity=".22" stroke="#D0A15E" stroke-width="3" fill="none">
+       <path d="M130 910c80-70 145 40 230-20s150 65 245-10 150 30 190-40"/>
+       <path d="M115 1010c110-90 180 55 285-25s175 70 285-20 150 25 195-35"/>
+       <path d="M155 1180c120-100 190 40 320-50s220 80 310-30"/>
+     </g>
+     <g fill="#F4DFBD" opacity=".18">
+       <path d="M90 760h300v70H90zM510 760h300v70H510z"/>
+       <path d="M170 1280h560v120H170z"/>
+     </g>
+     <path d="M190 1315h520M190 1350h420M190 1385h500" stroke="#D0A15E" stroke-opacity=".22" stroke-width="3"/>
+</svg>
