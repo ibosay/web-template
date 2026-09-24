@@ -1,22 +1,24 @@
 [
   {
-    "name": "Start, explosion and restart",
+    "name": "Two lives, explosion and restart",
     "sanity": true,
     "viewport": "desktop",
     "covers": [
       "start",
       "score",
+      "two lives",
+      "temporary hit protection",
       "death explosion",
       "delayed game over",
       "restart and score reset"
     ],
-    "description": "A real collision shows the explosion before the result and allows a fresh round.",
+    "description": "The first collision costs one life, the second shows the explosion before the result.",
     "steps": [
       "Open the game and click STARTEN.",
-      "Let the character hit the first obstacle without jumping. Observe the impact and wait for GAME OVER.",
+      "Hit an obstacle without jumping. Check that Leben shows 1 and the game continues. During the brief flashing protection another overlap must not cost a life. Hit another obstacle after the protection ends, observe the explosion and wait for GAME OVER.",
       "Click NOCHMAL SPIELEN."
     ],
-    "expected": "Score increases during play. Collision visibly breaks the character into glowing pieces before the result appears. Restart hides the result and starts a fresh score and zero coins."
+    "expected": "Score increases during play. Collision visibly breaks the character into glowing pieces before the result appears. Restart hides the result and starts with two lives, a fresh score and zero coins."
   },
   {
     "name": "Nine original character themes",
@@ -51,8 +53,7 @@
       "jump limit guardrail",
       "character colored jump particles",
       "mobile layout",
-      "visible running gait",
-      "jump pose",
+      "no drawn arms or feet",
       "helicopter hover motion",
       "animated trail",
       "solid road surface",
@@ -62,12 +63,12 @@
     "description": "Touch controls keep the square character in view and enforce the air jump limit.",
     "steps": [
       "Select Kämpfer and start.",
-      "Watch the character on the ground before jumping: its feet and arms alternate and its body bounces slightly. Select Heli in another round to see it hover.",
+      "Watch the character on the ground and in the air: no extra hands or feet are drawn. Select Heli in another round to see it hover.",
       "Tap the playfield four times rapidly while airborne, then tap a fifth time.",
       "Let the character land or restart after collision, then jump again.",
-      "Check the road below the feet while running and jumping: the curb remains directly beneath the runner and the lane marks move across the asphalt."
+      "Check the road beneath the character while running and jumping: the curb remains directly beneath the runner and the lane marks move across the asphalt."
     ],
-    "expected": "The square fighter jumps on touch, displays silver white jump particles and visible fire dagger sparks. A fifth airborne tap adds no extra jump. Landing resets the jump allowance. Controls fit the mobile screen. The character visibly runs instead of sliding in place, shows a distinct airborne pose and a flowing trail; Heli hovers. Collision and jump control remain unchanged. The street has a solid darker surface, a curb at the foot contact line, a moving lane and a small shadow below the character."
+    "expected": "The square fighter jumps on touch, displays silver white jump particles and visible fire dagger sparks. A fifth airborne tap adds no extra jump. Landing resets the jump allowance. Controls fit the mobile screen. The characters have no added hands or feet, and the flowing trail and scrolling road convey motion; Heli hovers. Collision and jump control remain unchanged. The street has a solid darker surface, a curb under the character, a moving lane and a small shadow below the character."
   },
   {
     "name": "Coins, fire dagger bonus and magnet",
