@@ -660,3 +660,207 @@
   .categoryThemePreview h3{font-size:18px}
   .categoryThemePreview p{font-size:11px}
 }
+
+
+/* Full category world integration across home, rows, results and stats. */
+.categoryRow[data-category-theme]{
+  --row-accent:#3765a5;
+  --row-soft:#edf3ff;
+  --row-art:url('./quiz-themes/core.svg');
+  overflow:hidden;
+}
+.categoryRow[data-category-theme='islam']{--row-accent:#d8aa43;--row-soft:#f8efd1;--row-art:url('./quiz-themes/islam.svg')}
+.categoryRow[data-category-theme='general']{--row-accent:#8f63c7;--row-soft:#f2eafa;--row-art:url('./quiz-themes/general.svg')}
+.categoryRow[data-category-theme='geography']{--row-accent:#168b83;--row-soft:#e4f6f2;--row-art:url('./quiz-themes/geography.svg')}
+.categoryRow[data-category-theme='science']{--row-accent:#2aaed1;--row-soft:#e3f7fb;--row-art:url('./quiz-themes/science.svg')}
+.categoryRow[data-category-theme='math']{--row-accent:#5b67c8;--row-soft:#ebedff;--row-art:url('./quiz-themes/math.svg')}
+.categoryRow[data-category-theme='history']{--row-accent:#a67838;--row-soft:#f6ead5;--row-art:url('./quiz-themes/history.svg')}
+.categoryRow[data-category-theme='eu']{--row-accent:#356ecb;--row-soft:#e8efff;--row-art:url('./quiz-themes/eu.svg')}
+.categoryRow[data-category-theme='citizenship']{--row-accent:#b44e62;--row-soft:#f9e9ed;--row-art:url('./quiz-themes/citizenship.svg')}
+.categoryRow[data-category-theme]::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:0;
+  pointer-events:none;
+  opacity:.18;
+  background:
+    linear-gradient(90deg,transparent 46%,rgba(255,255,255,.42) 72%,rgba(255,255,255,.78)),
+    var(--row-art);
+  background-size:auto 180%;
+  background-position:right center;
+  background-repeat:no-repeat;
+}
+.categoryRow[data-category-theme] > *{position:relative;z-index:1}
+.gameHome .categoryRow[data-category-theme]:not(.active){
+  border-left:4px solid var(--row-accent);
+  background:linear-gradient(100deg,var(--row-soft),rgba(255,255,255,.94) 62%);
+}
+.gameHome .categoryRow[data-category-theme]:not(.active) .categoryIcon{
+  color:var(--row-accent);
+  background:var(--row-soft);
+  border-radius:12px;
+}
+.gameHome .categoryRow[data-category-theme].active{
+  border-color:var(--row-accent);
+  background:
+    linear-gradient(105deg,color-mix(in srgb,var(--row-accent) 88%,#10243a) 0 62%,color-mix(in srgb,var(--row-accent) 70%,#0b1524)),
+    var(--row-art);
+  background-size:cover,auto 180%;
+  background-position:center,right center;
+  color:#fff;
+  box-shadow:0 12px 30px color-mix(in srgb,var(--row-accent) 24%,transparent);
+}
+.gameHome .categoryRow[data-category-theme].active::before{
+  opacity:.22;
+  background:
+    linear-gradient(90deg,rgba(7,12,24,.62) 0 56%,rgba(7,12,24,.2)),
+    var(--row-art);
+  background-size:cover,auto 190%;
+  background-position:center,right center;
+}
+
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']){
+  position:relative;
+  isolation:isolate;
+  background:
+    linear-gradient(180deg,rgba(249,251,255,.96) 0%,rgba(246,249,253,.94) 50%,rgba(248,249,252,.98) 100%),
+    var(--qa-theme-art),
+    linear-gradient(160deg,var(--qa-theme-soft),#f5f8fc);
+  background-repeat:no-repeat,no-repeat,no-repeat;
+  background-position:center,center top,center;
+  background-size:cover,auto 760px,cover;
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .levelBox,
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .menuButton,
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .statsButton{
+  border-color:color-mix(in srgb,var(--qa-theme-accent) 24%,#fff);
+  box-shadow:0 8px 24px color-mix(in srgb,var(--qa-theme-accent) 11%,transparent);
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .levelBadge{
+  color:var(--qa-theme-accent);
+  background:color-mix(in srgb,var(--qa-theme-accent) 12%,#fff);
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .levelBox b,
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .gameHero h1 em,
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .drawerBrand em{
+  color:var(--qa-theme-accent);
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .levelBox .progressTrack > div{
+  background:linear-gradient(90deg,var(--qa-theme-accent-2),var(--qa-theme-accent));
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .playButton{
+  border-color:color-mix(in srgb,var(--qa-theme-accent) 45%,transparent);
+  background:linear-gradient(135deg,color-mix(in srgb,var(--qa-theme-accent-2) 88%,#123),var(--qa-theme-accent));
+  box-shadow:0 12px 30px color-mix(in srgb,var(--qa-theme-accent) 22%,transparent);
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .statsButton{
+  color:color-mix(in srgb,var(--qa-theme-accent) 82%,#203750);
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .difficultyQuickSwitch span.active{
+  color:color-mix(in srgb,var(--qa-theme-accent) 82%,#1d2d42);
+}
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .drawer .language.active,
+.gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']) .drawer .segmented button.active{
+  color:var(--qa-theme-accent);
+  background:color-mix(in srgb,var(--qa-theme-accent) 10%,#fff);
+}
+
+:root[data-quiz-theme='dark'] .gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']){
+  background:
+    linear-gradient(180deg,rgba(5,9,16,.9) 0%,rgba(5,9,16,.94) 52%,rgba(0,0,0,.98) 100%),
+    var(--qa-theme-art),
+    linear-gradient(160deg,var(--qa-theme-bg),#000);
+  background-repeat:no-repeat,no-repeat,no-repeat;
+  background-position:center,center top,center;
+  background-size:cover,auto 760px,cover;
+}
+:root[data-quiz-theme='dark'] .gameHome .categoryRow[data-category-theme]:not(.active){
+  border-left-color:var(--row-accent);
+  background:linear-gradient(100deg,color-mix(in srgb,var(--row-accent) 12%,#202126),#202126 62%);
+}
+:root[data-quiz-theme='dark'] .gameHome .categoryRow[data-category-theme]:not(.active)::before{
+  opacity:.12;
+  background:linear-gradient(90deg,transparent 46%,rgba(0,0,0,.25) 70%,rgba(0,0,0,.65)),var(--row-art);
+  background-size:auto 180%;
+  background-position:right center;
+}
+:root[data-quiz-theme='dark'] .gameHome .categoryRow[data-category-theme]:not(.active) .categoryIcon{
+  background:color-mix(in srgb,var(--row-accent) 17%,#202126);
+  color:color-mix(in srgb,var(--row-accent) 88%,#fff);
+}
+
+.appRoot.result[data-quiz-category-theme]{
+  background-image:
+    linear-gradient(180deg,rgba(2,8,18,.3),rgba(2,8,18,.74)),
+    var(--qa-theme-art),
+    linear-gradient(160deg,var(--qa-theme-bg),color-mix(in srgb,var(--qa-theme-panel) 82%,#000));
+  background-repeat:no-repeat,no-repeat,no-repeat;
+  background-position:center,center top,center;
+  background-size:cover,cover,cover;
+}
+.appRoot.result[data-quiz-category-theme]::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:radial-gradient(circle at 50% 14%,color-mix(in srgb,var(--qa-theme-accent) 18%,transparent),transparent 28%);
+}
+.appRoot.result[data-quiz-category-theme] > *{position:relative;z-index:1}
+.appRoot.result[data-quiz-category-theme] .trophy{
+  color:var(--qa-theme-accent);
+  background:color-mix(in srgb,var(--qa-theme-panel) 78%,transparent);
+  border:1px solid color-mix(in srgb,var(--qa-theme-accent) 35%,transparent);
+  box-shadow:0 10px 26px color-mix(in srgb,var(--qa-theme-accent) 18%,transparent);
+}
+.appRoot.result[data-quiz-category-theme] .resultStats>div{
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.appRoot.result[data-quiz-category-theme] .panel{
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.appRoot.result[data-quiz-category-theme] .rewardCard{
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.appRoot.result[data-quiz-category-theme] .progressTrack{
+  background:color-mix(in srgb,var(--qa-theme-panel-2) 70%,#000);
+}
+.appRoot.result[data-quiz-category-theme] .progressTrack>div{
+  background:linear-gradient(90deg,var(--qa-theme-accent-2),var(--qa-theme-accent));
+}
+
+.quizShell[data-quiz-category-theme] .dialog{
+  color:var(--qa-theme-text);
+  background:linear-gradient(145deg,color-mix(in srgb,var(--qa-theme-panel-2) 96%,transparent),var(--qa-theme-panel));
+  border:1px solid color-mix(in srgb,var(--qa-theme-accent) 30%,transparent);
+  box-shadow:0 28px 76px rgba(0,0,0,.5),0 0 30px color-mix(in srgb,var(--qa-theme-accent) 9%,transparent);
+}
+.quizShell[data-quiz-category-theme] .dialog p{color:var(--qa-theme-muted)}
+.quizShell[data-quiz-category-theme] .dialog .ghost{
+  color:var(--qa-theme-text);
+  background:color-mix(in srgb,var(--qa-theme-panel) 84%,transparent);
+}
+
+.categoryProgressRow[data-category-theme]{--stat-accent:#3765a5}
+.categoryProgressRow[data-category-theme='islam']{--stat-accent:#17795a}
+.categoryProgressRow[data-category-theme='general']{--stat-accent:#8056b2}
+.categoryProgressRow[data-category-theme='geography']{--stat-accent:#167a8a}
+.categoryProgressRow[data-category-theme='science']{--stat-accent:#2aaed1}
+.categoryProgressRow[data-category-theme='math']{--stat-accent:#5256b3}
+.categoryProgressRow[data-category-theme='history']{--stat-accent:#946319}
+.categoryProgressRow[data-category-theme='eu']{--stat-accent:#3065ba}
+.categoryProgressRow[data-category-theme='citizenship']{--stat-accent:#ad4860}
+.categoryProgressRow[data-category-theme] .categoryProgressCopy>span{color:var(--stat-accent)}
+.categoryProgressRow[data-category-theme] .miniProgress i{background:var(--stat-accent)}
+.categoryProgressRow[data-category-theme]{border-left:3px solid var(--stat-accent)}
+
+@media(max-width:430px){
+  .gameHome[data-quiz-category-theme]:not([data-quiz-category-theme='core']){
+    background-size:cover,auto 620px,cover;
+  }
+  .categoryRow[data-category-theme]::before{background-size:auto 150%}
+  .appRoot.result[data-quiz-category-theme]{background-size:cover,auto 100%,cover}
+}
