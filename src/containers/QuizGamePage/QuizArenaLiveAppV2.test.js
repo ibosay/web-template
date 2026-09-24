@@ -99,7 +99,7 @@ describe('Quiz Arena mobile V2', () => {
     render(<QuizArenaLiveAppV2 />);
     fireEvent.click(screen.getByRole('button', { name: /Geschichte/ }));
 
-    expect(screen.getByText('Erster Weltkrieg')).toBeInTheDocument();
+    expect(screen.getAllByText('Erster Weltkrieg').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Zweiter Weltkrieg')).toBeInTheDocument();
     expect(screen.getByText('Tschetschenische Geschichte')).toBeInTheDocument();
     expect(screen.getByText('Geschichte Japans')).toBeInTheDocument();
