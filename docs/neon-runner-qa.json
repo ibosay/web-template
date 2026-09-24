@@ -47,6 +47,8 @@
     "name": "Mobile jump limit and colored effects",
     "viewport": "mobile",
     "covers": [
+      "light touch responsiveness",
+      "single jump per tap",
       "touch control",
       "square canvas proportions",
       "up to four jumps",
@@ -64,11 +66,11 @@
     "steps": [
       "Select Kämpfer and start.",
       "Watch the character on the ground and in the air: no extra hands or feet are drawn. Select Heli in another round to see it hover.",
-      "Tap the playfield four times rapidly while airborne, then tap a fifth time.",
+      "Lightly tap the playfield once and check that one jump occurs immediately. Tap again after a brief pause, then tap twice more while airborne, followed by a fifth tap.",
       "Let the character land or restart after collision, then jump again.",
       "Check the road beneath the character while running and jumping: the curb remains directly beneath the runner and the lane marks move across the asphalt."
     ],
-    "expected": "The square fighter jumps on touch, displays silver white jump particles and visible fire dagger sparks. A fifth airborne tap adds no extra jump. Landing resets the jump allowance. Controls fit the mobile screen. The characters have no added hands or feet, and the flowing trail and scrolling road convey motion; Heli hovers. Collision and jump control remain unchanged. The street has a solid darker surface, a curb under the character, a moving lane and a small shadow below the character."
+    "expected": "A light tap makes the fighter jump immediately and only once, with silver white jump particles and visible fire dagger sparks. A fifth airborne tap adds no extra jump. Landing resets the jump allowance. Controls fit the mobile screen. The characters have no added hands or feet, and the flowing trail and scrolling road convey motion; Heli hovers. Collision and jump control remain unchanged. The street has a solid darker surface, a curb under the character, a moving lane and a small shadow below the character."
   },
   {
     "name": "Coins, fire dagger bonus and magnet",

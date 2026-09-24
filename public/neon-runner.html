@@ -1164,10 +1164,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 if (!isRunning && uiOverlay.style.display !== 'none') { startGame(); } else { jump(); }
             }
         });
+        let lastTouchInput = -Infinity;
+        function isGameTouchTarget(target) {
+            return !target.closest('#colorSelectArea, #startBtn, #qualityControl, #uiOverlay');
+        }
         root.addEventListener('pointerdown', (e) => {
-            if (e.target.closest('#colorSelectArea') || e.target.closest('#startBtn')) return;
-            if (isRunning) { jump(); }
+            if (!isRunning || !isGameTouchTarget(e.target)) return;
+            if (e.pointerType === 'touch') {
+                if (performance.now() - lastTouchInput < 80) return;
+                lastTouchInput = performance.now();
+            }
+            jump();
         });
+        // iOS can delay or omit pointerdown on very light taps. Handle touchstart
+        // immediately and ignore its paired pointer event so one tap is one jump.
+        window.addEventListener('touchstart', (e) => {
+            if (!isRunning || !isGameTouchTarget(e.target) || !e.touches.length) return;
+            e.preventDefault();
+            if (performance.now() - lastTouchInput < 80) return;
+            lastTouchInput = performance.now();
+            jump();
+        }, { passive: false });
         startBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
         function getObstacleVariant() {
             switch (selectedColor) {

@@ -27,3 +27,5 @@ Road revision: a solid dark asphalt surface, narrow glowing curb, moving lane ma
 Schattenkern revision: the ground pillar is now a plain indigo edged monolith without the internal diamond glyph. The playable character is a nearly black shadow with a gentle pulsing aura and no central symbol. The obstacle dimensions and collision polygons remain unchanged.
 
 Two lives per run: a collision removes one life and briefly flashes the character with about 1.8 seconds of hit protection. The second unprotected hit triggers the existing explosion and game over. The counter resets to two on restart. Extra drawn arms and feet and their body bob have been removed from all characters.
+
+Touch control: a light touch now triggers the jump immediately using the first touch event when necessary. The matching pointer event is ignored, so a single tap never consumes two of the four jumps. Menu buttons remain excluded from jump input.
