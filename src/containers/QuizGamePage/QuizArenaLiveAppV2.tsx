@@ -63,6 +63,31 @@ export const getQuizCategoryTheme=(category:string):QuizCategoryTheme=>{
   return 'core';
 };
 
+const CATEGORY_THEME_COPY={
+  DE:{
+    core:{eyebrow:'QUIZ ARENA',title:'Deine Quiz Welt',detail:'Ein Mix aus allen Wissensgebieten im Quiz Arena Stil.'},
+    islam:{eyebrow:'ISLAM FRAGEN',title:'Wissen · Verstehen · Anwenden',detail:'Ruhige Nachtwelt mit Gold, Mond und islamischer Architektur.'},
+    general:{eyebrow:'ALLGEMEINWISSEN',title:'Das Wissens Universum',detail:'Breites Wissen in einer modernen Quiz Studio Atmosphäre.'},
+    geography:{eyebrow:'GEOGRAFIE',title:'Entdecke die Welt',detail:'Karten, Topografie, Berge und Ozeane begleiten deine Runde.'},
+    science:{eyebrow:'WISSENSCHAFT',title:'Verstehe Zusammenhänge',detail:'Kosmos, Atome und Labor Elemente geben der Runde ihren Look.'},
+    math:{eyebrow:'MATHE',title:'Knifflig · Klar · Strukturiert',detail:'Geometrie, Raster und Formeln schaffen eine fokussierte Mathe Welt.'},
+    history:{eyebrow:'GESCHICHTE',title:'Vergangenheit verstehen',detail:'Archiv, Bronze und historische Architektur prägen diese Kategorie.'},
+    eu:{eyebrow:'EU',title:'Europa entdecken',detail:'Europablau, Gold und moderne Architektur bilden die Themenwelt.'},
+    citizenship:{eyebrow:'STAATSBÜRGERSCHAFT',title:'Wissen · Rechte · Verantwortung',detail:'Österreichische Civic Elemente mit Rot, Gold und Wiener Architektur.'},
+  },
+  EN:{
+    core:{eyebrow:'QUIZ ARENA',title:'Your quiz world',detail:'A mix of every knowledge area in the Quiz Arena style.'},
+    islam:{eyebrow:'ISLAM QUESTIONS',title:'Know · Understand · Apply',detail:'A calm night world with gold, moonlight and Islamic architecture.'},
+    general:{eyebrow:'GENERAL KNOWLEDGE',title:'The knowledge universe',detail:'Broad knowledge in a modern quiz studio atmosphere.'},
+    geography:{eyebrow:'GEOGRAPHY',title:'Discover the world',detail:'Maps, topography, mountains and oceans shape the round.'},
+    science:{eyebrow:'SCIENCE',title:'Understand connections',detail:'Cosmos, atoms and laboratory elements define the visual world.'},
+    math:{eyebrow:'MATH',title:'Clever · Clear · Structured',detail:'Geometry, grids and formulas create a focused math world.'},
+    history:{eyebrow:'HISTORY',title:'Understand the past',detail:'Archives, bronze and historic architecture shape this category.'},
+    eu:{eyebrow:'EU',title:'Discover Europe',detail:'European blue, gold and modern architecture build the theme.'},
+    citizenship:{eyebrow:'CITIZENSHIP',title:'Knowledge · Rights · Responsibility',detail:'Austrian civic elements with red, gold and Vienna architecture.'},
+  },
+} as const;
+
 const shuffle = <T,>(items:T[]) => {
   const result=[...items];
   for(let i=result.length-1;i>0;i-=1){const j=Math.floor(Math.random()*(i+1));[result[i],result[j]]=[result[j],result[i]];}
@@ -198,7 +223,9 @@ function QuizArenaLiveAppV2(){
 
   if(screen==='start'){
     const languages=[['DE','🇩🇪','Deutsch'],['EN','🇬🇧','English']];
-    return <main className={`shell appRoot gameHome font-${fontSize.toLowerCase()}`} data-quiz-category-theme={getQuizCategoryTheme(category)}>
+    const activeTheme=getQuizCategoryTheme(category);
+    const activeThemeCopy=CATEGORY_THEME_COPY[language][activeTheme];
+    return <main className={`shell appRoot gameHome font-${fontSize.toLowerCase()}`} data-quiz-category-theme={activeTheme}>
       <header className="homeTop"><div className="levelBox"><span className="levelBadge">{level}</span><div className="levelCopy"><strong>Level {level}</strong><small>{rank}</small><div className="progressTrack"><div style={{width:`${xpIntoLevel/5}%`}}/></div></div><div className="levelRewards"><b>★ {progress.stars}</b><small>{xpIntoLevel}/500 XP</small></div></div><button className="menuButton" onClick={()=>{setMenuPage('main');setMenuOpen(true)}} aria-label="Menu"><span/><span/><span/></button></header>
       <section className="gameHero"><BrandLogo className="brandLogoHome"/><div><h1>Quiz <em>Arena</em></h1><p>{t.tag}</p></div></section>
       <aside className="xpGuide">
@@ -236,6 +263,16 @@ function QuizArenaLiveAppV2(){
       citizenshipOpen?<><button className="categoryRow citizenshipBack" onClick={()=>setCitizenshipOpen(false)}><span className="categoryIcon">‹</span><span className="categoryName">{categoryLabel('Staatsbürgerschaft')}</span><span className="categoryCount">159</span><span className="categoryMark">⌃</span></button>{CITIZENSHIP_TOPICS.map(item=>{const active=category===item;return <button key={item} className={active?'categoryRow active citizenshipTopic':'categoryRow citizenshipTopic'} onClick={()=>setCategory(item)}><span className="categoryIcon"><CategoryIcon category={item}/></span><span className="categoryName">{categoryLabel(item)}</span><span className="categoryCount">{QUESTIONS.filter(q=>q.category===item).length}</span><span className={active?'categoryMark selected':'categoryMark'}>{active?'✓':'›'}</span></button>})}</>:
       CATEGORIES.map(item=>{const citizenship=item==='Staatsbürgerschaft';const history=item==='Geschichte';const math=item==='Mathe';const pool=math?eligibleQuestions('Mathe',difficulty,language):citizenship?QUESTIONS.filter(q=>q.category.startsWith('Staatsbürgerschaft')):history?QUESTIONS.filter(q=>q.category.startsWith('Geschichte ')):QUESTIONS.filter(q=>item==='Alle'||q.category===item);const count=citizenship?pool.length:pool.filter(q=>(language==='DE'||!expansionIds.has(q.id))&&(difficulty==='hard'?isHardQuestion(q):!isHardQuestion(q))).length;const active=math?category.startsWith('Mathe'):citizenship?category.startsWith('Staatsbürgerschaft'):history?category.startsWith('Geschichte '):category===item;const click=()=>{setMathOpen(false);if(math){setCategory('Mathe');setMathOpen(true);setHistoryOpen(false);setCitizenshipOpen(false)}else if(citizenship){if(!category.startsWith('Staatsbürgerschaft'))setCategory('Staatsbürgerschaft Österreich');setHistoryOpen(false);setCitizenshipOpen(true)}else if(history){if(!category.startsWith('Geschichte '))setCategory(HISTORY_TOPICS[0].key);setCitizenshipOpen(false);setHistoryOpen(true)}else{setHistoryOpen(false);setCitizenshipOpen(false);setCategory(item)}};return <button key={item} className={active?'categoryRow active':'categoryRow'} data-category={item} onClick={click}><span className="categoryIcon"><CategoryIcon category={item}/></span><span className="categoryName">{categoryLabel(item)}</span><span className="categoryCount">{count}</span><span className={active&&!citizenship&&!history&&!math?'categoryMark selected':'categoryMark'}>{citizenship||history||math?'›':active?'✓':'›'}</span></button>})}
       </div></section>
+      {category&&<section className="categoryThemePreview" aria-label={activeThemeCopy.eyebrow}>
+        <div className="categoryThemeScene" aria-hidden="true"/>
+        <div className="categoryThemePreviewCopy">
+          <span className="categoryThemeEyebrow"><CategoryIcon category={category}/>{activeThemeCopy.eyebrow}</span>
+          <strong>{categoryLabel(category)}</strong>
+          <h3>{activeThemeCopy.title}</h3>
+          <p>{activeThemeCopy.detail}</p>
+        </div>
+        <span className="categoryThemePreviewMark" aria-hidden="true">›</span>
+      </section>}
       <button className="playButton" disabled={!category} onClick={()=>{ensureAudio();startRound()}}>{t.play}</button>
       <button className="statsButton" onClick={()=>{setMenuPage('stats');setMenuOpen(true)}}>{t.stats}</button>
       {menuOpen&&<div className="drawerLayer" onClick={()=>{setMenuOpen(false);setMenuPage('main')}}><aside className="drawer" onClick={e=>e.stopPropagation()} aria-label={t.settings}><div className="drawerHead"><div className="drawerBrandRow"><BrandLogo className="brandLogoDrawer"/><div className="drawerBrandBlock"><b className="drawerBrand">Quiz <em>Arena</em></b><small>{t.tag}</small></div></div><button className="drawerClose" onClick={()=>{setMenuOpen(false);setMenuPage('main')}} aria-label="Menü schließen">×</button></div>
