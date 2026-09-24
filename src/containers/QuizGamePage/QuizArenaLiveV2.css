@@ -449,15 +449,15 @@
 
 
 /* Category scene artwork assets. */
-.appRoot[data-quiz-category-theme='core']{--qa-theme-art:url('/static/quiz-themes/core.svg')}
-.appRoot[data-quiz-category-theme='islam']{--qa-theme-art:url('/static/quiz-themes/islam.svg')}
-.appRoot[data-quiz-category-theme='general']{--qa-theme-art:url('/static/quiz-themes/general.svg')}
-.appRoot[data-quiz-category-theme='geography']{--qa-theme-art:url('/static/quiz-themes/geography.svg')}
-.appRoot[data-quiz-category-theme='science']{--qa-theme-art:url('/static/quiz-themes/science.svg')}
-.appRoot[data-quiz-category-theme='math']{--qa-theme-art:url('/static/quiz-themes/math.svg')}
-.appRoot[data-quiz-category-theme='history']{--qa-theme-art:url('/static/quiz-themes/history.svg')}
-.appRoot[data-quiz-category-theme='eu']{--qa-theme-art:url('/static/quiz-themes/eu.svg')}
-.appRoot[data-quiz-category-theme='citizenship']{--qa-theme-art:url('/static/quiz-themes/citizenship.svg')}
+.appRoot[data-quiz-category-theme='core']{--qa-theme-art:url('./quiz-themes/core.svg')}
+.appRoot[data-quiz-category-theme='islam']{--qa-theme-art:url('./quiz-themes/islam.svg')}
+.appRoot[data-quiz-category-theme='general']{--qa-theme-art:url('./quiz-themes/general.svg')}
+.appRoot[data-quiz-category-theme='geography']{--qa-theme-art:url('./quiz-themes/geography.svg')}
+.appRoot[data-quiz-category-theme='science']{--qa-theme-art:url('./quiz-themes/science.svg')}
+.appRoot[data-quiz-category-theme='math']{--qa-theme-art:url('./quiz-themes/math.svg')}
+.appRoot[data-quiz-category-theme='history']{--qa-theme-art:url('./quiz-themes/history.svg')}
+.appRoot[data-quiz-category-theme='eu']{--qa-theme-art:url('./quiz-themes/eu.svg')}
+.appRoot[data-quiz-category-theme='citizenship']{--qa-theme-art:url('./quiz-themes/citizenship.svg')}
 
 .quizShell[data-quiz-category-theme]{
   background-image:
