@@ -21,10 +21,15 @@
 #neon-runner-playable #qualityControl{position:absolute;top:12px;left:12px;z-index:30;color:#cbd5e1;font:700 13px system-ui,sans-serif}
 #neon-runner-playable #qualityControl[hidden],#neon-runner-playable #qualityPanel[hidden]{display:none}
 #neon-runner-playable #qualityToggle{min-height:40px;padding:7px 12px;border:1px solid #475569;border-radius:10px;background:#1e293b;color:#fff;font:inherit;cursor:pointer;touch-action:manipulation}
-#neon-runner-playable #qualityPanel{width:210px;max-width:calc(100vw - 24px);margin-top:8px;padding:12px;border:1px solid #475569;border-radius:12px;background:#0f172a;box-shadow:0 10px 25px rgba(0,0,0,.4)}
+#neon-runner-playable #qualityPanel{width:250px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 65px);overflow-y:auto;margin-top:8px;padding:12px;border:1px solid #475569;border-radius:12px;background:#0f172a;box-shadow:0 10px 25px rgba(0,0,0,.4);touch-action:pan-y}
 #neon-runner-playable #qualitySelect{display:block;width:100%;min-height:40px;margin-top:8px;padding:6px;border:1px solid #475569;border-radius:7px;background:#1e293b;color:#fff;font:inherit;touch-action:manipulation}
 #neon-runner-playable #qualityNotice{display:block;margin-top:7px;color:#fcd34d;font:11px system-ui,sans-serif}
 #neon-runner-playable #qualityNotice:empty{display:none}
+#neon-runner-playable #achievements{margin-top:12px;padding-top:10px;border-top:1px solid #475569;font:12px/1.4 system-ui,sans-serif}
+#neon-runner-playable #achievements h2{font-size:13px;font-weight:800;color:#f8fafc;margin:0 0 5px}
+#neon-runner-playable #achievementList{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:5px}
+#neon-runner-playable #achievementList li{display:flex;align-items:center;justify-content:space-between;gap:6px;list-style:none;padding:6px;border:1px solid #475569;border-radius:7px;color:#cbd5e1;font-size:11px;font-weight:500}
+#neon-runner-playable #achievementList li.unlocked{border-color:#fbbf24;color:#fde68a}
 #neon-runner-playable #legalNotice{margin-top:12px;border-top:1px solid #475569;padding-top:8px;font:11px system-ui,sans-serif;color:#cbd5e1;touch-action:pan-y}
 #neon-runner-playable #legalNotice summary{cursor:pointer;min-height:30px}
 #neon-runner-playable #legalNotice pre{max-height:135px;overflow:auto;white-space:pre-wrap;font:10px/1.4 system-ui,sans-serif;touch-action:pan-y}
@@ -912,6 +917,11 @@
                 <option value="max" selected>Maximal</option>
             </select>
             <span id="qualityNotice" role="status" aria-live="polite"></span>
+            <section id="achievements" aria-label="Erfolge">
+                <h2>Erfolge</h2>
+                <p id="achievementStats"></p>
+                <ul id="achievementList"></ul>
+            </section>
             <details id="legalNotice"><summary>Lizenzen und Rechtliches</summary>
                 <p>Die Spielfiguren und Effekte werden im Spiel gezeichnet. Für die Oberfläche wurde Tailwind CSS 3.4.17 beim Erstellen kompiliert.</p>
                 <pre>MIT License
@@ -971,6 +981,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         const qualityPanel = root.querySelector('#qualityPanel');
         const qualitySelect = root.querySelector('#qualitySelect');
         const qualityNotice = root.querySelector('#qualityNotice');
+        const achievementStats = root.querySelector('#achievementStats');
+        const achievementList = root.querySelector('#achievementList');
         const uiOverlay = root.querySelector('#uiOverlay');
         const titleText = root.querySelector('#titleText');
         const subtitleText = root.querySelector('#subtitleText');
@@ -1063,8 +1075,52 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         let graphicsQuality = 'max';
         let performanceThrottle = false;
         let slowFrames = 0;
-        let fastFrames = 0;
         let canvasScale = 1;
+        let skyGradient = null;
+        let skyTheme = '';
+        let skyHeight = 0;
+        const progress = { runs: 0, best: 0, coins: 0, jumps: 0, destroyed: 0 };
+        const achievementGoals = [
+            ['Erste Runde', 'runs', 1],
+            ['Goldsammler', 'coins', 25],
+            ['Sprungmeister', 'jumps', 100],
+            ['Hindernisbrecher', 'destroyed', 10],
+            ['Punktejäger', 'best', 1000],
+            ['Ausdauer', 'runs', 5]
+        ];
+        let runJumps = 0;
+        let runDestroyed = 0;
+        try {
+            const saved = JSON.parse(localStorage.getItem('veylumenAchievements') || '{}');
+            for (const key of Object.keys(progress)) {
+                const value = Number(saved[key]);
+                if (Number.isSafeInteger(value) && value >= 0) progress[key] = value;
+            }
+        } catch (_) { /* Spiel läuft auch ohne lokalen Speicher. */ }
+        function renderAchievements() {
+            achievementStats.textContent = `Runden: ${progress.runs}  ·  Rekord: ${progress.best}  ·  Münzen: ${progress.coins}`;
+            achievementList.replaceChildren();
+            for (const [name, key, goal] of achievementGoals) {
+                const item = document.createElement('li');
+                const current = Math.min(goal, progress[key]);
+                item.className = current >= goal ? 'unlocked' : '';
+                const title = document.createElement('span');
+                title.textContent = `${current >= goal ? '★' : '○'} ${name}`;
+                const count = document.createElement('span');
+                count.textContent = `${current}/${goal}`;
+                item.append(title, count);
+                achievementList.appendChild(item);
+            }
+        }
+        function recordRun() {
+            progress.runs++;
+            progress.best = Math.max(progress.best, Math.floor(score));
+            progress.coins += coins;
+            progress.jumps += runJumps;
+            progress.destroyed += runDestroyed;
+            try { localStorage.setItem('veylumenAchievements', JSON.stringify(progress)); } catch (_) {}
+            renderAchievements();
+        }
         try {
             const savedQuality = localStorage.getItem('neonRunnerGraphics');
             if (['weak', 'normal', 'max'].includes(savedQuality)) graphicsQuality = savedQuality;
@@ -1074,7 +1130,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             const mobile = isMobileScreen();
             let desired = graphicsQuality === 'weak' ? 1 : graphicsQuality === 'normal' ? (mobile ? 1.1 : 1.25) : (mobile ? 1.5 : 2);
             let pixelBudget = graphicsQuality === 'weak' ? 900000 : graphicsQuality === 'normal' ? 1400000 : mobile ? 1800000 : 2600000;
-            if(performanceThrottle) { desired=Math.min(desired,mobile ? 1 : 1.25);pixelBudget=Math.min(pixelBudget,1400000); }
+            if(performanceThrottle) { desired=Math.min(desired,mobile ? .85 : 1);pixelBudget=Math.min(pixelBudget,900000); }
             return Math.max(.7, Math.min(devicePixelRatio || 1, desired, Math.sqrt(pixelBudget / Math.max(1,width*height))));
         }
         function qualityShadow(value) {
@@ -1093,10 +1149,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             e.stopPropagation();
             qualityPanel.hidden = !qualityPanel.hidden;
             qualityToggle.setAttribute('aria-expanded', String(!qualityPanel.hidden));
+            if (!qualityPanel.hidden) renderAchievements();
         });
         qualitySelect.addEventListener('change', () => {
             graphicsQuality = qualitySelect.value;
-            performanceThrottle = false; slowFrames = 0; fastFrames = 0;
+            performanceThrottle = false; slowFrames = 0;
             try { localStorage.setItem('neonRunnerGraphics', graphicsQuality); } catch (_) {}
             applyGraphicsQuality();
         });
@@ -1154,6 +1211,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     }
                 }
                 player.jumpCount++;
+                runJumps++;
                 if (selectedColor === 'fighter') getFighterDagger().burst();
             }
         }
@@ -1178,7 +1236,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         });
         // iOS can delay or omit pointerdown on very light taps. Handle touchstart
         // immediately and ignore its paired pointer event so one tap is one jump.
-        window.addEventListener('touchstart', (e) => {
+        root.addEventListener('touchstart', (e) => {
             if (!isRunning || !isGameTouchTarget(e.target) || !e.touches.length) return;
             e.preventDefault();
             if (performance.now() - lastTouchInput < 80) return;
@@ -1570,7 +1628,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             qualityPanel.hidden = true;
             qualityToggle.setAttribute('aria-expanded', 'false');
             qualityControl.hidden = true;
-            resize(); isRunning = true; score = 0; coins = 0; lives = 2; hitProtection = 0; gameSpeed = 6.5; spawnTimer = 50; coinSpawnTimer = 30;
+            resize(); isRunning = true; score = 0; coins = 0; lives = 2; hitProtection = 0; runJumps = 0; runDestroyed = 0; gameSpeed = 6.5; spawnTimer = 50; coinSpawnTimer = 30;
             runTicks = 0; obstacleGroups = 0; lastObstacleKind = '';
             obstacles = []; coinItems = []; particles = [];
             axeItems = []; axeSpawnTimer = 300; playerHasAxe = false; axeTimer = 0; axeAngle = 0;
@@ -1580,6 +1638,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         }
         function gameOver() {
             isRunning = false;
+            recordRun();
             qualityControl.hidden = false;
             titleText.textContent = "GAME OVER";
             titleText.className = "text-5xl font-black text-rose-500 tracking-tight drop-shadow-[0_0_20px_rgba(244,63,94,0.5)]";
@@ -1647,7 +1706,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     if (playerHasAxe) {
                         const particleColor = WORLD_THEMES[selectedColor].hazard;
                         for (let p = 0; p < 15; p++) { particles.push({ x: obs.x + obs.w / 2, y: obs.y + obs.h / 2, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12 - 2, life: 30, maxLife: 30, color: particleColor, size: Math.random() * 6 + 3 }); }
-                        obstacles.splice(i, 1); score += 100; scoreDisplay.textContent = Math.floor(score); continue;
+                        obstacles.splice(i, 1); runDestroyed++; score += 100; scoreDisplay.textContent = Math.floor(score); continue;
                     } else { takeHit(); if (isDying) return; }
                 }
                 if (obs.x + obs.w < -20) obstacles.splice(i, 1);
@@ -1700,13 +1759,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             if (particles.length > particleLimit) particles.splice(0, particles.length - particleLimit);
         }
         function draw() {
-            ctx.clearRect(0, 0, width, height);
             const world = WORLD_THEMES[selectedColor] || WORLD_THEMES.blue;
             const primaryColor = world.primary, obstacleColor = world.hazard;
             if (graphicsQuality === 'max' && !performanceThrottle) {
-                const sky = ctx.createLinearGradient(0,0,0,groundY);
-                sky.addColorStop(0,world.sky[0]);sky.addColorStop(.65,world.sky[1]);sky.addColorStop(1,world.sky[2]);
-                ctx.fillStyle=sky;ctx.fillRect(0,0,width,height);
+                if (!skyGradient || skyTheme !== selectedColor || skyHeight !== groundY) {
+                    skyGradient = ctx.createLinearGradient(0,0,0,groundY);
+                    skyGradient.addColorStop(0,world.sky[0]);skyGradient.addColorStop(.65,world.sky[1]);skyGradient.addColorStop(1,world.sky[2]);
+                    skyTheme = selectedColor; skyHeight = groundY;
+                }
+                ctx.fillStyle=skyGradient;ctx.fillRect(0,0,width,height);
                 ctx.fillStyle=world.stars;
                 for(let i=0;i<35;i++){
                     const sx=(i*173+37)%width,sy=(i*97+31)%Math.max(1,groundY-25);
@@ -1726,10 +1787,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             ctx.fillRect(0,groundY+8,width,height-groundY-8);
             ctx.fillStyle=world.grid;ctx.globalAlpha=.8;
             ctx.fillRect(0,groundY+3,width,9);
-            ctx.fillStyle=primaryColor;ctx.globalAlpha=1;
-            ctx.shadowColor=primaryColor;ctx.shadowBlur=qualityShadow(12);
+            ctx.fillStyle=primaryColor;ctx.globalAlpha=.13;
+            ctx.fillRect(0,groundY-3,width,9);
+            ctx.globalAlpha=1;
             ctx.fillRect(0,groundY,width,3);
-            ctx.shadowBlur=0;ctx.globalAlpha=.35;
+            ctx.globalAlpha=.35;
             ctx.fillRect(0,groundY+12,width,1);
             const roadOffset=isRunning ? (runTicks*gameSpeed)%100 : 0;
             ctx.fillStyle=world.hazard;ctx.globalAlpha=.36;
@@ -1967,17 +2029,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 lastFrameTime = now; simulationRemainder = 0; lastDrawTime = 0;
                 if (root.isConnected) requestAnimationFrame(gameLoop); return;
             }
-            const deltaSeconds = lastFrameTime === null ? 1/60 : Math.min(.083,Math.max(0,(now-lastFrameTime)/1000));
+            const deltaSeconds = lastFrameTime === null ? 1/60 : Math.min(.05,Math.max(0,(now-lastFrameTime)/1000));
             lastFrameTime = now;
-            if(isRunning && graphicsQuality === 'max'){
-                if(deltaSeconds > .025) { slowFrames++;fastFrames=0; }
-                else if(deltaSeconds < .02) { fastFrames++;slowFrames=Math.max(0,slowFrames-2); }
-                if(!performanceThrottle && slowFrames>80){performanceThrottle=true;slowFrames=0;applyGraphicsQuality();}
-                if(performanceThrottle && fastFrames>480){performanceThrottle=false;fastFrames=0;applyGraphicsQuality();}
+            if(isRunning && !performanceThrottle){
+                if(deltaSeconds > .025) slowFrames++;
+                else slowFrames=Math.max(0,slowFrames-1);
+                if(slowFrames>35){performanceThrottle=true;slowFrames=0;applyGraphicsQuality();}
             }
-            simulationRemainder=Math.min(.083,simulationRemainder+deltaSeconds);
+            simulationRemainder=Math.min(.05,simulationRemainder+deltaSeconds);
             let steps=0;
-            while(simulationRemainder>=1/60 && steps<5){
+            while(simulationRemainder>=1/60 && steps<3){
                 if(selectedColor === 'fighter' && !deathEffect) getFighterDagger().update(1/60);
                 update(1/60);
                 simulationRemainder-=1/60;steps++;

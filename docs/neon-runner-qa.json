@@ -149,5 +149,25 @@
       "Continue into later play and watch for two obstacles in a short sequence. Jump over ground hazards or run beneath hovering hazards."
     ],
     "expected": "The first moments allow practice. Low spikes and flying hazards appear soon, with paired hazards later. The themed opponent still appears for the selected character. A path through each sequence remains reachable with four jumps."
+  },
+  {
+    "name": "Achievements in the menu",
+    "viewport": "mobile",
+    "covers": [
+      "achievement overview",
+      "round count",
+      "best score",
+      "coin total",
+      "jump total",
+      "weapon destruction",
+      "persistence after reload"
+    ],
+    "description": "The pregame menu records earned achievements locally after each finished round.",
+    "steps": [
+      "Open Menü before play and view Erfolge with six goal counters. Close the menu.",
+      "Start a round, jump and finish the run after the second hit.",
+      "Open Menü to confirm Erste Runde is unlocked. Reload the page and open Menü again."
+    ],
+    "expected": "Erfolge shows six goals with progress, the first completed round unlocks Erste Runde and the saved progress remains after reloading. The menu can close so character selection stays usable."
   }
 ]
