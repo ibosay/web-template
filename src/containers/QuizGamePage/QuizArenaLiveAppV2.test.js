@@ -44,6 +44,16 @@ describe('Quiz Arena mobile V2', () => {
     expect(start).toBeEnabled();
   });
 
+  it('shows the selected category world before starting', () => {
+    render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
+
+    const home = document.querySelector('.gameHome');
+    expect(home).toHaveAttribute('data-quiz-category-theme', 'islam');
+    expect(screen.getByText('Wissen · Verstehen · Anwenden')).toBeInTheDocument();
+    expect(document.querySelector('.categoryThemePreview')).toBeInTheDocument();
+  });
+
   it('shows the fifth-level bonus as the next reward', () => {
     window.localStorage.setItem('quiz-arena-progress', JSON.stringify({
       xp: 1500,
