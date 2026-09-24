@@ -183,6 +183,9 @@
 #neon-runner-playable .hidden {
     display: none
 }
+#neon-runner-playable .h-10 {
+    height: 2.5rem
+}
 #neon-runner-playable .h-2 {
     height: 0.5rem
 }
@@ -361,6 +364,10 @@
 }
 #neon-runner-playable .bg-slate-900\/90 {
     background-color: rgb(15 23 42 / 0.9)
+}
+#neon-runner-playable .bg-slate-950 {
+    --tw-bg-opacity: 1;
+    background-color: rgb(2 6 23 / var(--tw-bg-opacity, 1))
 }
 #neon-runner-playable .bg-slate-950\/85 {
     background-color: rgb(2 6 23 / 0.85)
@@ -631,6 +638,11 @@
     --tw-text-opacity: 1;
     color: rgb(255 255 255 / var(--tw-text-opacity, 1))
 }
+#neon-runner-playable .shadow {
+    --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
+}
 #neon-runner-playable .shadow-\[0_0_10px_\#22d3ee\] {
     --tw-shadow: 0 0 10px #22d3ee;
     --tw-shadow-colored: 0 0 10px var(--tw-shadow-color);
@@ -639,6 +651,11 @@
 #neon-runner-playable .shadow-\[0_0_10px_\#f43f5e\] {
     --tw-shadow: 0 0 10px #f43f5e;
     --tw-shadow-colored: 0 0 10px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
+}
+#neon-runner-playable .shadow-\[0_0_12px_\#818cf8\] {
+    --tw-shadow: 0 0 12px #818cf8;
+    --tw-shadow-colored: 0 0 12px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
 #neon-runner-playable .shadow-\[0_0_15px_rgba\(129\2c 140\2c 248\2c 0\.3\)\] {
@@ -735,10 +752,6 @@
     --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
     --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
-}
-#neon-runner-playable .drop-shadow-\[0_0_12px_rgba\(129\2c 140\2c 248\2c 1\)\] {
-    --tw-drop-shadow: drop-shadow(0 0 12px rgba(129,140,248,1));
-    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)
 }
 #neon-runner-playable .drop-shadow-\[0_0_12px_rgba\(255\2c 255\2c 255\2c 1\)\] {
     --tw-drop-shadow: drop-shadow(0 0 12px rgba(255,255,255,1));
@@ -924,7 +937,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     <button type="button" id="btnColorFeuer" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"><span class="text-base drop-shadow-[0_0_8px_rgba(249,115,22,1)] animate-pulse">🔥</span>Feuer</button>
                     <button type="button" id="btnColorSchwarz" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"><span class="text-base drop-shadow-[0_0_8px_rgba(16,185,129,1)]">⚔️</span>Ninja</button>
                     <button type="button" id="btnColorPrism" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(45,212,191,1)]">💠</span>Prisma</button>
-                    <button type="button" id="btnColorShade" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(129,140,248,1)]">◆</span><span class="text-[10px] sm:text-base">Schattenkern</span></button>
+                    <button type="button" id="btnColorShade" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="w-4 h-4 rounded-full bg-slate-950 border border-indigo-400 shadow-[0_0_12px_#818cf8]"></span><span class="text-[10px] sm:text-base">Schattenkern</span></button>
                     <button type="button" id="btnColorFighter" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(255,255,255,1)]">🐺</span>Kämpfer</button>
                     <button type="button" id="btnColorHubschrauber" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base">🚁</span>Heli</button>
                 </div>
@@ -1281,8 +1294,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 ctx.beginPath();ctx.moveTo(obs.x+4,obs.y);ctx.lineTo(obs.x+obs.w-4,obs.y);ctx.lineTo(obs.x+obs.w,obs.y+10);
                 ctx.lineTo(obs.x+obs.w,obs.y+obs.h);ctx.lineTo(obs.x,obs.y+obs.h);ctx.lineTo(obs.x,obs.y+10);ctx.closePath();ctx.fill();
                 ctx.strokeStyle='#a5b4fc';ctx.lineWidth=2.5;ctx.stroke();
-                ctx.beginPath();ctx.moveTo(obs.x+obs.w/2,obs.y+22);ctx.lineTo(obs.x+obs.w-8,obs.y+obs.h/2);
-                ctx.lineTo(obs.x+obs.w/2,obs.y+obs.h-22);ctx.lineTo(obs.x+8,obs.y+obs.h/2);ctx.closePath();ctx.stroke();
+                ctx.shadowBlur=0;ctx.fillStyle='rgba(165,180,252,.14)';
+                ctx.fillRect(obs.x+4,obs.y+5,4,obs.h-10);
             } else if (obs.variant === 'water') {
                 ctx.shadowBlur = qualityShadow(16);ctx.shadowColor='#38bdf8';ctx.fillStyle='#0ea5e9';ctx.beginPath();ctx.moveTo(obs.x,obs.y+obs.h);
                 ctx.quadraticCurveTo(obs.x+obs.w*.2,obs.y+10,obs.x+obs.w*.5,obs.y+20);
@@ -1786,16 +1799,20 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 ctx.shadowBlur=qualityShadow(7);ctx.fillStyle='#99f6e4';
                 for(let i=0;i<4;i++){const a=turn*.7+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*27,Math.sin(a)*27,2,0,Math.PI*2);ctx.fill();}
             } else if (selectedColor === 'shade') {
-                // A hovering mineral capsule with one central seam and no face or staff.
-                ctx.shadowBlur=qualityShadow(18);ctx.shadowColor='#818cf8';ctx.fillStyle='#1e293b';
-                ctx.beginPath();ctx.moveTo(0,-23);ctx.lineTo(19,-13);ctx.lineTo(21,14);
-                ctx.lineTo(0,23);ctx.lineTo(-21,14);ctx.lineTo(-19,-13);ctx.closePath();ctx.fill();
-                ctx.strokeStyle='#a5b4fc';ctx.lineWidth=2.5;ctx.stroke();
-                ctx.shadowBlur=qualityShadow(10);ctx.strokeStyle='#c7d2fe';ctx.lineWidth=3;
-                ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(0,16);ctx.moveTo(-10,-7);ctx.lineTo(0,0);ctx.lineTo(10,-7);ctx.stroke();
-                ctx.fillStyle='#818cf8';ctx.beginPath();ctx.arc(0,0,4,0,Math.PI*2);ctx.fill();
-                ctx.globalAlpha=.75;ctx.strokeStyle='#818cf8';ctx.lineWidth=1.5;
-                ctx.beginPath();ctx.ellipse(0,0,29,9,Math.sin(Date.now()/900)*.12,0,Math.PI*2);ctx.stroke();
+                // A featureless living shadow, surrounded by soft indigo mist.
+                const pulse=1+Math.sin(runTicks*.1)*.07;
+                ctx.save();ctx.scale(pulse,pulse);
+                ctx.shadowBlur=qualityShadow(20);ctx.shadowColor='#818cf8';
+                ctx.fillStyle='rgba(99,102,241,.22)';
+                ctx.beginPath();ctx.ellipse(0,0,33,29,0,0,Math.PI*2);ctx.fill();
+                ctx.fillStyle='rgba(129,140,248,.2)';
+                ctx.beginPath();ctx.ellipse(-6,-5,27,33,-.25,0,Math.PI*2);ctx.fill();
+                ctx.restore();
+                ctx.shadowBlur=qualityShadow(12);ctx.shadowColor='#6366f1';
+                ctx.fillStyle='#080c1b';ctx.beginPath();ctx.roundRect(-22,-22,44,44,16);ctx.fill();
+                ctx.strokeStyle='#818cf8';ctx.lineWidth=2;ctx.stroke();
+                ctx.shadowBlur=0;ctx.fillStyle='rgba(165,180,252,.11)';
+                ctx.beginPath();ctx.ellipse(-9,-5,7,15,-.2,0,Math.PI*2);ctx.fill();
             } else if (selectedColor === 'fighter') {
                 ctx.shadowBlur = qualityShadow(10); ctx.shadowColor = '#f8fafc'; ctx.fillStyle = '#1e293b';
                 ctx.beginPath(); ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6); ctx.fill();

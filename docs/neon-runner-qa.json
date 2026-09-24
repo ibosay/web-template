@@ -39,7 +39,7 @@
       "For each choice Blau, Rot, Blitz, Feuer, Ninja, Prisma, Schattenkern, Kämpfer and Heli, select the character, start a round and observe the figure and its first obstacle. After a collision choose the next character.",
       "Check each world in Schwach and Maximal: observe the sky, grid and the colors of later spikes and hovering hazards."
     ],
-    "expected": "All nine choices work. Prisma is a turquoise faceted machine core with no hair or clothes. Schattenkern is an indigo mineral capsule without a skull, face or staff. Their pickups, rotating weapons and matching barrier or monolith share those new designs. Each character has a distinct dark world with visible hazards in its color family. Fire water and red ice retain their recognizable colors with character color highlights. The title reads Veylumen and the MIT copyright and permission terms are available before starting."
+    "expected": "All nine choices work. Prisma is a turquoise faceted machine core with no hair or clothes. Schattenkern is a dark featureless shadow with a visible pulsing indigo aura, no skull, face or staff. Its monolith is plain, without a symbol. Existing pickups and weapon bonuses still work. Each character has a distinct dark world with visible hazards in its color family. Fire water and red ice retain their recognizable colors with character color highlights. The title reads Veylumen and the MIT copyright and permission terms are available before starting."
   },
   {
     "name": "Mobile jump limit and colored effects",
