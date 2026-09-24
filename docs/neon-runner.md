@@ -11,3 +11,5 @@ Includes nine characters and matching obstacles, including a helicopter and grou
 The deployment uses the existing AppDeploy html-static project and replaces index.html and tests/tests.json only. GitHub stores the same HTML at public/neon-runner.html. This is a source snapshot, not automatic GitHub deployment integration.
 
 Validation: Chromium mobile touch controls, square canvas scaling, fire animation, weapon pickup/protection, jump sparks, restart and delayed game over were tested before export. Deployment tests are in tests/tests.json.
+
+Graphics settings: Maximal is the default, with Normal and Schwach selectable from the menu or during play. The chosen setting is remembered locally. Mobile pixel budgets cap raster load; lower modes reduce glow, particles, trail length and frame rate. Sustained slow frames automatically reduce visual cost in Maximal and the tab stops simulating while hidden. Browser APIs do not expose device temperature, so thermal safety cannot be guaranteed; use Schwach if the phone feels warm.

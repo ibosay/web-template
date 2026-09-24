@@ -1,0 +1,110 @@
+[
+  {
+    "name": "Start, explosion and restart",
+    "sanity": true,
+    "viewport": "desktop",
+    "covers": [
+      "start",
+      "score",
+      "death explosion",
+      "delayed game over",
+      "restart and score reset"
+    ],
+    "description": "A real collision shows the explosion before the result and allows a fresh round.",
+    "steps": [
+      "Open the game and click STARTEN.",
+      "Let the character hit the first obstacle without jumping. Observe the impact and wait for GAME OVER.",
+      "Click NOCHMAL SPIELEN."
+    ],
+    "expected": "Score increases during play. Collision visibly breaks the character into glowing pieces before the result appears. Restart hides the result and starts a fresh score and zero coins."
+  },
+  {
+    "name": "Nine character themes",
+    "viewport": "desktop",
+    "covers": [
+      "nine character selections",
+      "matching obstacle variants",
+      "character colors"
+    ],
+    "description": "Each character selection starts a run with its own visuals and obstacle.",
+    "steps": [
+      "For each choice Blau, Rot, Blitz, Feuer, Ninja, Saiyajin, Overlord, Kämpfer and Heli, select the character, start a round and observe the first obstacle. After a collision choose the next character."
+    ],
+    "expected": "All nine choices work. Obstacles match: Blau neon block, Rot crystal, Blitz electricity pillar, Feuer water, Ninja samurai, Saiyajin energy barrier, Overlord pillar, Kämpfer spearman, Heli ground turret."
+  },
+  {
+    "name": "Mobile jump limit and colored effects",
+    "viewport": "mobile",
+    "covers": [
+      "touch control",
+      "square canvas proportions",
+      "up to four jumps",
+      "jump limit guardrail",
+      "character colored jump particles",
+      "mobile layout"
+    ],
+    "description": "Touch controls keep the square character in view and enforce the air jump limit.",
+    "steps": [
+      "Select Kämpfer and start.",
+      "Tap the playfield four times rapidly while airborne, then tap a fifth time.",
+      "Let the character land or restart after collision, then jump again."
+    ],
+    "expected": "The square fighter jumps on touch, displays silver white jump particles and visible fire dagger sparks. A fifth airborne tap adds no extra jump. Landing resets the jump allowance. Controls fit the mobile screen."
+  },
+  {
+    "name": "Coins, fire dagger bonus and magnet",
+    "viewport": "mobile",
+    "covers": [
+      "coin pickup",
+      "coin score bonus",
+      "weapon pickup and protection",
+      "weapon expiration",
+      "fighter fire dagger and scabbard",
+      "weapon distance",
+      "magnet pickup and coin attraction",
+      "magnet expiration"
+    ],
+    "description": "Collectibles give visible feedback and temporary bonuses during a normal run.",
+    "steps": [
+      "Select Kämpfer, start and use repeated jumps to survive and collect gold coins. Retry after a loss if needed.",
+      "Collect the rotating weapon pickup by jumping into it. Touch an obstacle while the weapon is active.",
+      "Continue until the weapon expires. Collect a magnet and observe nearby coins moving toward the fighter, then the attraction stopping when the effect expires."
+    ],
+    "expected": "Collected coins increase the coin counter and score. The fighter carries a flaming dagger separated from the body with a small sheath. The weapon bonus shows two orbiting fire daggers and destroys obstacles for bonus points while active. Its expiration removes the orbiting weapons. The magnet temporarily attracts nearby coins."
+  },
+  {
+    "name": "Samurai warning and sword attack",
+    "viewport": "desktop",
+    "covers": [
+      "ninja samurai proximity trigger",
+      "sword warning",
+      "sword swing and lunge",
+      "sword collision",
+      "jump avoidance"
+    ],
+    "description": "A nearby samurai visibly warns and attacks; the player can jump over its blade.",
+    "steps": [
+      "Select Ninja and start. Let the first samurai approach without jumping. Observe its warning, sword swing and short lunge, followed by the collision explosion.",
+      "Restart and use Space or ArrowUp to jump over the approaching samurai."
+    ],
+    "expected": "The samurai raises a warning before swinging and lunging nearby. A hit causes the visible explosion and delayed result. A jump above the enemy and sword avoids that attack."
+  },
+  {
+    "name": "Graphics levels and mobile power safeguards",
+    "viewport": "mobile",
+    "covers": [
+      "max normal weak graphics presets",
+      "quality persistence",
+      "mobile canvas pixel cap",
+      "adaptive load reduction",
+      "gameplay unchanged while switching"
+    ],
+    "description": "Graphics settings work during play without causing an extra jump or changing the game pace.",
+    "steps": [
+      "Open the game on a phone and check the graphics selector shows Maximal.",
+      "Start a round. Switch to Schwach and then Normal while staying in the game.",
+      "Choose Maximal again and reload the page."
+    ],
+    "expected": "All three choices are available and visible. Schwach reduces effects and draw workload, Normal restores a clearer image, Maximal restores richer visuals within a bounded mobile resolution. Changing the selector does not trigger a jump. The selected setting persists after reload."
+  }
+]
