@@ -1076,6 +1076,9 @@
         let gameSpeed = 6;
         let spawnTimer = 0;
         let coinSpawnTimer = 0;
+        let runTicks = 0;
+        let obstacleGroups = 0;
+        let lastObstacleKind = '';
         const player = { x: 80, y: 0, w: 44, h: 44, vy: 0, gravity: 0.72, jumpStrength: -13.5, doubleJumpStrength: -13.0, jumpCount: 0, maxJumps: 4, trail: [] };
         let obstacles = [];
         let coinItems = [];
@@ -1138,16 +1141,42 @@
                 default: return 'box';
             }
         }
-        function createObstacle() {
-            const variant = getObstacleVariant();
-            const sizes = {pillar:[30,82],water:[42,52],samurai:[40,68],energy:[34,66],spearman:[36,72],tesla:[30,76],ice:[34,58],turret:[46,66]};
+        function createObstacle(variant = getObstacleVariant(), offset = 0) {
+            const sizes = {pillar:[30,82],water:[42,52],samurai:[40,68],energy:[34,66],spearman:[36,72],tesla:[30,76],ice:[34,58],turret:[46,66],spike:[48,27],hover:[38,22]};
             let w, h;
             if (sizes[variant]) { [w,h] = sizes[variant]; }
             else { h = Math.floor(Math.random()*32)+38; w = Math.floor(Math.random()*15)+26; }
-            const obs = {type:'theme',variant,x:width+20,y:groundY-h,w,h};
+            const obs = {type:'theme',variant,x:width+20+offset,y:variant==='hover'?groundY-125:groundY-h,w,h};
+            if(variant==='hover'){obs.baseY=obs.y;obs.phase=Math.random()*Math.PI*2;}
             if(variant==='samurai')obs.attack={phase:'idle',ticks:0,angle:-1.2};
             obs.shapes = getObstacleShapes(obs);
             return obs;
+        }
+        function challengeTier() {
+            return runTicks < 180 ? 0 : runTicks < 720 ? 1 : runTicks < 1500 ? 2 : 3;
+        }
+        function chooseObstacleKind(tier) {
+            const themed = getObstacleVariant();
+            let kind = themed;
+            if(tier > 0){
+                const roll=Math.random();
+                kind=roll < .42 ? themed : roll < .72 ? 'spike' : 'hover';
+                if(kind === lastObstacleKind && Math.random() < .7) kind=kind==='hover' ? 'spike' : 'hover';
+            }
+            lastObstacleKind=kind;
+            return kind;
+        }
+        function spawnChallenge() {
+            const tier=challengeTier();
+            obstacleGroups++;
+            const kind=chooseObstacleKind(tier);
+            const group=[createObstacle(kind)];
+            // Zweierfolgen beginnen erst, wenn die Steuerung vertraut ist.
+            if((tier===2 && obstacleGroups%3===0) || (tier===3 && obstacleGroups%2===0)){
+                const next=kind==='hover' ? 'spike' : kind==='spike' ? getObstacleVariant() : 'hover';
+                group.push(createObstacle(next,240));
+            }
+            return group;
         }
         function getObstacleShapes(obs) {
             const {w,h,variant} = obs;
@@ -1171,6 +1200,8 @@
             if(variant==='tesla')return [rect(6,0,w-12,h)];
             if(variant==='ice')return [[[w/2,0],[w,h*.35],[w*.8,h],[w*.2,h],[0,h*.35]]];
             if(variant==='energy')return [rounded(12)];
+            if(variant==='spike')return Array.from({length:3},(_,i)=>[[i*16,h],[i*16+8,0],[i*16+16,h]]);
+            if(variant==='hover')return [Array.from({length:20},(_,i)=>[w/2+Math.cos(i*Math.PI/10)*w/2,h/2+Math.sin(i*Math.PI/10)*h/2])];
             if(variant==='turret')return [rect(0,18,w,h-18),rect(-5,h-22,w+10,22),rect(w/2-12,7,24,20)];
             if(variant==='box')return [rounded(6)];
             return [rect(0,0,w,h)];
@@ -1211,7 +1242,20 @@
         }
         function drawThemedObstacle(obs, obstacleColor) {
             ctx.save();
-            if (obs.variant === 'pillar') {
+            if (obs.variant === 'spike') {
+                const hazardColor=selectedColor==='feuer'?'#38bdf8':obstacleColor;
+                ctx.shadowBlur=qualityShadow(14);ctx.shadowColor=hazardColor;ctx.fillStyle=hazardColor;
+                for(let i=0;i<3;i++){
+                    const x=obs.x+i*16;
+                    ctx.beginPath();ctx.moveTo(x,obs.y+obs.h);ctx.lineTo(x+8,obs.y);ctx.lineTo(x+16,obs.y+obs.h);ctx.closePath();ctx.fill();
+                }
+                ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(obs.x+3,obs.y+obs.h-5,obs.w-6,2);
+            } else if (obs.variant === 'hover') {
+                const hazardColor=selectedColor==='feuer'?'#38bdf8':obstacleColor;
+                ctx.shadowBlur=qualityShadow(17);ctx.shadowColor=hazardColor;ctx.fillStyle=hazardColor;
+                ctx.beginPath();ctx.ellipse(obs.x+obs.w/2,obs.y+obs.h/2,obs.w/2,obs.h/2,0,0,Math.PI*2);ctx.fill();
+                ctx.shadowBlur=0;ctx.fillStyle='#f8fafc';ctx.beginPath();ctx.ellipse(obs.x+obs.w/2,obs.y+obs.h/2,7,4,0,0,Math.PI*2);ctx.fill();
+            } else if (obs.variant === 'pillar') {
                 ctx.shadowBlur = qualityShadow(16);ctx.shadowColor='#9333ea';ctx.fillStyle='#6b21a8';ctx.fillRect(obs.x,obs.y,obs.w,obs.h);
                 ctx.fillStyle='#c4b5fd';ctx.fillRect(obs.x+4,obs.y+8,obs.w-8,6);ctx.fillRect(obs.x+4,obs.y+obs.h-14,obs.w-8,6);
             } else if (obs.variant === 'water') {
@@ -1446,6 +1490,7 @@
             qualityToggle.setAttribute('aria-expanded', 'false');
             qualityControl.hidden = true;
             resize(); isRunning = true; score = 0; coins = 0; gameSpeed = 6.5; spawnTimer = 50; coinSpawnTimer = 30;
+            runTicks = 0; obstacleGroups = 0; lastObstacleKind = '';
             obstacles = []; coinItems = []; particles = [];
             axeItems = []; axeSpawnTimer = 300; playerHasAxe = false; axeTimer = 0; axeAngle = 0;
             magnetItems = []; magnetSpawnTimer = 600; playerHasMagnet = false; magnetTimer = 0;
@@ -1464,7 +1509,8 @@
         function update(deltaSeconds = 1/60) {
             if (isDying) { updateDeath(Math.min(.05, Math.max(0,deltaSeconds))); return; }
             if (!isRunning) return;
-            score += 0.2; scoreDisplay.textContent = Math.floor(score); gameSpeed += 0.0008;
+            runTicks++;
+            score += 0.2; scoreDisplay.textContent = Math.floor(score); gameSpeed = Math.min(9.5,gameSpeed+0.0008);
             player.vy += player.gravity; player.y += player.vy;
             if (player.y < 0) { player.y = 0; player.vy = 0; }
             if (player.y >= groundY - player.h) { player.y = groundY - player.h; player.vy = 0; player.jumpCount = 0; }
@@ -1478,14 +1524,18 @@
             }
             spawnTimer--;
             if (spawnTimer <= 0) {
-                const obs = createObstacle();
-                obstacles.push(obs);
-                // Sammelobjekte bleiben erreichbar, auch wenn zeitgleich ein Hindernis entsteht.
-                const clearPickup = item => {
-                    if(item.x > obs.x-35 && item.x < obs.x+obs.w+35 && item.y > obs.y-40) item.y=obs.y-40;
-                };
-                coinItems.forEach(clearPickup);axeItems.forEach(clearPickup);magnetItems.forEach(clearPickup);
-                spawnTimer = Math.floor(Math.random() * 45) + 60;
+                const tier=challengeTier();
+                for(const obs of spawnChallenge()){
+                    obstacles.push(obs);
+                    // Sammelobjekte bleiben erreichbar, auch bei kurzen Hindernisfolgen.
+                    const clearPickup = item => {
+                        if(item.x > obs.x-35 && item.x < obs.x+obs.w+35 && item.y > obs.y-40) item.y=obs.y-40;
+                    };
+                    coinItems.forEach(clearPickup);axeItems.forEach(clearPickup);magnetItems.forEach(clearPickup);
+                }
+                spawnTimer=tier===0 ? 72+Math.floor(Math.random()*22) :
+                    tier===1 ? 62+Math.floor(Math.random()*18) :
+                    tier===2 ? 64+Math.floor(Math.random()*16) : 58+Math.floor(Math.random()*13);
             }
             coinSpawnTimer--;
             if (coinSpawnTimer <= 0) {
@@ -1509,6 +1559,7 @@
             if (playerHasAxe) { axeTimer--; axeAngle += 0.25; if (axeTimer <= 0) { playerHasAxe = false; } }
             for (let i = obstacles.length - 1; i >= 0; i--) {
                 const obs = obstacles[i]; obs.x -= gameSpeed;
+                if(obs.variant==='hover')obs.y=obs.baseY+Math.sin(obs.phase+runTicks*.07)*9;
                 updateSamurai(obs);
                 if (obstacleHitsPlayer(obs)) {
                     if (playerHasAxe) {

@@ -109,5 +109,24 @@
       "After Game Over open Menü again, select Maximal and restart. Reload to verify the last choice persists."
     ],
     "expected": "All three graphics choices appear in the menu before play and after Game Over. The menu is hidden while playing. Schwach retains smooth movement and simplified effects. Maximal adds a gradient and small stars without rectangular background blocks. The selection persists after reload."
+  },
+  {
+    "name": "Obstacle variety and progressive challenge",
+    "viewport": "mobile",
+    "covers": [
+      "low spikes",
+      "hovering hazards",
+      "two obstacle sequences",
+      "gradual difficulty",
+      "fair jump routes",
+      "character themed enemies"
+    ],
+    "description": "The runner introduces new hazards and later combines them into avoidable sequences.",
+    "steps": [
+      "Start a round and observe the first themed obstacles.",
+      "Keep playing for several seconds and watch for low spikes and hovering hazards.",
+      "Continue into later play and watch for two obstacles in a short sequence. Jump over ground hazards or run beneath hovering hazards."
+    ],
+    "expected": "The first moments allow practice. Low spikes and flying hazards appear soon, with paired hazards later. The themed opponent still appears for the selected character. A path through each sequence remains reachable with four jumps."
   }
 ]
