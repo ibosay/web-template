@@ -24,13 +24,17 @@
     "covers": [
       "nine character selections",
       "matching obstacle variants",
-      "character colors"
+      "character colors",
+      "nine themed backgrounds",
+      "matching spike and hover colors",
+      "readable obstacle contrast"
     ],
     "description": "Each character selection starts a run with its own visuals and obstacle.",
     "steps": [
-      "For each choice Blau, Rot, Blitz, Feuer, Ninja, Saiyajin, Overlord, Kämpfer and Heli, select the character, start a round and observe the first obstacle. After a collision choose the next character."
+      "For each choice Blau, Rot, Blitz, Feuer, Ninja, Saiyajin, Overlord, Kämpfer and Heli, select the character, start a round and observe the first obstacle. After a collision choose the next character.",
+      "Check each world in Schwach and Maximal: observe the sky, grid and the colors of later spikes and hovering hazards."
     ],
-    "expected": "All nine choices work. Obstacles match: Blau neon block, Rot crystal, Blitz electricity pillar, Feuer water, Ninja samurai, Saiyajin energy barrier, Overlord pillar, Kämpfer spearman, Heli ground turret."
+    "expected": "All nine choices work. Obstacles match: Blau neon block, Rot crystal, Blitz electricity pillar, Feuer water, Ninja samurai, Saiyajin energy barrier, Overlord pillar, Kämpfer spearman, Heli ground turret. Each character has a distinct dark world with visible hazards in its color family. Fire water and red ice retain their recognizable colors with character color highlights."
   },
   {
     "name": "Mobile jump limit and colored effects",
