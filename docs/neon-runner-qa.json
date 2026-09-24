@@ -90,21 +90,24 @@
     "expected": "The samurai raises a warning before swinging and lunging nearby. A hit causes the visible explosion and delayed result. A jump above the enemy and sword avoids that attack."
   },
   {
-    "name": "Graphics levels and mobile power safeguards",
+    "name": "Graphics menu and smooth mobile play",
     "viewport": "mobile",
     "covers": [
+      "menu at top left before game",
       "max normal weak graphics presets",
       "quality persistence",
+      "menu hidden during game",
+      "smooth weak mode",
       "mobile canvas pixel cap",
       "adaptive load reduction",
-      "gameplay unchanged while switching"
+      "no background blocks"
     ],
-    "description": "Graphics settings work during play without causing an extra jump or changing the game pace.",
+    "description": "Graphics settings stay in the start and result menu while all play modes retain fluid animation.",
     "steps": [
-      "Open the game on a phone and check the graphics selector shows Maximal.",
-      "Start a round. Switch to Schwach and then Normal while staying in the game.",
-      "Choose Maximal again and reload the page."
+      "Open the game on a phone and open Menü at the top left. Set Grafikqualität to Schwach.",
+      "Start a round and observe the player moving smoothly without a settings control over the field.",
+      "After Game Over open Menü again, select Maximal and restart. Reload to verify the last choice persists."
     ],
-    "expected": "All three choices are available and visible. Schwach reduces effects and draw workload, Normal restores a clearer image, Maximal restores richer visuals within a bounded mobile resolution. Changing the selector does not trigger a jump. The selected setting persists after reload."
+    "expected": "All three graphics choices appear in the menu before play and after Game Over. The menu is hidden while playing. Schwach retains smooth movement and simplified effects. Maximal adds a gradient and small stars without rectangular background blocks. The selection persists after reload."
   }
 ]
