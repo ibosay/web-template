@@ -1,0 +1,158 @@
+name: Mobile Foundation Verify
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-foundation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-android:
+    name: Web tests, build, Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 22.22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: yarn
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Yarn 1
+        run: npm install --global yarn@1.22.22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --network-timeout 600000
+
+      - name: Run quiz test suite
+        env:
+          CI: 'true'
+        run: >
+          yarn test --runInBand --watchAll=false
+          src/containers/QuizGamePage/QuizGamePage.test.js
+          src/containers/QuizGamePage/QuizArenaLiveAppV2.test.js
+          src/containers/QuizGamePage/learningExpansion.test.js
+          src/containers/QuizGamePage/quizScoring.test.js
+          src/containers/QuizGamePage/quizQuestions.test.js
+          src/containers/QuizGamePage/quizProgression.test.js
+          src/containers/QuizGamePage/quizAchievements.test.js
+          src/containers/QuizGamePage/quizSettings.test.js
+
+      - name: Build production web bundle
+        env:
+          CI: 'true'
+          NODE_ENV: production
+        run: yarn build-web
+
+      - name: Verify Android project is committed
+        run: test -d android
+
+      - name: Sync Capacitor Android plugins
+        run: npx cap sync android
+
+      - name: Verify Android project is reproducible
+        run: git diff --exit-code -- android
+
+      - name: Inspect Capacitor Android plugins
+        run: npx cap ls android
+
+      - name: Build Android debug app
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+  ios:
+    name: iOS sync, build, simulator
+    needs: web-android
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 22.22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: yarn
+
+      - name: Install Yarn 1
+        run: npm install --global yarn@1.22.22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --network-timeout 600000
+
+      - name: Build production web bundle
+        env:
+          CI: 'true'
+          NODE_ENV: production
+        run: yarn build-web
+
+      - name: Verify iOS project is committed
+        run: test -d ios
+
+      - name: Sync Capacitor iOS plugins
+        run: npx cap sync ios
+
+      - name: Verify iOS project is reproducible
+        run: git diff --exit-code -- ios
+
+      - name: Inspect Capacitor iOS plugins
+        run: npx cap ls ios
+
+      - name: Build iOS Simulator app
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Debug
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Launch iOS app in Simulator
+        shell: bash
+        run: |
+          UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPhone .*\(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          if [ -z "$UDID" ]; then
+            echo "No available iPhone simulator found"
+            exit 1
+          fi
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          READY=0
+          for attempt in {1..30}; do
+            if xcrun simctl getenv "$UDID" HOME >/dev/null 2>&1; then
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Simulator did not become ready within 60 seconds"
+            exit 1
+          fi
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Debug-iphonesimulator/App.app' -print -quit)"
+          test -n "$APP_PATH"
+          xcrun simctl install "$UDID" "$APP_PATH"
+          xcrun simctl launch "$UDID" at.ibosay.quiz
+          sleep 5

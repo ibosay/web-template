@@ -1,33 +1,10 @@
 @import '../../styles/customMediaQueries.css';
 
 .layoutWrapperMain {
-  min-height: calc(100vh - var(--topbarHeight));
-
-  @media (--viewportMedium) {
-    min-height: calc(100vh - var(--topbarHeightDesktop));
-  }
+  min-height: 100vh;
+  background: #f2f2f7;
 }
 
-.root {
-  max-width: 600px;
-  margin: 0 auto;
-  padding: 24px 24px 48px 24px;
-
-  @media (--viewportMedium) {
-    padding: 48px 24px 72px 24px;
-  }
-}
-
-.title {
-  margin: 0;
-}
-
-.subtitle {
-  composes: p from global;
-  margin: 6px 0 24px 0;
-  color: var(--colorGrey700);
-
-  @media (--viewportMedium) {
-    margin: 8px 0 32px 0;
-  }
+:global(:root[data-quiz-theme='dark']) .layoutWrapperMain {
+  background: #000;
 }
