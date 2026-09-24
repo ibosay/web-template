@@ -19,22 +19,27 @@
     "expected": "Score increases during play. Collision visibly breaks the character into glowing pieces before the result appears. Restart hides the result and starts a fresh score and zero coins."
   },
   {
-    "name": "Nine character themes",
+    "name": "Nine original character themes",
     "viewport": "desktop",
     "covers": [
       "nine character selections",
       "matching obstacle variants",
       "character colors",
+      "original prism and shadow core",
+      "absence of former character designs",
       "nine themed backgrounds",
       "matching spike and hover colors",
-      "readable obstacle contrast"
+      "readable obstacle contrast",
+      "distinct game title",
+      "legal notice with Tailwind MIT terms"
     ],
-    "description": "Each character selection starts a run with its own visuals and obstacle.",
+    "description": "Each character starts a round with its own world and independently drawn visuals.",
     "steps": [
-      "For each choice Blau, Rot, Blitz, Feuer, Ninja, Saiyajin, Overlord, Kämpfer and Heli, select the character, start a round and observe the first obstacle. After a collision choose the next character.",
+      "Confirm Veylumen appears as the title. Open Menü and expand Lizenzen und Rechtliches to read the complete Tailwind CSS MIT notice.",
+      "For each choice Blau, Rot, Blitz, Feuer, Ninja, Prisma, Schattenkern, Kämpfer and Heli, select the character, start a round and observe the figure and its first obstacle. After a collision choose the next character.",
       "Check each world in Schwach and Maximal: observe the sky, grid and the colors of later spikes and hovering hazards."
     ],
-    "expected": "All nine choices work. Obstacles match: Blau neon block, Rot crystal, Blitz electricity pillar, Feuer water, Ninja samurai, Saiyajin energy barrier, Overlord pillar, Kämpfer spearman, Heli ground turret. Each character has a distinct dark world with visible hazards in its color family. Fire water and red ice retain their recognizable colors with character color highlights."
+    "expected": "All nine choices work. Prisma is a turquoise faceted machine core with no hair or clothes. Schattenkern is an indigo mineral capsule without a skull, face or staff. Their pickups, rotating weapons and matching barrier or monolith share those new designs. Each character has a distinct dark world with visible hazards in its color family. Fire water and red ice retain their recognizable colors with character color highlights. The title reads Veylumen and the MIT copyright and permission terms are available before starting."
   },
   {
     "name": "Mobile jump limit and colored effects",

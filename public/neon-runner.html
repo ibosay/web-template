@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0f172a">
-<title>Neon Runner</title>
+<title>Veylumen</title>
 <style>html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#0f172a;}
 @media(max-height:520px){#neon-runner-playable #uiOverlay{overflow-y:auto;justify-content:flex-start;touch-action:pan-y;}#neon-runner-playable #uiOverlay>div{margin:auto;}}</style>
 </head>
@@ -25,6 +25,9 @@
 #neon-runner-playable #qualitySelect{display:block;width:100%;min-height:40px;margin-top:8px;padding:6px;border:1px solid #475569;border-radius:7px;background:#1e293b;color:#fff;font:inherit;touch-action:manipulation}
 #neon-runner-playable #qualityNotice{display:block;margin-top:7px;color:#fcd34d;font:11px system-ui,sans-serif}
 #neon-runner-playable #qualityNotice:empty{display:none}
+#neon-runner-playable #legalNotice{margin-top:12px;border-top:1px solid #475569;padding-top:8px;font:11px system-ui,sans-serif;color:#cbd5e1;touch-action:pan-y}
+#neon-runner-playable #legalNotice summary{cursor:pointer;min-height:30px}
+#neon-runner-playable #legalNotice pre{max-height:135px;overflow:auto;white-space:pre-wrap;font:10px/1.4 system-ui,sans-serif;touch-action:pan-y}
 
 #neon-runner-playable *, #neon-runner-playable ::before, #neon-runner-playable ::after {
     --tw-border-spacing-x: 0;
@@ -180,9 +183,6 @@
 #neon-runner-playable .hidden {
     display: none
 }
-#neon-runner-playable .h-16 {
-    height: 4rem
-}
 #neon-runner-playable .h-2 {
     height: 0.5rem
 }
@@ -194,6 +194,9 @@
 }
 #neon-runner-playable .h-60 {
     height: 15rem
+}
+#neon-runner-playable .h-9 {
+    height: 2.25rem
 }
 #neon-runner-playable .h-screen {
     height: 100vh
@@ -286,6 +289,10 @@
     --tw-border-opacity: 1;
     border-color: rgb(217 70 239 / var(--tw-border-opacity, 1))
 }
+#neon-runner-playable .border-indigo-400 {
+    --tw-border-opacity: 1;
+    border-color: rgb(129 140 248 / var(--tw-border-opacity, 1))
+}
 #neon-runner-playable .border-lime-500 {
     --tw-border-opacity: 1;
     border-color: rgb(132 204 22 / var(--tw-border-opacity, 1))
@@ -293,10 +300,6 @@
 #neon-runner-playable .border-orange-500 {
     --tw-border-opacity: 1;
     border-color: rgb(249 115 22 / var(--tw-border-opacity, 1))
-}
-#neon-runner-playable .border-purple-500 {
-    --tw-border-opacity: 1;
-    border-color: rgb(168 85 247 / var(--tw-border-opacity, 1))
 }
 #neon-runner-playable .border-rose-500 {
     --tw-border-opacity: 1;
@@ -314,9 +317,9 @@
     --tw-border-opacity: 1;
     border-color: rgb(30 41 59 / var(--tw-border-opacity, 1))
 }
-#neon-runner-playable .border-yellow-400 {
+#neon-runner-playable .border-teal-300 {
     --tw-border-opacity: 1;
-    border-color: rgb(250 204 21 / var(--tw-border-opacity, 1))
+    border-color: rgb(94 234 212 / var(--tw-border-opacity, 1))
 }
 #neon-runner-playable .bg-cyan-400 {
     --tw-bg-opacity: 1;
@@ -331,14 +334,14 @@
 #neon-runner-playable .bg-fuchsia-950\/40 {
     background-color: rgb(74 4 78 / 0.4)
 }
+#neon-runner-playable .bg-indigo-950\/40 {
+    background-color: rgb(30 27 75 / 0.4)
+}
 #neon-runner-playable .bg-lime-950\/40 {
     background-color: rgb(26 46 5 / 0.4)
 }
 #neon-runner-playable .bg-orange-950\/40 {
     background-color: rgb(67 20 7 / 0.4)
-}
-#neon-runner-playable .bg-purple-950\/40 {
-    background-color: rgb(59 7 100 / 0.4)
 }
 #neon-runner-playable .bg-rose-500 {
     --tw-bg-opacity: 1;
@@ -362,8 +365,8 @@
 #neon-runner-playable .bg-slate-950\/85 {
     background-color: rgb(2 6 23 / 0.85)
 }
-#neon-runner-playable .bg-yellow-950\/40 {
-    background-color: rgb(66 32 6 / 0.4)
+#neon-runner-playable .bg-teal-950\/40 {
+    background-color: rgb(4 47 46 / 0.4)
 }
 #neon-runner-playable .bg-gradient-to-r {
     background-image: linear-gradient(to right, var(--tw-gradient-stops))
@@ -388,6 +391,11 @@
     --tw-gradient-to: rgb(217 70 239 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
+#neon-runner-playable .from-indigo-500 {
+    --tw-gradient-from: #6366f1 var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(99 102 241 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
+}
 #neon-runner-playable .from-lime-600 {
     --tw-gradient-from: #65a30d var(--tw-gradient-from-position);
     --tw-gradient-to: rgb(101 163 13 / 0) var(--tw-gradient-to-position);
@@ -396,11 +404,6 @@
 #neon-runner-playable .from-orange-500 {
     --tw-gradient-from: #f97316 var(--tw-gradient-from-position);
     --tw-gradient-to: rgb(249 115 22 / 0) var(--tw-gradient-to-position);
-    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
-}
-#neon-runner-playable .from-purple-600 {
-    --tw-gradient-from: #9333ea var(--tw-gradient-from-position);
-    --tw-gradient-to: rgb(147 51 234 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
 #neon-runner-playable .from-rose-500 {
@@ -413,9 +416,9 @@
     --tw-gradient-to: rgb(100 116 139 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
-#neon-runner-playable .from-yellow-400 {
-    --tw-gradient-from: #facc15 var(--tw-gradient-from-position);
-    --tw-gradient-to: rgb(250 204 21 / 0) var(--tw-gradient-to-position);
+#neon-runner-playable .from-teal-500 {
+    --tw-gradient-from: #14b8a6 var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(20 184 166 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
 #neon-runner-playable .via-sky-300 {
@@ -425,6 +428,9 @@
 #neon-runner-playable .to-blue-600 {
     --tw-gradient-to: #2563eb var(--tw-gradient-to-position)
 }
+#neon-runner-playable .to-cyan-600 {
+    --tw-gradient-to: #0891b2 var(--tw-gradient-to-position)
+}
 #neon-runner-playable .to-green-600 {
     --tw-gradient-to: #16a34a var(--tw-gradient-to-position)
 }
@@ -433,12 +439,6 @@
 }
 #neon-runner-playable .to-indigo-400 {
     --tw-gradient-to: #818cf8 var(--tw-gradient-to-position)
-}
-#neon-runner-playable .to-indigo-700 {
-    --tw-gradient-to: #4338ca var(--tw-gradient-to-position)
-}
-#neon-runner-playable .to-orange-500 {
-    --tw-gradient-to: #f97316 var(--tw-gradient-to-position)
 }
 #neon-runner-playable .to-purple-600 {
     --tw-gradient-to: #9333ea var(--tw-gradient-to-position)
@@ -480,6 +480,9 @@
 #neon-runner-playable .text-5xl {
     font-size: 3rem;
     line-height: 1
+}
+#neon-runner-playable .text-\[10px\] {
+    font-size: 10px
 }
 #neon-runner-playable .text-base {
     font-size: 1rem;
@@ -561,6 +564,14 @@
     --tw-text-opacity: 1;
     color: rgb(217 70 239 / var(--tw-text-opacity, 1))
 }
+#neon-runner-playable .text-indigo-200 {
+    --tw-text-opacity: 1;
+    color: rgb(199 210 254 / var(--tw-text-opacity, 1))
+}
+#neon-runner-playable .text-indigo-300 {
+    --tw-text-opacity: 1;
+    color: rgb(165 180 252 / var(--tw-text-opacity, 1))
+}
 #neon-runner-playable .text-lime-300 {
     --tw-text-opacity: 1;
     color: rgb(190 242 100 / var(--tw-text-opacity, 1))
@@ -576,14 +587,6 @@
 #neon-runner-playable .text-orange-400 {
     --tw-text-opacity: 1;
     color: rgb(251 146 60 / var(--tw-text-opacity, 1))
-}
-#neon-runner-playable .text-purple-300 {
-    --tw-text-opacity: 1;
-    color: rgb(216 180 254 / var(--tw-text-opacity, 1))
-}
-#neon-runner-playable .text-purple-400 {
-    --tw-text-opacity: 1;
-    color: rgb(192 132 252 / var(--tw-text-opacity, 1))
 }
 #neon-runner-playable .text-rose-300 {
     --tw-text-opacity: 1;
@@ -613,9 +616,13 @@
     --tw-text-opacity: 1;
     color: rgb(100 116 139 / var(--tw-text-opacity, 1))
 }
-#neon-runner-playable .text-slate-900 {
+#neon-runner-playable .text-teal-200 {
     --tw-text-opacity: 1;
-    color: rgb(15 23 42 / var(--tw-text-opacity, 1))
+    color: rgb(153 246 228 / var(--tw-text-opacity, 1))
+}
+#neon-runner-playable .text-teal-300 {
+    --tw-text-opacity: 1;
+    color: rgb(94 234 212 / var(--tw-text-opacity, 1))
 }
 #neon-runner-playable .text-transparent {
     color: transparent
@@ -623,14 +630,6 @@
 #neon-runner-playable .text-white {
     --tw-text-opacity: 1;
     color: rgb(255 255 255 / var(--tw-text-opacity, 1))
-}
-#neon-runner-playable .text-yellow-300 {
-    --tw-text-opacity: 1;
-    color: rgb(253 224 71 / var(--tw-text-opacity, 1))
-}
-#neon-runner-playable .text-yellow-400 {
-    --tw-text-opacity: 1;
-    color: rgb(250 204 21 / var(--tw-text-opacity, 1))
 }
 #neon-runner-playable .shadow-\[0_0_10px_\#22d3ee\] {
     --tw-shadow: 0 0 10px #22d3ee;
@@ -642,13 +641,13 @@
     --tw-shadow-colored: 0 0 10px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .shadow-\[0_0_15px_rgba\(132\2c 204\2c 22\2c 0\.3\)\] {
-    --tw-shadow: 0 0 15px rgba(132,204,22,0.3);
+#neon-runner-playable .shadow-\[0_0_15px_rgba\(129\2c 140\2c 248\2c 0\.3\)\] {
+    --tw-shadow: 0 0 15px rgba(129,140,248,0.3);
     --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .shadow-\[0_0_15px_rgba\(147\2c 51\2c 234\2c 0\.3\)\] {
-    --tw-shadow: 0 0 15px rgba(147,51,234,0.3);
+#neon-runner-playable .shadow-\[0_0_15px_rgba\(132\2c 204\2c 22\2c 0\.3\)\] {
+    --tw-shadow: 0 0 15px rgba(132,204,22,0.3);
     --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
@@ -672,11 +671,6 @@
     --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .shadow-\[0_0_15px_rgba\(250\2c 204\2c 21\2c 0\.2\)\] {
-    --tw-shadow: 0 0 15px rgba(250,204,21,0.2);
-    --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
-    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
-}
 #neon-runner-playable .shadow-\[0_0_15px_rgba\(255\2c 255\2c 255\2c 0\.3\)\] {
     --tw-shadow: 0 0 15px rgba(255,255,255,0.3);
     --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
@@ -687,13 +681,18 @@
     --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .shadow-\[0_0_25px_rgba\(132\2c 204\2c 22\2c 0\.4\)\] {
-    --tw-shadow: 0 0 25px rgba(132,204,22,0.4);
+#neon-runner-playable .shadow-\[0_0_15px_rgba\(45\2c 212\2c 191\2c 0\.25\)\] {
+    --tw-shadow: 0 0 15px rgba(45,212,191,0.25);
+    --tw-shadow-colored: 0 0 15px var(--tw-shadow-color);
+    box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
+}
+#neon-runner-playable .shadow-\[0_0_25px_rgba\(129\2c 140\2c 248\2c 0\.4\)\] {
+    --tw-shadow: 0 0 25px rgba(129,140,248,0.4);
     --tw-shadow-colored: 0 0 25px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .shadow-\[0_0_25px_rgba\(147\2c 51\2c 234\2c 0\.4\)\] {
-    --tw-shadow: 0 0 25px rgba(147,51,234,0.4);
+#neon-runner-playable .shadow-\[0_0_25px_rgba\(132\2c 204\2c 22\2c 0\.4\)\] {
+    --tw-shadow: 0 0 25px rgba(132,204,22,0.4);
     --tw-shadow-colored: 0 0 25px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
@@ -717,13 +716,13 @@
     --tw-shadow-colored: 0 0 25px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .shadow-\[0_0_25px_rgba\(250\2c 204\2c 21\2c 0\.4\)\] {
-    --tw-shadow: 0 0 25px rgba(250,204,21,0.4);
+#neon-runner-playable .shadow-\[0_0_25px_rgba\(255\2c 255\2c 255\2c 0\.4\)\] {
+    --tw-shadow: 0 0 25px rgba(255,255,255,0.4);
     --tw-shadow-colored: 0 0 25px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .shadow-\[0_0_25px_rgba\(255\2c 255\2c 255\2c 0\.4\)\] {
-    --tw-shadow: 0 0 25px rgba(255,255,255,0.4);
+#neon-runner-playable .shadow-\[0_0_25px_rgba\(45\2c 212\2c 191\2c 0\.4\)\] {
+    --tw-shadow: 0 0 25px rgba(45,212,191,0.4);
     --tw-shadow-colored: 0 0 25px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
@@ -737,16 +736,16 @@
     --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
     box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)
 }
-#neon-runner-playable .drop-shadow-\[0_0_12px_rgba\(147\2c 51\2c 234\2c 1\)\] {
-    --tw-drop-shadow: drop-shadow(0 0 12px rgba(147,51,234,1));
-    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)
-}
-#neon-runner-playable .drop-shadow-\[0_0_12px_rgba\(250\2c 204\2c 21\2c 1\)\] {
-    --tw-drop-shadow: drop-shadow(0 0 12px rgba(250,204,21,1));
+#neon-runner-playable .drop-shadow-\[0_0_12px_rgba\(129\2c 140\2c 248\2c 1\)\] {
+    --tw-drop-shadow: drop-shadow(0 0 12px rgba(129,140,248,1));
     filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)
 }
 #neon-runner-playable .drop-shadow-\[0_0_12px_rgba\(255\2c 255\2c 255\2c 1\)\] {
     --tw-drop-shadow: drop-shadow(0 0 12px rgba(255,255,255,1));
+    filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)
+}
+#neon-runner-playable .drop-shadow-\[0_0_12px_rgba\(45\2c 212\2c 191\2c 1\)\] {
+    --tw-drop-shadow: drop-shadow(0 0 12px rgba(45,212,191,1));
     filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)
 }
 #neon-runner-playable .drop-shadow-\[0_0_20px_rgba\(244\2c 63\2c 94\2c 0\.5\)\] {
@@ -800,6 +799,11 @@
     --tw-gradient-to: rgb(232 121 249 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
+#neon-runner-playable .hover\:from-indigo-400:hover {
+    --tw-gradient-from: #818cf8 var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(129 140 248 / 0) var(--tw-gradient-to-position);
+    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
+}
 #neon-runner-playable .hover\:from-lime-500:hover {
     --tw-gradient-from: #84cc16 var(--tw-gradient-from-position);
     --tw-gradient-to: rgb(132 204 22 / 0) var(--tw-gradient-to-position);
@@ -808,11 +812,6 @@
 #neon-runner-playable .hover\:from-orange-400:hover {
     --tw-gradient-from: #fb923c var(--tw-gradient-from-position);
     --tw-gradient-to: rgb(251 146 60 / 0) var(--tw-gradient-to-position);
-    --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
-}
-#neon-runner-playable .hover\:from-purple-500:hover {
-    --tw-gradient-from: #a855f7 var(--tw-gradient-from-position);
-    --tw-gradient-to: rgb(168 85 247 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
 #neon-runner-playable .hover\:from-rose-400:hover {
@@ -825,25 +824,22 @@
     --tw-gradient-to: rgb(148 163 184 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
-#neon-runner-playable .hover\:from-yellow-300:hover {
-    --tw-gradient-from: #fde047 var(--tw-gradient-from-position);
-    --tw-gradient-to: rgb(253 224 71 / 0) var(--tw-gradient-to-position);
+#neon-runner-playable .hover\:from-teal-400:hover {
+    --tw-gradient-from: #2dd4bf var(--tw-gradient-from-position);
+    --tw-gradient-to: rgb(45 212 191 / 0) var(--tw-gradient-to-position);
     --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to)
 }
 #neon-runner-playable .hover\:to-blue-500:hover {
     --tw-gradient-to: #3b82f6 var(--tw-gradient-to-position)
+}
+#neon-runner-playable .hover\:to-cyan-500:hover {
+    --tw-gradient-to: #06b6d4 var(--tw-gradient-to-position)
 }
 #neon-runner-playable .hover\:to-green-500:hover {
     --tw-gradient-to: #22c55e var(--tw-gradient-to-position)
 }
 #neon-runner-playable .hover\:to-green-600:hover {
     --tw-gradient-to: #16a34a var(--tw-gradient-to-position)
-}
-#neon-runner-playable .hover\:to-indigo-600:hover {
-    --tw-gradient-to: #4f46e5 var(--tw-gradient-to-position)
-}
-#neon-runner-playable .hover\:to-orange-400:hover {
-    --tw-gradient-to: #fb923c var(--tw-gradient-to-position)
 }
 #neon-runner-playable .hover\:to-purple-500:hover {
     --tw-gradient-to: #a855f7 var(--tw-gradient-to-position)
@@ -899,12 +895,24 @@
                 <option value="max" selected>Maximal</option>
             </select>
             <span id="qualityNotice" role="status" aria-live="polite"></span>
+            <details id="legalNotice"><summary>Lizenzen und Rechtliches</summary>
+                <p>Die Spielfiguren und Effekte werden im Spiel gezeichnet. Für die Oberfläche wurde Tailwind CSS 3.4.17 beim Erstellen kompiliert.</p>
+                <pre>MIT License
+
+Copyright (c) Tailwind Labs, Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</pre>
+            </details>
         </div>
     </div>
     <div id="uiOverlay" class="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-20 transition-all duration-300">
         <div class="max-w-md w-full text-center space-y-6">
             <div>
-                <h1 id="titleText" class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 drop-shadow-sm tracking-tight">NEON RUNNER</h1>
+                <h1 id="titleText" class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-300 to-indigo-400 drop-shadow-sm tracking-tight">VEYLUMEN</h1>
                 <p id="subtitleText" class="text-slate-400 text-sm mt-2">Springe über Hindernisse & sammle Gold!</p>
             </div>
             <div id="colorSelectArea" class="bg-slate-900/90 border border-slate-800 p-4 rounded-2xl">
@@ -915,8 +923,8 @@
                     <button type="button" id="btnColorBlitz" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"><svg class="w-4 h-4 text-fuchsia-500 drop-shadow-[0_0_8px_rgba(217,70,239,1)] animate-pulse" fill="currentColor" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>Blitz</button>
                     <button type="button" id="btnColorFeuer" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"><span class="text-base drop-shadow-[0_0_8px_rgba(249,115,22,1)] animate-pulse">🔥</span>Feuer</button>
                     <button type="button" id="btnColorSchwarz" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base"><span class="text-base drop-shadow-[0_0_8px_rgba(16,185,129,1)]">⚔️</span>Ninja</button>
-                    <button type="button" id="btnColorSSJ" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(250,204,21,1)] animate-pulse">🌟</span>Saiyajin</button>
-                    <button type="button" id="btnColorOverlord" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(147,51,234,1)] animate-pulse">💀</span>Overlord</button>
+                    <button type="button" id="btnColorPrism" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(45,212,191,1)]">💠</span>Prisma</button>
+                    <button type="button" id="btnColorShade" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(129,140,248,1)]">◆</span><span class="text-[10px] sm:text-base">Schattenkern</span></button>
                     <button type="button" id="btnColorFighter" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base drop-shadow-[0_0_12px_rgba(255,255,255,1)]">🐺</span>Kämpfer</button>
                     <button type="button" id="btnColorHubschrauber" class="relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base overflow-hidden"><span class="text-base">🚁</span>Heli</button>
                 </div>
@@ -954,8 +962,8 @@
         const btnColorBlitz = root.querySelector('#btnColorBlitz');
         const btnColorFeuer = root.querySelector('#btnColorFeuer');
         const btnColorSchwarz = root.querySelector('#btnColorSchwarz');
-        const btnColorSSJ = root.querySelector('#btnColorSSJ');
-        const btnColorOverlord = root.querySelector('#btnColorOverlord');
+        const btnColorPrism = root.querySelector('#btnColorPrism');
+        const btnColorShade = root.querySelector('#btnColorShade');
         const btnColorFighter = root.querySelector('#btnColorFighter');
         const btnColorHubschrauber = root.querySelector('#btnColorHubschrauber');
         const startBtn = root.querySelector('#startBtn');
@@ -968,8 +976,8 @@
             blitz: {primary:'#d946ef',hazard:'#e879f9',back:'#1c1030',sky:['#10081f','#241035','#361454'],grid:'#48235e',stars:'#f5d0fe',perspective:'rgba(232,121,249,.14)'},
             feuer: {primary:'#f97316',hazard:'#fb923c',back:'#251509',sky:['#160a09','#34160d','#54230d'],grid:'#63351c',stars:'#fed7aa',perspective:'rgba(251,146,60,.14)'},
             schwarz: {primary:'#10b981',hazard:'#34d399',back:'#071d1d',sky:['#041313','#092923','#104335'],grid:'#1c5749',stars:'#a7f3d0',perspective:'rgba(52,211,153,.13)'},
-            ssj: {primary:'#facc15',hazard:'#fde047',back:'#29200e',sky:['#171008','#35240b','#544014'],grid:'#685327',stars:'#fef08a',perspective:'rgba(250,204,21,.13)'},
-            overlord: {primary:'#9333ea',hazard:'#c084fc',back:'#190d2c',sky:['#0d071d','#210f38','#37165a'],grid:'#492867',stars:'#e9d5ff',perspective:'rgba(192,132,252,.13)'},
+            prism: {primary:'#2dd4bf',hazard:'#5eead4',back:'#0b2430',sky:['#081621','#10353a','#1a5050'],grid:'#22585b',stars:'#ccfbf1',perspective:'rgba(94,234,212,.13)'},
+            shade: {primary:'#818cf8',hazard:'#a5b4fc',back:'#11162b',sky:['#0a1022','#1a2140','#2b3455'],grid:'#38446c',stars:'#c7d2fe',perspective:'rgba(165,180,252,.13)'},
             fighter: {primary:'#f8fafc',hazard:'#cbd5e1',back:'#16212b',sky:['#0b141e','#202c37','#344253'],grid:'#455565',stars:'#f8fafc',perspective:'rgba(203,213,225,.13)'},
             hubschrauber: {primary:'#84cc16',hazard:'#a3e635',back:'#122318',sky:['#0b170e','#19321d','#2a4722'],grid:'#3d5d38',stars:'#d9f99d',perspective:'rgba(163,230,53,.13)'}
         };
@@ -979,8 +987,8 @@
             btnColorBlitz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
             btnColorFeuer.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
             btnColorSchwarz.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorSSJ.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
-            btnColorOverlord.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+            btnColorPrism.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
+            btnColorShade.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
             btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
             btnColorHubschrauber.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-700 bg-slate-800/40 text-slate-400 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base";
             if (selectedColor === 'blue') {
@@ -999,14 +1007,14 @@
                 btnColorFeuer.className = "relative py-2 sm:py-3 rounded-xl border-2 border-orange-500 bg-orange-950/40 text-orange-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(249,115,22,0.2)]";
                 startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(249,115,22,0.4)] transition-all";
                 scoreDisplay.className = "text-2xl font-black text-orange-400 tabular-nums";
-            } else if (selectedColor === 'ssj') {
-                btnColorSSJ.className = "relative py-2 sm:py-3 rounded-xl border-2 border-yellow-400 bg-yellow-950/40 text-yellow-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(250,204,21,0.2)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 active:scale-[0.98] text-slate-900 font-extrabold text-lg shadow-[0_0_25px_rgba(250,204,21,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-yellow-400 tabular-nums";
-            } else if (selectedColor === 'overlord') {
-                btnColorOverlord.className = "relative py-2 sm:py-3 rounded-xl border-2 border-purple-500 bg-purple-950/40 text-purple-300 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(147,51,234,0.3)]";
-                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-500 hover:to-indigo-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(147,51,234,0.4)] transition-all";
-                scoreDisplay.className = "text-2xl font-black text-purple-400 tabular-nums";
+            } else if (selectedColor === 'prism') {
+                btnColorPrism.className = "relative py-2 sm:py-3 rounded-xl border-2 border-teal-300 bg-teal-950/40 text-teal-200 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(45,212,191,0.25)]";
+                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-400 hover:to-cyan-500 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(45,212,191,0.4)] transition-all";
+                scoreDisplay.className = "text-2xl font-black text-teal-300 tabular-nums";
+            } else if (selectedColor === 'shade') {
+                btnColorShade.className = "relative py-2 sm:py-3 rounded-xl border-2 border-indigo-400 bg-indigo-950/40 text-indigo-200 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(129,140,248,0.3)]";
+                startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-500 to-slate-700 hover:from-indigo-400 hover:to-slate-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(129,140,248,0.4)] transition-all";
+                scoreDisplay.className = "text-2xl font-black text-indigo-300 tabular-nums";
             } else if (selectedColor === 'fighter') {
                 btnColorFighter.className = "relative py-2 sm:py-3 rounded-xl border-2 border-slate-300 bg-slate-800/60 text-slate-100 font-bold flex flex-col items-center justify-center gap-1 transition-all text-xs sm:text-base shadow-[0_0_15px_rgba(255,255,255,0.3)]";
                 startBtn.className = "w-full py-4 rounded-2xl bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-400 hover:to-slate-600 active:scale-[0.98] text-white font-extrabold text-lg shadow-[0_0_25px_rgba(255,255,255,0.4)] transition-all";
@@ -1026,8 +1034,8 @@
         btnColorBlitz.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'blitz'; updateColorTheme(); });
         btnColorFeuer.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'feuer'; updateColorTheme(); });
         btnColorSchwarz.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'schwarz'; updateColorTheme(); });
-        btnColorSSJ.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'ssj'; updateColorTheme(); });
-        btnColorOverlord.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'overlord'; updateColorTheme(); });
+        btnColorPrism.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'prism'; updateColorTheme(); });
+        btnColorShade.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'shade'; updateColorTheme(); });
         btnColorFighter.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'fighter'; updateColorTheme(); });
         btnColorHubschrauber.addEventListener('click', (e) => { e.stopPropagation(); selectedColor = 'hubschrauber'; updateColorTheme(); });
         let width = 0;
@@ -1117,8 +1125,8 @@
                     if (selectedColor === 'blitz') pColor = '#d946ef';
                     if (selectedColor === 'feuer') pColor = '#f97316';
                     if (selectedColor === 'schwarz') pColor = '#10b981';
-                    if (selectedColor === 'ssj') pColor = '#facc15';
-                    if (selectedColor === 'overlord') pColor = '#a855f7';
+                    if (selectedColor === 'prism') pColor = '#2dd4bf';
+                    if (selectedColor === 'shade') pColor = '#818cf8';
                     if (selectedColor === 'fighter') pColor = '#f8fafc';
                     if (selectedColor === 'hubschrauber') pColor = '#84cc16';
                     for (let i = 0; i < 8; i++) {
@@ -1143,10 +1151,10 @@
         startBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
         function getObstacleVariant() {
             switch (selectedColor) {
-                case 'overlord': return 'pillar';
+                case 'shade': return 'pillar';
                 case 'feuer': return 'water';
                 case 'schwarz': return 'samurai';
-                case 'ssj': return 'energy';
+                case 'prism': return 'energy';
                 case 'fighter': return 'spearman';
                 case 'blitz': return 'tesla';
                 case 'red': return 'ice';
@@ -1269,8 +1277,12 @@
                 ctx.beginPath();ctx.ellipse(obs.x+obs.w/2,obs.y+obs.h/2,obs.w/2,obs.h/2,0,0,Math.PI*2);ctx.fill();
                 ctx.shadowBlur=0;ctx.fillStyle='#f8fafc';ctx.beginPath();ctx.ellipse(obs.x+obs.w/2,obs.y+obs.h/2,7,4,0,0,Math.PI*2);ctx.fill();
             } else if (obs.variant === 'pillar') {
-                ctx.shadowBlur = qualityShadow(16);ctx.shadowColor='#9333ea';ctx.fillStyle='#6b21a8';ctx.fillRect(obs.x,obs.y,obs.w,obs.h);
-                ctx.fillStyle='#c4b5fd';ctx.fillRect(obs.x+4,obs.y+8,obs.w-8,6);ctx.fillRect(obs.x+4,obs.y+obs.h-14,obs.w-8,6);
+                ctx.shadowBlur=qualityShadow(16);ctx.shadowColor='#818cf8';ctx.fillStyle='#1e293b';
+                ctx.beginPath();ctx.moveTo(obs.x+4,obs.y);ctx.lineTo(obs.x+obs.w-4,obs.y);ctx.lineTo(obs.x+obs.w,obs.y+10);
+                ctx.lineTo(obs.x+obs.w,obs.y+obs.h);ctx.lineTo(obs.x,obs.y+obs.h);ctx.lineTo(obs.x,obs.y+10);ctx.closePath();ctx.fill();
+                ctx.strokeStyle='#a5b4fc';ctx.lineWidth=2.5;ctx.stroke();
+                ctx.beginPath();ctx.moveTo(obs.x+obs.w/2,obs.y+22);ctx.lineTo(obs.x+obs.w-8,obs.y+obs.h/2);
+                ctx.lineTo(obs.x+obs.w/2,obs.y+obs.h-22);ctx.lineTo(obs.x+8,obs.y+obs.h/2);ctx.closePath();ctx.stroke();
             } else if (obs.variant === 'water') {
                 ctx.shadowBlur = qualityShadow(16);ctx.shadowColor='#38bdf8';ctx.fillStyle='#0ea5e9';ctx.beginPath();ctx.moveTo(obs.x,obs.y+obs.h);
                 ctx.quadraticCurveTo(obs.x+obs.w*.2,obs.y+10,obs.x+obs.w*.5,obs.y+20);
@@ -1283,9 +1295,11 @@
                 ctx.fillStyle=obstacleColor;ctx.fillRect(obs.x+6,obs.y+4,28,8);
                 drawSamuraiSword(obs);
             } else if (obs.variant === 'energy') {
-                ctx.shadowBlur = qualityShadow(20);ctx.shadowColor='#facc15';ctx.fillStyle='rgba(250,204,21,0.85)';
-                ctx.beginPath();ctx.roundRect(obs.x,obs.y,obs.w,obs.h,12);ctx.fill();
-                ctx.fillStyle='rgba(254,240,138,0.8)';ctx.fillRect(obs.x+8,obs.y+8,obs.w-16,obs.h-16);
+                ctx.shadowBlur=qualityShadow(16);ctx.shadowColor='#2dd4bf';ctx.fillStyle='#115e59';
+                ctx.beginPath();ctx.roundRect(obs.x,obs.y,obs.w,obs.h,5);ctx.fill();
+                ctx.strokeStyle='#99f6e4';ctx.lineWidth=3;ctx.stroke();
+                ctx.beginPath();ctx.moveTo(obs.x+7,obs.y+13);ctx.lineTo(obs.x+obs.w-7,obs.y+27);
+                ctx.lineTo(obs.x+7,obs.y+42);ctx.lineTo(obs.x+obs.w-7,obs.y+obs.h-9);ctx.stroke();
             } else if (obs.variant === 'spearman') {
                 ctx.shadowBlur = qualityShadow(12);ctx.shadowColor='#e2e8f0';ctx.fillStyle='#334155';ctx.fillRect(obs.x+10,obs.y+16,16,44);
                 ctx.fillRect(obs.x+10,obs.y+60,6,obs.h-60);ctx.fillRect(obs.x+20,obs.y+60,6,obs.h-60);
@@ -1418,8 +1432,9 @@
             const palettes = {
                 blue:['#22d3ee','#a5f3fc','#0891b2'],red:['#f43f5e','#fecdd3','#be123c'],
                 blitz:['#d946ef','#fae8ff','#a21caf'],feuer:['#f97316','#fde047','#ef4444'],
-                schwarz:['#10b981','#d1fae5','#334155'],ssj:['#facc15','#f97316','#1e3a8a'],
-                overlord:['#a855f7','#eab308','#f8fafc'],fighter:['#cbd5e1','#475569','#f8fafc']
+                schwarz:['#10b981','#d1fae5','#334155'],prism:['#2dd4bf','#ccfbf1','#6366f1'],
+                shade:['#818cf8','#c7d2fe','#1e293b'],fighter:['#cbd5e1','#475569','#f8fafc'],
+                hubschrauber:['#84cc16','#d9f99d','#3f6212']
             };
             const colors = palettes[selectedColor] || palettes.blue;
             const cx=player.x+player.w/2, cy=player.y+player.h/2;
@@ -1666,7 +1681,7 @@
                 ctx.translate(pos.x + player.w / 2, pos.y + player.h / 2); ctx.scale(scale, scale);
                 ctx.beginPath();
                 if (selectedColor === 'feuer') { ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 16); }
-                else if (selectedColor === 'ssj') { ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 4); }
+                else if (selectedColor === 'prism') { ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 4); }
                 else { ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 10); }
                 ctx.fill(); ctx.restore();
             });
@@ -1700,55 +1715,31 @@
                 ctx.shadowBlur = qualityShadow(0); ctx.fillStyle = '#059669'; ctx.fillRect(-player.w/2, -14, player.w, 4);
                 const bandFlap = Math.sin(Date.now() / 150) * 3;
                 ctx.beginPath(); ctx.moveTo(-player.w/2, -12); ctx.lineTo(-player.w/2 - 14, -16 + bandFlap); ctx.lineTo(-player.w/2 - 10, -8 + bandFlap); ctx.fill();
-            } else if (selectedColor === 'ssj') {
-                const time = Date.now();
-                const auraPulse = Math.sin(time / 150) * 0.1 + 0.9;
-                ctx.shadowBlur = qualityShadow(35 * auraPulse); ctx.shadowColor = '#facc15'; ctx.fillStyle = `rgba(250, 204, 21, ${0.3 * auraPulse})`;
-                ctx.beginPath();
-                for (let i = 0; i <= 24; i++) {
-                    let angle = (i / 24) * Math.PI * 2; let wave = Math.sin(angle * 5 - time / 150) * 6;
-                    let rX = player.w * 0.9 + wave; let rY = player.h * 1.1 + wave;
-                    let px = Math.cos(angle) * rX; let py = Math.sin(angle) * rY - 10;
-                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
-                }
-                ctx.closePath(); ctx.fill();
-                ctx.fillStyle = `rgba(254, 240, 138, ${0.4 * auraPulse})`;
-                ctx.beginPath(); ctx.ellipse(0, -5, player.w*0.75, player.h*0.85, 0, 0, Math.PI*2); ctx.fill();
-                ctx.shadowBlur = qualityShadow(10); ctx.shadowColor = '#ea580c'; ctx.fillStyle = '#f97316';
-                ctx.beginPath(); ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6); ctx.fill();
-                ctx.fillStyle = '#1e3a8a'; ctx.beginPath(); ctx.moveTo(-player.w/2.5, -player.h/2); ctx.lineTo(player.w/2.5, -player.h/2); ctx.lineTo(0, -player.h/6); ctx.closePath(); ctx.fill();
-                ctx.fillRect(-player.w/2, 4, player.w, 7);
-                ctx.shadowBlur = qualityShadow(15); ctx.shadowColor = '#fef08a'; ctx.fillStyle = '#fde047'; ctx.strokeStyle = '#eab308'; ctx.lineWidth = 1.5;
-                ctx.beginPath(); ctx.moveTo(-player.w/2 - 2, -player.h/2 + 5);
-                ctx.lineTo(-player.w/2 - 12, -player.h/2 - 12); ctx.lineTo(-player.w/3, -player.h/2 - 6);
-                ctx.lineTo(-player.w/4 - 6, -player.h/2 - 28); ctx.lineTo(0, -player.h/2 - 10);
-                ctx.lineTo(player.w/4 + 4, -player.h/2 - 32); ctx.lineTo(player.w/3, -player.h/2 - 8);
-                ctx.lineTo(player.w/2 + 10, -player.h/2 - 18); ctx.lineTo(player.w/2 + 2, -player.h/2 + 5);
-                ctx.closePath(); ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.moveTo(-player.w/4, -player.h/2 - 6); ctx.lineTo(-player.w/4 - 3, -player.h/2 - 18);
-                ctx.moveTo(player.w/6, -player.h/2 - 10); ctx.lineTo(player.w/4, -player.h/2 - 22); ctx.stroke();
-            } else if (selectedColor === 'overlord') {
-                const auraPulse = Math.sin(Date.now() / 200) * 0.2 + 0.8;
-                ctx.shadowBlur = qualityShadow(30 * auraPulse); ctx.shadowColor = '#9333ea'; ctx.fillStyle = `rgba(147, 51, 234, ${0.4 * auraPulse})`;
-                ctx.beginPath(); ctx.arc(0, 0, player.w * 0.8 + Math.sin(Date.now() / 150) * 4, 0, Math.PI * 2); ctx.fill();
-                ctx.shadowBlur = qualityShadow(15); ctx.shadowColor = '#000000'; ctx.fillStyle = '#1e1b4b';
-                ctx.beginPath(); ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6); ctx.fill();
-                ctx.fillStyle = '#eab308'; ctx.fillRect(-player.w/2 - 2, -player.h/2 + 5, player.w + 4, 8);
-                ctx.fillStyle = '#713f12'; ctx.fillRect(-player.w/2, -player.h/2 + 7, player.w, 3);
-                ctx.shadowBlur = qualityShadow(5); ctx.shadowColor = '#ffffff'; ctx.fillStyle = '#f8fafc';
-                ctx.beginPath(); ctx.roundRect(-12, -player.h/2 - 5, 24, 22, 6); ctx.fill();
-                ctx.fillStyle = '#1e1b4b'; ctx.fillRect(-13, -player.h/2 + 10, 5, 6); ctx.fillRect(8, -player.h/2 + 10, 5, 6);
-                ctx.strokeStyle = '#000000'; ctx.lineWidth = 1; ctx.beginPath();
-                ctx.moveTo(-5, -player.h/2 + 14); ctx.lineTo(-5, -player.h/2 + 17);
-                ctx.moveTo(0, -player.h/2 + 14); ctx.lineTo(0, -player.h/2 + 17);
-                ctx.moveTo(5, -player.h/2 + 14); ctx.lineTo(5, -player.h/2 + 17); ctx.stroke();
-                ctx.shadowBlur = qualityShadow(15); ctx.shadowColor = '#ef4444'; ctx.fillStyle = '#ef4444'; ctx.beginPath();
-                ctx.arc(-5, -player.h/2 + 3, 2.5, 0, Math.PI*2); ctx.arc(5, -player.h/2 + 3, 2.5, 0, Math.PI*2); ctx.fill();
-                const staffSwing = Math.sin(Date.now() / 200) * 0.1;
-                ctx.save(); ctx.translate(player.w/2 + 6, 4); ctx.rotate(Math.PI / 8 + staffSwing);
-                ctx.shadowBlur = qualityShadow(0); ctx.fillStyle = '#eab308'; ctx.fillRect(-2, -32, 4, 45);
-                ctx.strokeStyle = '#eab308'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, -32, 6, 0, Math.PI); ctx.stroke();
-                ctx.shadowBlur = qualityShadow(15); ctx.shadowColor = '#ef4444'; ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(0, -38, 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+            } else if (selectedColor === 'prism') {
+                // A faceted machine core with no human hair, clothes or silhouette.
+                const turn=Date.now()*.0008;
+                ctx.shadowBlur=qualityShadow(20);ctx.shadowColor='#2dd4bf';ctx.fillStyle='#134e4a';
+                ctx.beginPath();ctx.roundRect(-22,-22,44,44,8);ctx.fill();
+                ctx.shadowBlur=qualityShadow(10);ctx.strokeStyle='#99f6e4';ctx.lineWidth=2.5;ctx.stroke();
+                ctx.save();ctx.rotate(turn);
+                ctx.fillStyle='#5eead4';ctx.beginPath();ctx.moveTo(0,-17);ctx.lineTo(17,0);
+                ctx.lineTo(0,17);ctx.lineTo(-17,0);ctx.closePath();ctx.fill();
+                ctx.fillStyle='#a5b4fc';ctx.beginPath();ctx.moveTo(0,-17);ctx.lineTo(17,0);
+                ctx.lineTo(0,0);ctx.closePath();ctx.fill();ctx.restore();
+                ctx.fillStyle='#f0fdfa';ctx.beginPath();ctx.arc(0,0,5,0,Math.PI*2);ctx.fill();
+                ctx.shadowBlur=qualityShadow(7);ctx.fillStyle='#99f6e4';
+                for(let i=0;i<4;i++){const a=turn*.7+i*Math.PI/2;ctx.beginPath();ctx.arc(Math.cos(a)*27,Math.sin(a)*27,2,0,Math.PI*2);ctx.fill();}
+            } else if (selectedColor === 'shade') {
+                // A hovering mineral capsule with one central seam and no face or staff.
+                ctx.shadowBlur=qualityShadow(18);ctx.shadowColor='#818cf8';ctx.fillStyle='#1e293b';
+                ctx.beginPath();ctx.moveTo(0,-23);ctx.lineTo(19,-13);ctx.lineTo(21,14);
+                ctx.lineTo(0,23);ctx.lineTo(-21,14);ctx.lineTo(-19,-13);ctx.closePath();ctx.fill();
+                ctx.strokeStyle='#a5b4fc';ctx.lineWidth=2.5;ctx.stroke();
+                ctx.shadowBlur=qualityShadow(10);ctx.strokeStyle='#c7d2fe';ctx.lineWidth=3;
+                ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(0,16);ctx.moveTo(-10,-7);ctx.lineTo(0,0);ctx.lineTo(10,-7);ctx.stroke();
+                ctx.fillStyle='#818cf8';ctx.beginPath();ctx.arc(0,0,4,0,Math.PI*2);ctx.fill();
+                ctx.globalAlpha=.75;ctx.strokeStyle='#818cf8';ctx.lineWidth=1.5;
+                ctx.beginPath();ctx.ellipse(0,0,29,9,Math.sin(Date.now()/900)*.12,0,Math.PI*2);ctx.stroke();
             } else if (selectedColor === 'fighter') {
                 ctx.shadowBlur = qualityShadow(10); ctx.shadowColor = '#f8fafc'; ctx.fillStyle = '#1e293b';
                 ctx.beginPath(); ctx.roundRect(-player.w/2, -player.h/2, player.w, player.h, 6); ctx.fill();
@@ -1785,17 +1776,20 @@
                         ctx.beginPath(); ctx.moveTo(0, -15); ctx.lineTo(4, -4); ctx.lineTo(15, 0); ctx.lineTo(4, 4); ctx.lineTo(0, 15); ctx.lineTo(-4, 4); ctx.lineTo(-15, 0); ctx.lineTo(-4, -4); ctx.closePath(); ctx.fill();
                         ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); ctx.fill(); ctx.restore();
                     }
-                } else if (selectedColor === 'ssj') {
+                } else if (selectedColor === 'prism') {
                     for(let i=0; i<2; i++) {
-                        ctx.rotate(Math.PI); ctx.shadowBlur = qualityShadow(20); ctx.shadowColor = '#facc15';
-                        ctx.save(); ctx.translate(0, 35); ctx.rotate(axeAngle * -3); ctx.fillStyle = '#fef08a'; ctx.beginPath();
-                        for(let j=0; j<8; j++) { const ang = (j / 8) * Math.PI * 2; ctx.lineTo(Math.cos(ang) * 16, Math.sin(ang) * 16); const ang2 = ((j + 0.5) / 8) * Math.PI * 2; ctx.lineTo(Math.cos(ang2) * 12, Math.sin(ang2) * 12); }
-                        ctx.closePath(); ctx.fill(); ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+                        ctx.rotate(Math.PI);ctx.save();ctx.translate(0,35);ctx.rotate(axeAngle*-2);
+                        ctx.shadowBlur=qualityShadow(16);ctx.shadowColor='#2dd4bf';ctx.fillStyle='#5eead4';
+                        ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(12,0);ctx.lineTo(0,15);ctx.lineTo(-12,0);ctx.closePath();ctx.fill();
+                        ctx.fillStyle='#a5b4fc';ctx.beginPath();ctx.moveTo(0,-15);ctx.lineTo(12,0);ctx.lineTo(0,0);ctx.closePath();ctx.fill();ctx.restore();
                     }
-                } else if (selectedColor === 'overlord') {
+                } else if (selectedColor === 'shade') {
                     for(let i=0; i<2; i++) {
-                        ctx.rotate(Math.PI); ctx.shadowBlur = qualityShadow(15); ctx.shadowColor = '#9333ea'; ctx.fillStyle = '#1e1b4b'; ctx.fillRect(-2, 10, 4, 35);
-                        ctx.fillStyle = '#d8b4fe'; ctx.beginPath(); ctx.moveTo(-2, 45); ctx.quadraticCurveTo(-15, 45, -25, 20); ctx.quadraticCurveTo(-10, 30, 2, 35); ctx.closePath(); ctx.fill();
+                        ctx.rotate(Math.PI);ctx.save();ctx.translate(0,35);ctx.rotate(axeAngle);
+                        ctx.shadowBlur=qualityShadow(14);ctx.shadowColor='#a5b4fc';ctx.fillStyle='#1e293b';
+                        ctx.beginPath();ctx.moveTo(0,-16);ctx.lineTo(13,-4);ctx.lineTo(6,14);
+                        ctx.lineTo(-6,14);ctx.lineTo(-13,-4);ctx.closePath();ctx.fill();
+                        ctx.strokeStyle='#a5b4fc';ctx.lineWidth=2;ctx.stroke();ctx.restore();
                     }
                 } else if (selectedColor === 'fighter') {
                     for(let i=0; i<2; i++) {
@@ -1844,13 +1838,15 @@
                     ctx.shadowBlur = qualityShadow(15 + pulse * 10); ctx.shadowColor = '#10b981'; ctx.fillStyle = '#10b981';
                     ctx.beginPath(); ctx.moveTo(0, -10); ctx.lineTo(3, -3); ctx.lineTo(10, 0); ctx.lineTo(3, 3); ctx.lineTo(0, 10); ctx.lineTo(-3, 3); ctx.lineTo(-10, 0); ctx.lineTo(-3, -3); ctx.closePath(); ctx.fill();
                     ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI * 2); ctx.fill();
-                } else if (selectedColor === 'ssj') {
-                    ctx.shadowBlur = qualityShadow(15 + pulse * 10); ctx.shadowColor = '#facc15'; ctx.fillStyle = '#fef08a'; ctx.beginPath();
-                    for(let j=0; j<8; j++) { const ang = (j / 8) * Math.PI * 2; ctx.lineTo(Math.cos(ang) * 10, Math.sin(ang) * 10); const ang2 = ((j + 0.5) / 8) * Math.PI * 2; ctx.lineTo(Math.cos(ang2) * 7, Math.sin(ang2) * 7); }
-                    ctx.closePath(); ctx.fill();
-                } else if (selectedColor === 'overlord') {
-                    ctx.shadowBlur = qualityShadow(15 + pulse * 10); ctx.shadowColor = '#9333ea'; ctx.fillStyle = '#1e1b4b'; ctx.fillRect(-1, -12, 2, 24);
-                    ctx.fillStyle = '#d8b4fe'; ctx.beginPath(); ctx.moveTo(-1, -10); ctx.quadraticCurveTo(8, -10, 12, 5); ctx.quadraticCurveTo(5, -2, -1, -5); ctx.closePath(); ctx.fill();
+                } else if (selectedColor === 'prism') {
+                    ctx.shadowBlur=qualityShadow(15+pulse*10);ctx.shadowColor='#2dd4bf';ctx.fillStyle='#5eead4';
+                    ctx.beginPath();ctx.moveTo(0,-13);ctx.lineTo(11,0);ctx.lineTo(0,13);ctx.lineTo(-11,0);ctx.closePath();ctx.fill();
+                    ctx.fillStyle='#a5b4fc';ctx.beginPath();ctx.moveTo(0,-13);ctx.lineTo(11,0);ctx.lineTo(0,0);ctx.closePath();ctx.fill();
+                } else if (selectedColor === 'shade') {
+                    ctx.shadowBlur=qualityShadow(15+pulse*10);ctx.shadowColor='#a5b4fc';ctx.fillStyle='#1e293b';
+                    ctx.beginPath();ctx.moveTo(0,-14);ctx.lineTo(11,-4);ctx.lineTo(5,12);
+                    ctx.lineTo(-5,12);ctx.lineTo(-11,-4);ctx.closePath();ctx.fill();
+                    ctx.strokeStyle='#a5b4fc';ctx.lineWidth=2;ctx.stroke();
                 } else if (selectedColor === 'fighter') {
                     getFighterDagger().draw(0, 15, .4, 0);
                 } else if (selectedColor === 'hubschrauber') {

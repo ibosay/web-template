@@ -1,4 +1,4 @@
-# Neon Runner
+# Veylumen
 
 Current playable game from the ChatGPT development session.
 
@@ -8,7 +8,7 @@ Open index.html directly in a modern browser. The file contains the complete gam
 
 Includes nine characters and matching obstacles, including a helicopter and ground turret, shaped collision detection, a 1.25 second death explosion, attacking samurai, coin and magnet pickups, temporary protective weapons, and the fighter's animated fire kindschal. Fighter jump particles are silver white. The held and orbiting daggers have additional body clearance.
 
-The deployment uses the existing AppDeploy html-static project and replaces index.html and tests/tests.json only. GitHub stores the same HTML at public/neon-runner.html. This is a source snapshot, not automatic GitHub deployment integration.
+The deployment uses the existing AppDeploy html-static project and replaces index.html and tests/tests.json only. GitHub stores the same HTML at public/neon-runner.html. Historical paths and the deployment URL stay the same for compatibility, while the visible game title is Veylumen. This is a source snapshot, not automatic GitHub deployment integration.
 
 Validation: Chromium mobile touch controls, square canvas scaling, fire animation, weapon pickup/protection, jump sparks, restart and delayed game over were tested before export. Deployment tests are in tests/tests.json.
 
@@ -17,3 +17,5 @@ Graphics settings: Maximal is the default, with Normal and Schwach selectable fr
 Obstacle progression: low spikes and hovering hazards enter after a short warmup. Later rounds combine hazards in pairs with 240 pixels of horizontal spacing. Each of the nine character themes retains its own main enemy. Spawn groups become denser over time while world speed stays capped at 9.5 pixels per simulation step. The shape based collision system covers all new hazards. The browser test checks 19 escape patterns at maximum speed.
 
 Each character now has a separate dark world palette, including sky, grid, ground and distant lights. Spikes and hovering hazards share the character color family, while water and ice keep their material colors with a matching glowing rim. The scene colors also apply in the reduced graphics modes.
+
+Publication preparation: Prisma is a turquoise geometric machine core. Schattenkern is an indigo mineral capsule. Their world palettes, hazards, orbiting weapons, pickups and destruction fragments use matching new colors. The previous hair, clothing, skeletal face, robe, scythe and staff have been removed from these characters. Veylumen is a provisional working name. Official store and trademark searches are still needed before publication. The standalone game includes compiled Tailwind CSS 3.4.17. Its complete MIT notice and copyright appear in the menu. If code from the larger repository enters a future iPhone app, preserve the licenses applicable to that code. Any future app icon, screenshots and store description should use only the new name and designs.
