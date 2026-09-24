@@ -2,7 +2,7 @@ import React from 'react';
 import '@testing-library/jest-dom';
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import QuizArenaLiveAppV2, { QUESTIONS, isHardQuestion } from './QuizArenaLiveAppV2.tsx';
+import QuizArenaLiveAppV2, { QUESTIONS, getQuizCategoryTheme, isHardQuestion } from './QuizArenaLiveAppV2.tsx';
 
 const historyCounts = (category) => {
   const pool = QUESTIONS.filter(question => question.category === category);
@@ -16,6 +16,18 @@ const historyCounts = (category) => {
 describe('Quiz Arena mobile V2', () => {
   beforeEach(() => {
     window.localStorage.clear();
+  });
+
+  it('maps every parent and subcategory to its visual theme', () => {
+    expect(getQuizCategoryTheme('Alle')).toBe('core');
+    expect(getQuizCategoryTheme('Islam')).toBe('islam');
+    expect(getQuizCategoryTheme('Allgemeinwissen')).toBe('general');
+    expect(getQuizCategoryTheme('Geografie')).toBe('geography');
+    expect(getQuizCategoryTheme('Wissenschaft')).toBe('science');
+    expect(getQuizCategoryTheme('Mathe Multiplikation')).toBe('math');
+    expect(getQuizCategoryTheme('Geschichte japan')).toBe('history');
+    expect(getQuizCategoryTheme('EU')).toBe('eu');
+    expect(getQuizCategoryTheme('Staatsbürgerschaft Wien')).toBe('citizenship');
   });
 
   it('requires a category choice and explains XP with simple controls', () => {
