@@ -28,6 +28,6 @@ Schattenkern revision: the ground pillar is now a plain indigo edged monolith wi
 
 Two lives per run: a collision removes one life and briefly flashes the character with about 1.8 seconds of hit protection. The second unprotected hit triggers the existing explosion and game over. The counter resets to two on restart. Extra drawn arms and feet and their body bob have been removed from all characters.
 
-Touch control: a light touch now triggers the jump immediately using the first touch event when necessary. The matching pointer event is ignored, so a single tap never consumes two of the four jumps. Menu buttons remain excluded from jump input.
+Touch control: a transparent playfield input layer catches the first finger contact anywhere in the game area, including light taps. Touchstart jumps before finger release; matching pointer input is ignored, so a single tap never consumes two of the four jumps. Rapid separate taps work without a time based debounce. The layer is inactive in the menu and after the run.
 
 Achievements and performance: Menü contains six local achievement goals and shows completed rounds, high score and cumulative coins. A completed run records coins, jumps and obstacles destroyed and saves progress locally. The expensive full width blurred curb was replaced by thin opaque layers. The sky gradient is reused, heavy frame catchup is capped to three simulation steps, and sustained slow frames trigger lower raster load without oscillating between modes.
