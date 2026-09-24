@@ -44,14 +44,20 @@ describe('Quiz Arena mobile V2', () => {
     expect(start).toBeEnabled();
   });
 
-  it('shows the selected category world before starting', () => {
+  it('keeps the selected category world across home, rows and quiz', () => {
     render(<QuizArenaLiveAppV2 />);
-    fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
+    const islamButton = screen.getByText('Islam Fragen').closest('button');
+    expect(islamButton).toHaveAttribute('data-category-theme', 'islam');
+
+    fireEvent.click(islamButton);
 
     const home = document.querySelector('.gameHome');
     expect(home).toHaveAttribute('data-quiz-category-theme', 'islam');
     expect(screen.getByText('Wissen · Verstehen · Anwenden')).toBeInTheDocument();
     expect(document.querySelector('.categoryThemePreview')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+    expect(document.querySelector('.quizShell')).toHaveAttribute('data-quiz-category-theme', 'islam');
   });
 
   it('shows the fifth-level bonus as the next reward', () => {
@@ -100,6 +106,7 @@ describe('Quiz Arena mobile V2', () => {
     fireEvent.click(screen.getByRole('button', { name: /Geschichte/ }));
 
     expect(screen.getAllByText('Erster Weltkrieg').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('button', { name: /Erster Weltkrieg/ })).toHaveAttribute('data-category-theme', 'history');
     expect(screen.getByText('Zweiter Weltkrieg')).toBeInTheDocument();
     expect(screen.getByText('Tschetschenische Geschichte')).toBeInTheDocument();
     expect(screen.getByText('Geschichte Japans')).toBeInTheDocument();
