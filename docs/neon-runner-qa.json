@@ -54,16 +54,20 @@
       "visible running gait",
       "jump pose",
       "helicopter hover motion",
-      "animated trail"
+      "animated trail",
+      "solid road surface",
+      "visible curb at foot contact",
+      "road shadows and moving lane marks"
     ],
     "description": "Touch controls keep the square character in view and enforce the air jump limit.",
     "steps": [
       "Select Kämpfer and start.",
       "Watch the character on the ground before jumping: its feet and arms alternate and its body bounces slightly. Select Heli in another round to see it hover.",
       "Tap the playfield four times rapidly while airborne, then tap a fifth time.",
-      "Let the character land or restart after collision, then jump again."
+      "Let the character land or restart after collision, then jump again.",
+      "Check the road below the feet while running and jumping: the curb remains directly beneath the runner and the lane marks move across the asphalt."
     ],
-    "expected": "The square fighter jumps on touch, displays silver white jump particles and visible fire dagger sparks. A fifth airborne tap adds no extra jump. Landing resets the jump allowance. Controls fit the mobile screen. The character visibly runs instead of sliding in place, shows a distinct airborne pose and a flowing trail; Heli hovers. Collision and jump control remain unchanged."
+    "expected": "The square fighter jumps on touch, displays silver white jump particles and visible fire dagger sparks. A fifth airborne tap adds no extra jump. Landing resets the jump allowance. Controls fit the mobile screen. The character visibly runs instead of sliding in place, shows a distinct airborne pose and a flowing trail; Heli hovers. Collision and jump control remain unchanged. The street has a solid darker surface, a curb at the foot contact line, a moving lane and a small shadow below the character."
   },
   {
     "name": "Coins, fire dagger bonus and magnet",

@@ -1692,17 +1692,35 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             } else { ctx.fillStyle=world.back;ctx.fillRect(0,0,width,height); }
             ctx.strokeStyle = world.grid; ctx.lineWidth = 1.5;
             for (let y = 60; y < height; y += graphicsQuality === 'weak' ? 120 : 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
-            if(graphicsQuality === 'max' && !performanceThrottle){
-                ctx.strokeStyle=world.perspective;ctx.lineWidth=1;
-                for(let x=0;x<width;x+=90){ctx.beginPath();ctx.moveTo(x,groundY);ctx.lineTo(x-90,height);ctx.stroke();}
+            // A side view street surface: solid asphalt, a curb under the feet,
+            // and lane marks farther down instead of a grid meeting the toes.
+            ctx.save();
+            ctx.fillStyle='#070b12';ctx.globalAlpha=1;
+            ctx.fillRect(0,groundY,width,height-groundY);
+            ctx.fillStyle=primaryColor;ctx.globalAlpha=.035;
+            ctx.fillRect(0,groundY+8,width,height-groundY-8);
+            ctx.fillStyle=world.grid;ctx.globalAlpha=.8;
+            ctx.fillRect(0,groundY+3,width,9);
+            ctx.fillStyle=primaryColor;ctx.globalAlpha=1;
+            ctx.shadowColor=primaryColor;ctx.shadowBlur=qualityShadow(12);
+            ctx.fillRect(0,groundY,width,3);
+            ctx.shadowBlur=0;ctx.globalAlpha=.35;
+            ctx.fillRect(0,groundY+12,width,1);
+            const roadOffset=isRunning ? (runTicks*gameSpeed)%100 : 0;
+            ctx.fillStyle=world.hazard;ctx.globalAlpha=.36;
+            for(let x=-roadOffset;x<width;x+=100)ctx.fillRect(x,groundY+61,42,3);
+            if(graphicsQuality==='max'&&!performanceThrottle){
+                ctx.fillStyle=world.grid;ctx.globalAlpha=.3;
+                for(let x=-roadOffset;x<width;x+=100)ctx.fillRect(x+65,groundY+15,1,height-groundY-15);
             }
-            ctx.save(); ctx.shadowBlur = qualityShadow(15); ctx.shadowColor = primaryColor; ctx.strokeStyle = primaryColor; ctx.lineWidth = 3;
-            ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(width, groundY); ctx.stroke();
-            ctx.fillStyle = primaryColor; ctx.globalAlpha = 0.08; ctx.fillRect(0, groundY, width, height - groundY); ctx.restore();
-            ctx.save();ctx.fillStyle=primaryColor;ctx.globalAlpha=.28;
-            const roadOffset=isRunning ? (runTicks*gameSpeed)%96 : 0;
-            for(let x=-roadOffset;x<width;x+=96)ctx.fillRect(x,groundY+17,24,2);
             ctx.restore();
+            if(!deathEffect){
+                const air=Math.max(0,groundY-player.h-player.y);
+                const radius=Math.max(9,21-air*.05);
+                ctx.save();ctx.globalAlpha=(selectedColor==='hubschrauber'?.16:.34)*Math.max(.4,1-air/200);
+                ctx.fillStyle='#020617';ctx.beginPath();
+                ctx.ellipse(player.x+player.w/2,groundY+5,radius,4,0,0,Math.PI*2);ctx.fill();ctx.restore();
+            }
             if (!deathEffect) {
             player.trail.forEach((pos, index) => {
                 const progress = (index + 1) / player.trail.length;
