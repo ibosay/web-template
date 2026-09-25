@@ -1226,13 +1226,34 @@ function emptyConditionPriceSet(): ConditionPriceSet {
   };
 }
 
-/** Mindestens 2 echte Belege für einen Marktpreis; genau 1 Beleg ⇒ nur referencePrice. */
-function conditionMarketPrice(rows: MarketListing[]): ConditionMarketPrice {
+/**
+ * Mindestens 2 echte Belege für einen Marktpreis; genau 1 Beleg ⇒ nur referencePrice.
+ * soldOnly (Sammelkarten): Ein Wert entsteht ausschließlich aus mindestens 2 Verkäufen. Aktive
+ * Angebote erzeugen nie einen Wert oder Referenzpreis; sie bleiben nur separat sichtbar.
+ */
+function conditionMarketPrice(rows: MarketListing[], soldOnly = false): ConditionMarketPrice {
   const sold = rows.filter(row => row.type === 'sold');
   const offers = rows.filter(row => row.type === 'offer');
   const counts = { soldCount: sold.length, offerCount: offers.length, sampleCount: rows.length };
 
   if (!rows.length) return emptyConditionMarketPrice();
+
+  if (soldOnly && sold.length < 2) {
+    const offerNote = offers.length
+      ? ' ' + offers.length + (offers.length === 1 ? ' aktives Angebot wird' : ' aktive Angebote werden') +
+        ' bei Sammelkarten nur separat angezeigt und ergeben keinen Marktwert.'
+      : '';
+    return {
+      ...emptyConditionMarketPrice(),
+      ...counts,
+      status: 'low_sample',
+      referencePrice: sold.length === 1 ? roundPrice(sold[0].price) : null,
+      basis:
+        (sold.length === 1
+          ? 'Nur ein passender Verkauf (' + sold[0].source + ') – mindestens 2 Verkäufe für einen Marktwert erforderlich.'
+          : 'Keine passenden Verkäufe – kein Marktwert.') + offerNote,
+    };
+  }
 
   if (rows.length === 1) {
     const only = rows[0];
@@ -2311,10 +2332,10 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   }));
 
   const conditionPrices: ConditionPriceSet = {
-    new: conditionMarketPrice(bucketRows.new),
-    likeNew: conditionMarketPrice(bucketRows.likeNew),
-    used: conditionMarketPrice(bucketRows.used),
-    defective: conditionMarketPrice(bucketRows.defective),
+    new: conditionMarketPrice(bucketRows.new, isCard),
+    likeNew: conditionMarketPrice(bucketRows.likeNew, isCard),
+    used: conditionMarketPrice(bucketRows.used, isCard),
+    defective: conditionMarketPrice(bucketRows.defective, isCard),
   };
 
   // Kein Kartenbasiswert: ungegradete Treffer werden bei gegradeten Karten bereits verworfen.
@@ -2344,7 +2365,9 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     status = 'low_sample';
   }
   // Ergänzende Suche ohne Wert: der Anbieterstatus (Karte eindeutig, zu wenige Belege) bleibt maßgeblich.
-  if (providerFallbackStatus && status !== 'found') status = providerFallbackStatus;
+  // Karte eindeutig, Marktplatzbelege vorhanden, aber keine 2 Verkäufe → zu wenige Belege.
+  if (providerFallbackStatus && status === 'low_sample') status = 'card_identified_insufficient_evidence';
+  else if (providerFallbackStatus && status !== 'found') status = providerFallbackStatus;
 
   const sold = finalRows.filter(row => row.type === 'sold');
   const offers = finalRows.filter(row => row.type === 'offer');

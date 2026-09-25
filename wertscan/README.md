@@ -30,7 +30,7 @@
 4. Raw und Graded strikt getrennt. Graded nur bei exakt gleicher Firma **und** Note.
    Fehlen ausreichende Verkäufe mit exakt gleicher Firma und Note, gibt es **keinen Marktwert**.
    Ungegradete Preise, andere Firmen/Noten und Preisführer ersetzen ihn nie (kein Kartenbasiswert).
-5. Verkäufe haben Vorrang vor Angeboten. Beide werden nie zu einem Wert gemischt.
+5. Verkäufe haben Vorrang vor Angeboten. Beide werden nie zu einem Wert gemischt. **Sammelkarten:** Der Marktwert entsteht ausschließlich aus mindestens 2 passenden Verkäufen; aktive Angebote ergeben nie einen Marktwert und werden nur separat angezeigt (`soldComparables.offers`). Nicht-Karten-Produkte behalten die bisherige Logik.
 6. Preisführer (Scrydex market, Cardmarket, BrickLink, PriceCharting) nur separat, nie im Marktwert.
 7. Zustände nur aus dem Zustandsfeld des Belegs (`conditionSource = 'provider_field'`), nie aus Titeln.
    Ein Anfragefilter zählt nur, wenn er nachweislich verifiziert ist (`trustConditionFilter`, Standard false).

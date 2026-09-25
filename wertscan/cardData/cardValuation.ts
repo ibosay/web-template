@@ -2,7 +2,9 @@
  * Bewertung aus Preisbelegen (PriceEvidence) einer bereits exakt bestätigten Karte.
  *
  * Feste Regeln:
- *  - Verkäufe (sold) haben Vorrang vor aktiven Angeboten (listing). Beide werden nie gemischt.
+ *  - Sammelkarten: Ein Wert entsteht ausschließlich aus echten Verkäufen (sold). Aktive Angebote
+ *    (listing) erzeugen nie einen Wert – auch nicht bei zwei oder mehr Angeboten. Sie bleiben als
+ *    Segmentbelege (segmentEvidence) nur zur separaten Anzeige erhalten.
  *  - Preisführer (guide) fließen NIE in einen Wert ein, sie werden separat ausgewiesen.
  *  - Raw und Graded strikt getrennt; Graded nur bei exakt gleicher Firma UND Note.
  *  - Fehlen bei Graded ausreichende Verkäufe mit exakt gleicher Firma+Note, gibt es KEINEN Wert.
@@ -187,14 +189,14 @@ async function summarize(
   };
 }
 
-/** Verkäufe bevorzugt; nur wenn es keine ausreichenden Verkäufe gibt, aktive Angebote (nie gemischt). */
-async function soldFirst(rows: PriceEvidence[], label: string, fx: FxRateProvider | undefined, cache: FxCache, excluded: Record<string, number>) {
+/** Nur echte Verkäufe ergeben einen Wert; aktive Angebote werden bei Sammelkarten nie bewertet. */
+async function soldOnly(rows: PriceEvidence[], label: string, fx: FxRateProvider | undefined, cache: FxCache, excluded: Record<string, number>) {
   const sold = await summarize(rows.filter(row => row.kind === 'sold'), 'sold', 'Median aus ' + label + ' (tatsächlich verkauft)', fx, cache);
   if (sold.value) return sold.value;
   if (sold.reason) excluded[sold.reason + ':' + label] = (excluded[sold.reason + ':' + label] || 0) + 1;
-  const listing = await summarize(rows.filter(row => row.kind === 'listing'), 'listing', 'Median aus ' + label + ' (aktive Angebote, keine ausreichenden Verkäufe)', fx, cache);
-  if (listing.reason) excluded[listing.reason + ':' + label] = (excluded[listing.reason + ':' + label] || 0) + 1;
-  return listing.value;
+  const listings = rows.filter(row => row.kind === 'listing').length;
+  if (listings) excluded['listing_not_used_for_value:' + label] = (excluded['listing_not_used_for_value:' + label] || 0) + listings;
+  return null;
 }
 
 export type ValuationInput = {
@@ -286,14 +288,14 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
     market.filter(row => row.grading && !sameGrading(row.grading, segment.grading)).forEach(() => count('other_grading'));
     raw.forEach(() => count('raw_not_used_for_graded'));
     segmentEvidence.exact = exactRows;
-    exactValue = await soldFirst(exactRows, label + '-Belegen', input.fx, cache, excluded);
+    exactValue = await soldOnly(exactRows, label + '-Belegen', input.fx, cache, excluded);
 
     if (exactValue) {
       headline = { kind: 'exact_grading', value: exactValue, note: 'Direkter Vergleich: nur ' + label + '-Belege derselben Karte und Variante.' };
     } else {
       message =
         'Keine zuverlässige Bewertung möglich: Für ' + label + ' liegen nicht mindestens ' + MIN_EVIDENCE +
-        ' passende Marktbelege vor. Ungegradete Preise, andere Grading-Firmen oder -Noten und Preisführer werden dafür nicht verwendet.';
+        ' passende Marktbelege vor. Aktive Angebote, ungegradete Preise, andere Grading-Firmen oder -Noten und Preisführer werden dafür nicht verwendet.';
     }
   } else {
     market.filter(row => row.grading).forEach(() => count('graded_vs_raw'));
@@ -311,17 +313,17 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
         return condition && condition !== segment.condition;
       }).forEach(() => count('other_condition'));
       segmentEvidence.exact = conditionRows;
-      exactValue = await soldFirst(conditionRows, 'Raw-' + segment.condition + '-Belegen', input.fx, cache, excluded);
+      exactValue = await soldOnly(conditionRows, 'Raw-' + segment.condition + '-Belegen', input.fx, cache, excluded);
       if (exactValue) {
         headline = { kind: 'raw_condition', value: exactValue, note: 'Nur Belege im Zustand ' + segment.condition + ' (Zustand von der Quelle angegeben).' };
       } else {
-        message = 'Keine zuverlässige Bewertung möglich: Für den Zustand ' + segment.condition + ' liegen nicht mindestens ' + MIN_EVIDENCE + ' Marktbelege mit Zustandsangabe vor.';
+        message = 'Keine zuverlässige Bewertung möglich: Für den Zustand ' + segment.condition + ' liegen nicht mindestens ' + MIN_EVIDENCE + ' Marktbelege mit Zustandsangabe vor. Aktive Angebote werden dafür nicht verwendet.';
       }
     }
   }
 
   const rawUnspecifiedValue =
-    segment.type === 'raw' ? await soldFirst(rawUnspecifiedRows, 'Raw-Belegen ohne Zustandsangabe', input.fx, cache, excluded) : null;
+    segment.type === 'raw' ? await soldOnly(rawUnspecifiedRows, 'Raw-Belegen ohne Zustandsangabe', input.fx, cache, excluded) : null;
   const sales = input.sales || { complete: true, loaded: market.filter(row => row.kind === 'sold').length, total: null };
   const limitedNote =
     'Eingeschränkte Datenbasis: nur ' + sales.loaded + (sales.total != null ? ' von ' + sales.total : '') + ' Verkäufen beim Anbieter geladen.';

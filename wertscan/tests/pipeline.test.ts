@@ -79,6 +79,24 @@ test('Nicht-Karten-Produkt: unverändert über Scraping, nur Verkäufe im Wert, 
   assert.equal(marketValuation(airpods, result)!.market, 125);
 });
 
+test('Nicht-Karten-Produkt: nur Angebote → bisherige Logik bleibt, Wert aus Angeboten (klar gekennzeichnet)', async () => {
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? { status: 200, text: page([]) }
+        : url.includes('ebay.de')
+          ? { status: 200, text: page([{ title: 'Apple AirPods Pro 2 Angebot', condition: 'Gebraucht', price: '180,00 EUR' }, { title: 'Apple AirPods Pro 2 Box', condition: 'Gebraucht', price: '170,00 EUR' }]) }
+          : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+  const result = await liveMarketLookup(airpods, silent);
+  assert.equal(result.cardMarket, null);
+  assert.equal(result.status, 'found');
+  assert.equal(result.headline.kind, 'condition');
+  assert.equal(result.headline.price, 175);
+  assert.match(result.headline.basis, /Marktangebot/);
+});
+
 test('Kein Zusammenlegen von Zuständen: Zielzustand ohne Belege → kein Wert (früher "pooled")', async () => {
   setAi(
     async url =>

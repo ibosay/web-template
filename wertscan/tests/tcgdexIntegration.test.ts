@@ -190,6 +190,68 @@ test('Gegradete Karte über TCGdex: Marktwert nur aus exakt gleicher Firma und N
   assert.ok(result.priceGuides.every(entry => entry.price !== result.headline.price));
 });
 
+test('Sammelkarte (Marktplatz): keine Verkäufe, fünf Angebote 70–80 € → kein Marktwert, Angebote nur separat', async () => {
+  marketplace(
+    [],
+    [70, 72, 75, 78, 80].map(price => ({ title: 'Charizard ex 223/197 Angebot ' + price, condition: 'Near Mint', price: price + ',00 EUR' }))
+  );
+  const analysis = pokemon({}, 'Near Mint');
+  const result = await withTcgdex(tcgdexRoutes, () => liveMarketLookup(analysis, silent));
+  assert.equal(result.cardMarket!.card!.cardId, 'sv03-223');
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.headline.kind, 'none');
+  assert.equal(result.headline.price, null);
+  assert.equal(marketValuation(analysis, result), null);
+  assert.equal(result.currentOffers.length, 5, 'Angebote bleiben sichtbar');
+  const display = buildMarketDisplay(result);
+  assert.equal(display.marketValue.state, 'no_value');
+  assert.equal(display.soldComparables.sold.length, 0);
+  assert.equal(display.soldComparables.offers.length, 5);
+  assert.ok(display.priceGuides.items.some(item => item.price.eur === '76,00 €'), 'Preisführer weiter getrennt');
+});
+
+test('Sammelkarte (Marktplatz): ein Verkauf 20 € plus zehn Angebote → noch kein Marktwert', async () => {
+  marketplace(
+    [{ title: 'Charizard ex 223/197 Obsidian Flames', condition: 'Near Mint', price: '20,00 EUR' }],
+    Array.from({ length: 10 }, (_, index) => ({ title: 'Charizard ex 223/197 Sofortkauf ' + index, condition: 'Near Mint', price: 18 + index + ',00 EUR' }))
+  );
+  const analysis = pokemon({}, 'Near Mint');
+  const result = await withTcgdex(tcgdexRoutes, () => liveMarketLookup(analysis, silent));
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.headline.price, null);
+  assert.equal(marketValuation(analysis, result), null);
+  assert.equal(result.soldComparables.length, 1);
+  assert.equal(result.currentOffers.length, 10);
+  const display = buildMarketDisplay(result);
+  assert.equal(display.marketValue.state, 'no_value');
+  assert.equal(display.soldComparables.offers.length, 10);
+});
+
+test('Sammelkarte (Marktplatz): PCA 9,5 – PCA-9,5-Angebote, PSA, Raw und Preisführer ersetzen fehlende PCA-Verkäufe nicht', async () => {
+  marketplace(
+    [
+      { title: 'Charizard ex 223/197 PCA 9.5', price: '300,00 EUR' },
+      { title: 'Charizard ex 223/197 PSA 10', price: '900,00 EUR' },
+      { title: 'Charizard ex 223/197 PSA 10 Gem', price: '950,00 EUR' },
+      { title: 'Charizard ex 223/197', condition: 'Near Mint', price: '20,00 EUR' },
+      { title: 'Charizard ex 223/197 Obsidian', condition: 'Near Mint', price: '21,00 EUR' },
+    ],
+    [
+      { title: 'Charizard ex 223/197 PCA 9,5 Angebot', price: '400,00 EUR' },
+      { title: 'Charizard ex 223/197 PCA 9.5 Sofort', price: '410,00 EUR' },
+      { title: 'Charizard ex 223/197 PCA 9.5 Top', price: '420,00 EUR' },
+    ]
+  );
+  const analysis = pokemon({ gradingCompany: 'PCA', grade: '9,5' }, 'Mint, graded');
+  const result = await withTcgdex(tcgdexRoutes, () => liveMarketLookup(analysis, silent));
+  assert.equal(result.cardMarket!.card!.cardId, 'sv03-223');
+  assert.equal(result.headline.price, null);
+  assert.notEqual(result.headline.kind, 'exact_grading');
+  assert.equal(marketValuation(analysis, result), null);
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(buildMarketDisplay(result).marketValue.state, 'no_value');
+});
+
 test('TCGdex technisch nicht erreichbar → provider_error, kein TCGdex-Preis, kein Marktwert, keine Marktplatzsuche', async () => {
   marketplace([{ title: 'Charizard ex 223/197', condition: 'Near Mint', price: '20,00 EUR' }]);
   const analysis = pokemon({}, 'Near Mint');

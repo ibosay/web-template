@@ -303,16 +303,110 @@ test('PCA 9,5 mit genau einem PCA-9,5-Verkauf: kein Marktwert, der Verkauf bleib
   assert.equal(result.valuation!.segmentEvidence.exact.length, 1);
 });
 
-test('Nur Angebote (keine Verkäufe) → Wert aus Angeboten, klar gekennzeichnet; einzelner Verkauf nicht eingemischt', async () => {
+test('Sammelkarte: nur Angebote (keine Verkäufe) → kein Marktwert, Angebote bleiben als Segmentbelege sichtbar', async () => {
   const provider = new InMemoryCardDataProvider({
     cards: [card({})],
     evidence: { c1: [ev({ kind: 'listing', price: 30, condition: 'NM' }), ev({ kind: 'listing', price: 34, condition: 'NM' }), ev({ price: 20, condition: 'NM' })] },
   });
   const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.valuation!.headline.kind, 'none');
+  assert.equal(result.valuation!.headline.value, null);
+  assert.equal(result.valuation!.exactValue, null);
+  assert.equal(result.valuation!.segmentEvidence.exact.filter(row => row.kind === 'listing').length, 2, 'Angebote nur zur Anzeige');
+});
+
+test('Sammelkarte Beispiel 1: zwei Verkäufe 19 € und 21 € plus Angebot 76 € → Marktwert 20 € nur aus Verkäufen', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: {
+      c1: [
+        ev({ price: 19, currency: 'EUR', condition: 'NM' }),
+        ev({ price: 21, currency: 'EUR', condition: 'NM' }),
+        ev({ kind: 'listing', price: 76, currency: 'EUR', condition: 'NM' }),
+      ],
+    },
+  });
+  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
   const value = result.valuation!.headline.value!;
-  assert.equal(value.basis, 'listing');
+  assert.equal(result.status, 'priced');
+  assert.equal(value.basis, 'sold');
+  assert.equal(value.median, 20);
   assert.equal(value.count, 2);
-  assert.match(value.description, /aktive Angebote/);
+  assert.ok(value.evidence.every(row => row.kind === 'sold'));
+});
+
+test('Sammelkarte Beispiel 2: keine Verkäufe, fünf Angebote 70–80 € → kein Marktwert', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: { c1: [70, 72, 75, 78, 80].map(price => ev({ kind: 'listing', price, currency: 'EUR', condition: 'NM' })) },
+  });
+  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.valuation!.headline.value, null);
+  assert.equal(result.valuation!.exactValue, null);
+  assert.equal(result.valuation!.segmentEvidence.exact.length, 5);
+});
+
+test('Sammelkarte Beispiel 3: ein Verkauf 20 € plus zehn Angebote → noch kein Marktwert', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: {
+      c1: [
+        ev({ price: 20, currency: 'EUR', condition: 'NM' }),
+        ...Array.from({ length: 10 }, (_, index) => ev({ kind: 'listing', price: 60 + index, currency: 'EUR', condition: 'NM' })),
+      ],
+    },
+  });
+  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.valuation!.headline.value, null);
+  assert.equal(result.valuation!.rawUnspecifiedValue, null);
+});
+
+test('Sammelkarte Beispiel 4/5: PCA 9,5 nur aus ≥ 2 PCA-9,5-Verkäufen; PCA-Angebote, PSA, Raw und Preisführer ersetzen nicht', async () => {
+  const pcaListing = (price: number) => ev({ kind: 'listing', grading: { company: 'pca', grade: '9.5' }, price, currency: 'EUR' });
+  const others = [
+    ev({ grading: { company: 'psa', grade: '10' }, price: 900, currency: 'EUR' }),
+    ev({ grading: { company: 'psa', grade: '10' }, price: 950, currency: 'EUR' }),
+    ev({ grading: { company: 'pca', grade: '9' }, price: 200, currency: 'EUR' }),
+    ev({ grading: { company: 'pca', grade: '9' }, price: 210, currency: 'EUR' }),
+    ev({ price: 20, currency: 'EUR', condition: 'NM' }),
+    ev({ price: 22, currency: 'EUR', condition: 'NM' }),
+    ev({ kind: 'guide', source: 'scrydex', priceType: 'market', price: 300, currency: 'EUR', grading: { company: 'pca', grade: '9.5' } }),
+  ];
+
+  // Ein PCA-9,5-Verkauf plus drei PCA-9,5-Angebote → kein Wert
+  const insufficient = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: { c1: [ev({ grading: { company: 'pca', grade: '9.5' }, price: 310, currency: 'EUR' }), pcaListing(400), pcaListing(410), pcaListing(420), ...others] },
+  });
+  const none = await lookupCardMarket(query(), pca95, { provider: insufficient, fx, now: () => NOW });
+  assert.equal(none.status, 'card_identified_insufficient_evidence');
+  assert.equal(none.valuation!.headline.kind, 'none');
+  assert.equal(none.valuation!.exactValue, null);
+  assert.equal(none.valuation!.priceGuides[0].matchesTarget, true, 'Preisführer nur separat');
+
+  // Zwei PCA-9,5-Verkäufe → Wert nur aus diesen
+  const enough = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: {
+      c1: [
+        ev({ grading: { company: 'pca', grade: '9.5' }, price: 300, currency: 'EUR' }),
+        ev({ grading: { company: 'pca', grade: '9.5' }, price: 320, currency: 'EUR' }),
+        pcaListing(400),
+        pcaListing(410),
+        ...others,
+      ],
+    },
+  });
+  const priced = await lookupCardMarket(query(), pca95, { provider: enough, fx, now: () => NOW });
+  const value = priced.valuation!.headline.value!;
+  assert.equal(priced.status, 'priced');
+  assert.equal(priced.valuation!.headline.kind, 'exact_grading');
+  assert.equal(value.median, 310);
+  assert.equal(value.count, 2);
+  assert.ok(value.evidence.every(row => row.kind === 'sold' && row.grading?.company === 'pca' && row.grading.grade === '9.5'));
 });
 
 test('Nur Preisführer → keine Bewertung, Preisführer separat sichtbar', async () => {
