@@ -25,6 +25,12 @@ export type CardMarketResult = {
   card: CardCandidate | null;
   variant: string | null;
   valuation: CardValuation | null;
+  /**
+   * Ergänzende Marktplatzsuche erlaubt? NUR wenn der Anbieter die Karte eindeutig kennt und
+   * lediglich Preisdaten fehlen. Nie bei nicht eindeutiger oder widersprüchlicher Identität.
+   */
+  fallbackAllowed: boolean;
+  fallbackReason: string;
   debug: {
     candidatesFound: number;
     rejectedCandidates: { cardId: string; reason: string }[];
@@ -43,6 +49,8 @@ export type CardMarketDeps = {
   now?: () => Date;
   soldWithinDays?: number;
   matchOptions?: MatchOptions;
+  /** Siehe ValuationInput.trustConditionFilter. Standard false. */
+  trustConditionFilter?: boolean;
 };
 
 const MESSAGES: Record<Exclude<CardMarketStatus, 'priced' | 'insufficient_data'>, string> = {
@@ -65,6 +73,8 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
     card: null,
     variant: null,
     valuation: null,
+    fallbackAllowed: false,
+    fallbackReason: '',
     debug: {
       candidatesFound: 0,
       rejectedCandidates: [],
@@ -79,6 +89,13 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
   const done = (status: CardMarketStatus, message?: string) => {
     result.status = status;
     result.message = message || (status in MESSAGES ? MESSAGES[status as keyof typeof MESSAGES] : '');
+    result.fallbackAllowed = status === 'insufficient_data';
+    result.fallbackReason =
+      status === 'insufficient_data'
+        ? 'Karte eindeutig bestätigt, aber zu wenige Preisbelege beim Anbieter.'
+        : status === 'priced'
+          ? 'Nicht nötig: Anbieterdaten reichen aus.'
+          : 'Nicht erlaubt: Kartenidentität beim Anbieter nicht eindeutig bestätigt (' + status + (result.debug.matchReason ? ': ' + result.debug.matchReason : '') + ').';
     return result;
   };
 
@@ -128,6 +145,8 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
     segment,
     now,
     fx: deps.fx,
+    supportedRawConditions: provider.supportedRawConditions,
+    trustConditionFilter: deps.trustConditionFilter ?? false,
   });
   result.valuation = valuation;
   result.debug.excluded = valuation.excluded;

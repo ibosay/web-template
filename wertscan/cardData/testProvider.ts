@@ -4,12 +4,14 @@
  */
 import { CardCandidate, CardDataProvider, CardQuery, EvidenceRequest, FxRate, FxRateProvider, PriceEvidence } from './types';
 import { cardNumberKey, normText } from './cardIdentity';
+import { CardCondition, SCRYDEX_RAW_CONDITIONS } from './conditions';
 
 export type InMemoryProviderOptions = {
   id?: string;
   cards: CardCandidate[];
   evidence: Record<string, PriceEvidence[]>;
   supportedLanguages?: string[] | null;
+  supportedRawConditions?: readonly CardCondition[] | null;
   failFind?: boolean;
   failEvidence?: boolean;
 };
@@ -18,11 +20,13 @@ export class InMemoryCardDataProvider implements CardDataProvider {
   readonly id: string;
   readonly displayName = 'Test-Provider';
   readonly supportedLanguages: string[] | null;
+  readonly supportedRawConditions: readonly CardCondition[] | null;
   readonly calls: { findCards: CardQuery[]; getPriceEvidence: EvidenceRequest[] } = { findCards: [], getPriceEvidence: [] };
 
   constructor(private readonly options: InMemoryProviderOptions) {
     this.id = options.id || 'test';
     this.supportedLanguages = options.supportedLanguages === undefined ? ['en', 'ja'] : options.supportedLanguages;
+    this.supportedRawConditions = options.supportedRawConditions === undefined ? SCRYDEX_RAW_CONDITIONS : options.supportedRawConditions;
   }
 
   /** Breite Suche wie ein echter Anbieter: gleiche Kartennummer (Hauptteil) – die exakte Prüfung macht WertScan. */

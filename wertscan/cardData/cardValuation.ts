@@ -10,8 +10,9 @@
  *  - Mindestens MIN_EVIDENCE Belege, sonst kein Wert.
  *  - Originalwährung bleibt erhalten; EUR ist nur ein gekennzeichneter Anzeigewert.
  */
-import { formatGrading, normalizeRawCondition, sameGrading, variantKey } from './cardIdentity';
-import { EurConversion, FxRate, FxRateProvider, Grading, PriceEvidence, PriceGuideEntry, RawCondition } from './types';
+import { formatGrading, sameGrading, variantKey } from './cardIdentity';
+import { CARD_CONDITION_LABELS, CardCondition } from './conditions';
+import { EurConversion, FxRate, FxRateProvider, Grading, PriceEvidence, PriceGuideEntry } from './types';
 
 export const MIN_EVIDENCE = 2;
 
@@ -35,7 +36,7 @@ export type ValueSummary = {
   evidence: PriceEvidence[];
 };
 
-export type CardSegment = { type: 'raw'; condition: RawCondition | null } | { type: 'graded'; grading: Grading };
+export type CardSegment = { type: 'raw'; condition: CardCondition | null } | { type: 'graded'; grading: Grading };
 
 export type CardHeadline = {
   kind: 'exact_grading' | 'raw_condition' | 'card_base' | 'none';
@@ -193,6 +194,13 @@ export type ValuationInput = {
   segment: CardSegment;
   now: Date;
   fx?: FxRateProvider;
+  /** Raw-Zustände, die der Anbieter führt. Fehlt der Zustand des Exemplars darin → kein Zustandswert. */
+  supportedRawConditions?: readonly CardCondition[] | null;
+  /**
+   * Nur true setzen, wenn per Doku/echter Antwort bestätigt ist, dass der Anbieter-Zustandsfilter
+   * garantiert nur Belege dieses Zustands liefert. Standard: false.
+   */
+  trustConditionFilter?: boolean;
 };
 
 export async function valueCard(input: ValuationInput): Promise<CardValuation> {
@@ -201,6 +209,13 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
   const cache: FxCache = new Map();
   const nowIso = input.now.toISOString();
   const wantedVariant = variantKey(input.variant);
+  /** Zustand eines Belegs – nur aus dem Anbieterfeld, aus einem Filter nur wenn ausdrücklich verifiziert. */
+  const conditionOf = (row: PriceEvidence): CardCondition | null => {
+    if (!row.condition) return null;
+    if (row.conditionSource === 'provider_field') return row.condition;
+    if (row.conditionSource === 'provider_filter' && input.trustConditionFilter) return row.condition;
+    return null;
+  };
 
   // 1) Grundfilter: gültig, nicht abgelaufen, richtige Variante
   const usable = input.evidence.filter(row => {
@@ -222,13 +237,13 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
     const matchesTarget =
       segment.type === 'graded'
         ? sameGrading(row.grading, segment.grading)
-        : !isGraded && Boolean(segment.condition) && normalizeRawCondition(row.condition) === segment.condition;
+        : !isGraded && Boolean(segment.condition) && conditionOf(row) === segment.condition;
     priceGuides.push({
       providerId: row.providerId,
       source: row.source,
-      label: (isGraded && row.grading ? formatGrading(row.grading) : 'Raw' + (row.condition ? ' ' + row.condition : '')) + (row.priceType ? ' ' + row.priceType : ''),
+      label: (isGraded && row.grading ? formatGrading(row.grading) : 'Raw' + (conditionOf(row) ? ' ' + conditionOf(row) : '')) + (row.priceType ? ' ' + row.priceType : ''),
       segment: isGraded ? 'graded' : 'raw',
-      condition: row.condition,
+      condition: conditionOf(row),
       grading: row.grading,
       priceType: row.priceType,
       price: row.price,
@@ -244,7 +259,7 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
 
   const market = usable.filter(row => row.kind !== 'guide');
   const raw = market.filter(row => !row.grading);
-  const rawUnspecifiedRows = raw.filter(row => !normalizeRawCondition(row.condition));
+  const rawUnspecifiedRows = raw.filter(row => !conditionOf(row));
 
   let exactValue: ValueSummary | null = null;
   let cardBaseValue: ValueSummary | null = null;
@@ -259,11 +274,11 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
 
     // Kartenbasiswert: nur NM oder "Zustand nicht angegeben"; bekannte schlechtere Zustände ausgeschlossen.
     const baseRows = raw.filter(row => {
-      const condition = normalizeRawCondition(row.condition);
+      const condition = conditionOf(row);
       if (condition && condition !== 'NM') return count('raw_not_nm_for_base'), false;
       return true;
     });
-    const nmOnly = baseRows.filter(row => normalizeRawCondition(row.condition) === 'NM');
+    const nmOnly = baseRows.filter(row => conditionOf(row) === 'NM');
     cardBaseValue =
       (await soldFirst(nmOnly, 'ungegradeten NM-Belegen derselben Karte', input.fx, cache, excluded)) ||
       (await soldFirst(baseRows, 'ungegradeten Belegen derselben Karte (Zustand teils nicht angegeben)', input.fx, cache, excluded));
@@ -281,12 +296,17 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
     }
   } else {
     market.filter(row => row.grading).forEach(() => count('graded_vs_raw'));
+    const supported = input.supportedRawConditions;
     if (!segment.condition) {
-      message = 'Keine zuverlässige Bewertung möglich: Der Zustand ist keiner Marktkategorie (NM, LP, MP, HP, DM) eindeutig zugeordnet. Zustandspreise werden nicht abgeleitet.';
+      message = 'Keine zuverlässige Bewertung möglich: Der Zustand des Exemplars ist keinem festen Zustandsbegriff eindeutig zugeordnet. Zustandspreise werden nicht abgeleitet.';
+    } else if (supported && !supported.includes(segment.condition)) {
+      message =
+        'Keine zustandsspezifische Bewertung möglich: Der Zustand "' + CARD_CONDITION_LABELS[segment.condition] +
+        '" wird vom Datenanbieter nicht geführt (' + supported.join(', ') + ') und wird nicht umgedeutet.';
     } else {
-      const conditionRows = raw.filter(row => normalizeRawCondition(row.condition) === segment.condition);
+      const conditionRows = raw.filter(row => conditionOf(row) === segment.condition);
       raw.filter(row => {
-        const condition = normalizeRawCondition(row.condition);
+        const condition = conditionOf(row);
         return condition && condition !== segment.condition;
       }).forEach(() => count('other_condition'));
       exactValue = await soldFirst(conditionRows, 'Raw-' + segment.condition + '-Belegen', input.fx, cache, excluded);

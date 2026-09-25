@@ -51,7 +51,8 @@ import {
   lookupCardMarket,
   normalizeGrading,
   normalizeLanguage,
-  normalizeRawCondition,
+  normalizeCardCondition,
+  CardCondition,
   toEur,
   variantKey,
 } from './cardData';
@@ -105,7 +106,7 @@ const SOURCE_META: Record<SourceKey, SourceMeta> = {
 // Typen (abwärtskompatibel erweitert: alle ursprünglichen Felder bleiben erhalten)
 // ---------------------------------------------------------------------------
 
-type MarketListing = {
+export type MarketListing = {
   source: string;
   title: string;
   price: number;
@@ -262,7 +263,7 @@ export type MarketDebug = {
     | null;
 };
 
-type MarketData = {
+export type MarketData = {
   connected: boolean;
   query: string;
   searchedQueries: string[];
@@ -321,13 +322,14 @@ export type MarketLookupOptions = {
   cardProviderGames?: string[];
   /** Echte Wechselkurse für die EUR-Anzeige von Provider-Preisen. */
   fxRateProvider?: FxRateProvider;
-  /** Explizit gepflegte Setnamen-Zuordnung (z. B. deutsche Setnamen → expansion.id). */
+  /** Kontrolliert gepflegte Set-Zuordnungen. Standard: EXPANSION_ALIASES (cardData/expansionAliases.ts). */
   expansionAliases?: MatchOptions['expansionAliases'];
   /** Zeitraum für Verkäufe beim Provider. Standard 90 Tage. */
   soldWithinDays?: number;
   /**
-   * Scraping als Rückfall, wenn der Provider die Karte nicht führt (not_found / Sprache nicht
-   * unterstützt). Nie bei "nicht eindeutig". Standard: true.
+   * Ergänzende Marktplatzsuche NUR, wenn der Anbieter die Karte eindeutig kennt und lediglich
+   * Preisdaten fehlen. Nie bei nicht eindeutiger Identität oder Widerspruch bei Nummer, Set,
+   * Variante oder Sprache; nie bei nicht geführter Sprache oder Anbieterfehler. Standard: true.
    */
   cardScrapeFallback?: boolean;
   /** Gültigkeit gescrapter Belege (expiresAt). Standard 24 h. */
@@ -776,6 +778,10 @@ type IdentityProfile = {
   /** Sprache/Variante der gescannten Karte, nur wenn die Erkennung sie liefert. */
   cardLanguage: string | null;
   cardVariant: string | null;
+  /** Zustand des Exemplars in der zentralen Karten-Taxonomie (nur Raw-Karten relevant). */
+  cardCondition: CardCondition | null;
+  /** Zustandsgruppe, in der gültige Kartenbelege landen. */
+  targetKey: ConditionKey;
 };
 
 function generationOf(text: string): string | null {
@@ -821,6 +827,8 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     grading: isCard ? targetGrading(analysis) : null,
     cardLanguage: isCard ? normalizeLanguage(cardDetailText(analysis, 'language')) : null,
     cardVariant: isCard ? variantKey(cardDetailText(analysis, 'variant')) : null,
+    cardCondition: isCard ? normalizeCardCondition(analysis.condition) : null,
+    targetKey: targetConditionKey(analysis),
   };
 }
 
@@ -1501,6 +1509,20 @@ function validateRow(
     conditionGroupFromText(row.conditionText) || llmGroup || conditionGroupFromText(title) || (meta.retailNew ? 'new' : 'used');
   if (gradingClass === 'exact') conditionGroup = 'likeNew';
   if (gradingClass === 'raw' && conditionGroup === 'defective') return { reason: 'raw_card_damaged' };
+  if (profile.isCard && gradingClass !== 'exact') {
+    // Zentrale Karten-Taxonomie, nur aus der Zustandsangabe des Treffers (nie aus dem Titel:
+    // "Charizard ex" ist kein Zustand). Mint ≠ Near Mint; keine Umdeutung.
+    const cardCondition = normalizeCardCondition(row.conditionText);
+    if (gradingClass === 'raw') {
+      // Kartenbasiswert: NM oder ohne Zustandsangabe; andere bekannte Zustände zählen nicht.
+      if (cardCondition && cardCondition !== 'NM') return { reason: 'raw_not_nm_for_base' };
+    } else {
+      if (!profile.cardCondition) return { reason: 'card_condition_unknown_target' };
+      if (!cardCondition) return { reason: 'card_condition_not_stated' };
+      if (cardCondition !== profile.cardCondition) return { reason: 'card_condition_mismatch' };
+      conditionGroup = profile.targetKey;
+    }
+  }
 
   return {
     row: {
@@ -1631,6 +1653,9 @@ const IDENTITY_REASONS = new Set([
   'language_mismatch',
   'variant_not_confirmed',
   'variant_unverified',
+  'card_condition_mismatch',
+  'card_condition_not_stated',
+  'card_condition_unknown_target',
 ]);
 
 function newDebug(isCard: boolean, grading: Grading | null, cardNumber: string, plan: QueryPlanEntry[]): MarketDebug {
@@ -1871,7 +1896,7 @@ async function runCardProvider(
   const normalized = grading ? normalizeGrading(grading.company, grading.grade) : null;
   const segment: CardSegment = normalized
     ? { type: 'graded', grading: normalized }
-    : { type: 'raw', condition: normalizeRawCondition(analysis.condition) };
+    : { type: 'raw', condition: normalizeCardCondition(analysis.condition) };
 
   let result: CardMarketResult;
   if (grading && !normalized) {
@@ -1884,6 +1909,8 @@ async function runCardProvider(
       card: null,
       variant: null,
       valuation: null,
+      fallbackAllowed: false,
+      fallbackReason: 'Nicht erlaubt: Grading-Note fehlt.',
       debug: { candidatesFound: 0, rejectedCandidates: [], remainingCandidates: [], matchReason: null, evidenceLoaded: 0, evidenceByKind: {}, excluded: {}, error: null },
     };
   } else {
@@ -2004,6 +2031,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   // Sammelkarten mit Kartendatenanbieter: strukturierte, exakte Zuordnung statt Scraping.
   const game = isCard ? cardGameOf(analysis) : null;
   let providerMessage = '';
+  let providerGuides: PriceGuideEntry[] = [];
   if (isCard && cardProvider && game && cardProviderGames.includes(game)) {
     const outcome = await runCardProvider(analysis, game, cardProvider, {
       fx: fxRateProvider,
@@ -2022,7 +2050,8 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     };
     debug.headline = outcome.headline;
     debug.priceGuidesFound = outcome.priceGuides.length;
-    const fallback = cardScrapeFallback && (outcome.result.status === 'not_found' || outcome.result.status === 'unsupported_language');
+    // Ergänzende Marktplatzsuche nur, wenn der Anbieter die Karte EINDEUTIG kennt und nur Preise fehlen.
+    const fallback = cardScrapeFallback && outcome.result.fallbackAllowed;
     if (!fallback) {
       return finish(outcome.status, {
         connected: outcome.status !== 'provider_error',
@@ -2036,7 +2065,12 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
         message: outcome.result.message,
       });
     }
-    providerMessage = outcome.result.message + ' Rückfall auf Marktplatzsuche: ';
+    providerMessage = outcome.result.message + ' Ergänzende Marktplatzsuche für genau diese Karte: ';
+    providerGuides = outcome.priceGuides;
+    // Vom Anbieter bestätigte Identität gilt nun auch für gescrapte Titel.
+    const confirmedLanguage = normalizeLanguage(outcome.result.card?.languageCode || outcome.result.card?.language || '');
+    if (confirmedLanguage) profile.cardLanguage = confirmedLanguage;
+    if (outcome.result.variant) profile.cardVariant = variantKey(outcome.result.variant);
   }
 
   const pages = buildSearchPages(analysis, plan);
@@ -2210,7 +2244,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     source: row.source,
     label: row.title,
     segment: row.gradingClass === 'exact' ? 'graded' : 'raw',
-    condition: row.condition || null,
+    condition: normalizeCardCondition(row.condition),
     grading: null,
     priceType: null,
     price: row.price,
@@ -2222,6 +2256,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     fetchedAt: row.fetchedAt || searchedAt,
     expiresAt: row.expiresAt || searchedAt,
   }));
+  priceGuides.push(...providerGuides);
   debug.priceGuidesFound = priceGuides.length;
 
   // 5) Gruppierung – bei gegradeten Karten zwei strikt getrennte Märkte -------------------------

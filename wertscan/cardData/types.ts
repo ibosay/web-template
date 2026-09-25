@@ -6,10 +6,9 @@
  * WertScan (cardMatching.ts, cardValuation.ts) – nie der Anbieter-Adapter.
  */
 
-export type Grading = { company: string; grade: string };
+import { CardCondition } from './conditions';
 
-/** Raw-Zustände, wie Marktanbieter sie liefern. Andere Werte werden nie hineininterpretiert. */
-export type RawCondition = 'NM' | 'LP' | 'MP' | 'HP' | 'DM';
+export type Grading = { company: string; grade: string };
 
 /** Aus der Bilderkennung übernommene Identität. Unbekannte Felder sind null – nie geraten. */
 export type CardQuery = {
@@ -56,8 +55,17 @@ export type PriceEvidence = {
   title: string | null;
   /** null = ungegradet (raw). */
   grading: Grading | null;
-  /** Nur gesetzt, wenn die Quelle den Zustand in DIESER Antwort geliefert hat. */
-  condition: string | null;
+  /** Zustand in der zentralen Taxonomie (conditions.ts); null = unbekannt. */
+  condition: CardCondition | null;
+  /**
+   * Herkunft des Zustands:
+   *  - 'provider_field'  : Feld im einzelnen Beleg der Anbieterantwort
+   *  - 'provider_filter' : nur durch einen Anfragefilter bestätigt – zählt nur, wenn der Filter
+   *                        nachweislich verifiziert ist (siehe ValuationInput.trustedConditionFilters)
+   *  - null              : kein Zustand
+   * Zustände aus Verkaufstiteln werden nie übernommen.
+   */
+  conditionSource: 'provider_field' | 'provider_filter' | null;
   /** Bei guide: 'market' | 'low' | 'mid' | 'high' …; sonst null. */
   priceType: string | null;
   /** Originalbetrag in Originalwährung der Quelle. */
@@ -85,6 +93,8 @@ export interface CardDataProvider {
   readonly displayName: string;
   /** Sprachcodes, die der Anbieter führt; null = unbekannt. */
   readonly supportedLanguages: string[] | null;
+  /** Raw-Zustände, die der Anbieter führt (zentrale Taxonomie); null = unbekannt. */
+  readonly supportedRawConditions: readonly CardCondition[] | null;
   findCards(query: CardQuery): Promise<CardCandidate[]>;
   getPriceEvidence(request: EvidenceRequest): Promise<PriceEvidence[]>;
 }
@@ -110,7 +120,7 @@ export type PriceGuideEntry = {
   source: string;
   label: string;
   segment: 'raw' | 'graded';
-  condition: string | null;
+  condition: CardCondition | null;
   grading: Grading | null;
   priceType: string | null;
   price: number;

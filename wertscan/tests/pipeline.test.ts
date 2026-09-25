@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import { aiCalls, setAi } from './setupGlobals';
 import { liveMarketLookup, marketValuation } from '../marketPricePipeline';
 import { CardCandidate, InMemoryCardDataProvider, PriceEvidence, StaticFxRateProvider } from '../cardData';
+import { buildMarketDisplay } from '../marketDisplay';
 
 const silent = { log: () => {} };
 
@@ -24,11 +25,11 @@ function extractAll(content: string) {
     const id = Number(parts[i]);
     const lines = parts[i + 1].split('\n');
     lines.forEach((line, index) => {
-      if (/EUR$/.test(line) || line === 'Navigation' || /^(Gebraucht|Neu|Neuwertig)$/.test(line) || !line.trim()) return;
+      if (/EUR$/.test(line) || line === 'Navigation' || /^(Gebraucht|Neu|Neuwertig|Near Mint|Mint)$/.test(line) || !line.trim()) return;
       const next = lines.slice(index + 1, index + 3);
       const priceLine = next.find(value => /EUR$/.test(value));
       if (!priceLine) return;
-      const condition = next.find(value => /^(Gebraucht|Neu|Neuwertig)$/.test(value)) || '';
+      const condition = next.find(value => /^(Gebraucht|Neu|Neuwertig|Near Mint|Mint)$/.test(value)) || '';
       out.push({
         sectionId: id,
         title: line,
@@ -143,6 +144,7 @@ const sold = (price: number, overrides: Partial<PriceEvidence> = {}): PriceEvide
   title: 'Charizard 143/S-P',
   grading: null,
   condition: null,
+  conditionSource: null,
   priceType: null,
   price,
   currency: 'USD',
@@ -210,28 +212,41 @@ test('Karte ohne Wechselkurs: Wert nur in Originalwährung, keine EUR-Bewertung'
   assert.equal(marketValuation(analysis, result), null);
 });
 
-test('Deutsche Karte bei en/ja-Anbieter → Rückfall auf Scraping mit Sprachprüfung der Titel', async () => {
+test('Deutsche Karte bei en/ja-Anbieter → kein Fallback (Identität beim Anbieter nicht bestätigt), kein Preis', async () => {
+  setAi(async () => ({ status: 200, text: page([{ title: 'Glurak 143/S-P Promo Deutsch', price: '95,00 EUR' }]) }), async ({ content }) => extractAll(content));
+  const provider = new InMemoryCardDataProvider({ cards: [candidate()], evidence: {} });
+  const result = await liveMarketLookup(charizard({ language: 'Deutsch' }), { ...silent, cardProvider: provider });
+  assert.equal(result.status, 'unsupported_language');
+  assert.equal(aiCalls.scrape.length, 0);
+  assert.equal(result.headline.kind, 'none');
+});
+
+test('Karte eindeutig, Anbieter ohne ausreichende Preise → ergänzende Marktplatzsuche nur für genau diese Karte', async () => {
   setAi(
     async url =>
       url.includes('LH_Sold')
         ? {
             status: 200,
             text: page([
-              { title: 'Glurak 143/S-P Promo Deutsch', price: '95,00 EUR' },
-              { title: 'Glurak 143/S-P Promo deutsch NM', price: '105,00 EUR' },
-              { title: 'Charizard 143/S-P Japanese', price: '60,00 EUR' },
+              { title: 'Charizard 143/S-P Promo Japanese', price: '95,00 EUR' },
+              { title: 'Glurak 143/S-P Promo japanisch', price: '105,00 EUR' },
+              { title: 'Glurak 143/S-P Promo Deutsch', price: '40,00 EUR' },
+              { title: 'Charizard 143/S-P Reverse Holo', price: '300,00 EUR' },
             ]),
           }
         : { status: 403, text: '' },
     async ({ content }) => extractAll(content)
   );
-  const provider = new InMemoryCardDataProvider({ cards: [candidate()], evidence: {} });
-  const result = await liveMarketLookup(charizard({ language: 'Deutsch' }), { ...silent, cardProvider: provider });
+  const provider = new InMemoryCardDataProvider({ cards: [candidate()], evidence: { c1: [sold(100)] } });
+  const result = await liveMarketLookup(charizard({ language: 'Japanisch' }), { ...silent, cardProvider: provider, fxRateProvider: fx });
+  assert.equal(result.cardMarket!.status, 'insufficient_data');
+  assert.equal(result.cardMarket!.fallbackAllowed, true);
   assert.ok(aiCalls.scrape.length > 0);
-  assert.equal(result.cardMarket!.status, 'unsupported_language');
-  assert.ok(result.debug.rejectionReasons.language_mismatch >= 1, 'japanischer Titel verworfen');
+  assert.ok(result.debug.rejectionReasons.language_mismatch >= 1, 'deutscher Titel verworfen');
+  assert.ok(result.debug.rejectionReasons.variant_mismatch >= 1, 'Reverse Holo widerspricht der bestätigten Variante');
   assert.equal(result.headline.kind, 'card_base');
   assert.equal(result.headline.price, 100);
+  assert.match(result.message, /Ergänzende Marktplatzsuche für genau diese Karte/);
 });
 
 test('Scraping: Cardmarket ist Preisführer und fließt nicht in den Wert ein', async () => {
@@ -264,4 +279,69 @@ test('Scraping: Reverse-Holo-Titel bei unbekannter Variante wird nicht übernomm
   const result = await liveMarketLookup(charizard(), silent);
   assert.ok(result.debug.rejectionReasons.variant_unverified >= 1);
   assert.equal(result.headline.price, 100);
+});
+
+test('Bisheriges Problem (Scraping): Verkäufe um 20 €, Angebote und Cardmarket bei 76 € → Marktwert 20 €', async () => {
+  setAi(
+    async url =>
+      url.includes('cardmarket')
+        ? { status: 200, text: page([{ title: 'Charizard 143/S-P Promo', condition: 'Near Mint', price: '76,00 EUR' }]) }
+        : url.includes('LH_Sold')
+          ? { status: 200, text: page([{ title: 'Charizard 143/S-P Promo', condition: 'Near Mint', price: '19,00 EUR' }, { title: 'Glurak 143/S-P Promo', condition: 'Near Mint', price: '21,00 EUR' }]) }
+          : url.includes('ebay.de')
+            ? { status: 200, text: page([{ title: 'Charizard 143/S-P Promo Angebot', condition: 'Near Mint', price: '76,00 EUR' }, { title: 'Glurak 143/S-P Promo Sofort', condition: 'Near Mint', price: '76,00 EUR' }]) }
+            : { status: 403, text: '' },
+    async ({ content }) => extractAll(content).data.items.length ? extractAll(content) : { data: { items: [] } }
+  );
+  const raw = charizard({ gradingCompany: '', grade: '' });
+  (raw as unknown as { condition: string }).condition = 'Near Mint';
+  const result = await liveMarketLookup(raw, silent);
+  assert.equal(result.status, 'found');
+  assert.equal(result.headline.price, 20);
+  assert.notEqual(marketValuation(raw, result)!.market, 76);
+  assert.ok(result.priceGuides.some(entry => entry.price === 76), 'Cardmarket bleibt als Preisführer sichtbar');
+});
+
+test('Raw-Karte "Mint" per Scraping: Near-Mint-Verkäufe werden nicht als Mint gewertet → kein Wert', async () => {
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? { status: 200, text: page([{ title: 'Charizard 143/S-P Promo', condition: 'Near Mint', price: '19,00 EUR' }, { title: 'Glurak 143/S-P Promo', condition: 'Near Mint', price: '21,00 EUR' }]) }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+  const raw = charizard({ gradingCompany: '', grade: '' });
+  (raw as unknown as { condition: string }).condition = 'Mint';
+  const result = await liveMarketLookup(raw, silent);
+  assert.equal(result.headline.kind, 'none');
+  assert.ok(result.debug.rejectionReasons.card_condition_mismatch >= 2);
+});
+
+test('Anzeige: drei getrennte Bereiche; Preisführer nie als Verkauf, Marktwert ohne Belege = "keine Bewertung"', async () => {
+  setAi(async () => ({ status: 200, text: '' }), async () => ({ data: { items: [] } }));
+  const provider = new InMemoryCardDataProvider({
+    cards: [candidate()],
+    evidence: {
+      c1: [
+        sold(100),
+        sold(120),
+        sold(5000, { kind: 'guide', source: 'scrydex', priceType: 'market', grading: { company: 'pca', grade: '9.5' } }),
+      ],
+    },
+  });
+  const market = await liveMarketLookup(charizard({ language: 'ja' }), { ...silent, cardProvider: provider, fxRateProvider: fx });
+  const display = buildMarketDisplay(market);
+  assert.equal(display.marketValue.state, 'value');
+  assert.equal(display.marketValue.value!.original, '110,00 USD');
+  assert.match(display.marketValue.value!.fxNote!, /kein Marktpreis der Quelle/);
+  assert.equal(display.comparableSales.sold.length, 2);
+  assert.ok(display.comparableSales.sold.every(item => item.variant === 'sold' && item.badge === 'Verkauft'));
+  assert.equal(display.priceGuides.items.length, 1);
+  assert.ok(display.priceGuides.items.every(item => item.variant === 'guide' && item.badge === 'Preisführer'));
+  assert.ok(!display.comparableSales.sold.some(item => item.price.original === '5.000,00 USD'), 'Preisführer nicht unter Verkäufen');
+
+  const empty = buildMarketDisplay(await liveMarketLookup(charizard(), { ...silent, cardProvider: new InMemoryCardDataProvider({ cards: [candidate(), candidate({ cardId: 'x', languageCode: 'en' })], evidence: {} }) }));
+  assert.equal(empty.marketValue.state, 'no_value');
+  assert.equal(empty.marketValue.value, null);
+  assert.match(empty.marketValue.noValueReason!, /nicht eindeutig zuordenbar/);
 });

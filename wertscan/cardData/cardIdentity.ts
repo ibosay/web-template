@@ -3,7 +3,8 @@
  * (Groß/Klein, Trennzeichen, führende Nullen) und explizite Synonymtabellen.
  * Passt nicht genau EIN Kandidat, gibt es keinen Preis.
  */
-import { CardCandidate, CardQuery, Grading, RawCondition } from './types';
+import { EXPANSION_ALIASES, ExpansionAlias } from './expansionAliases';
+import { CardCandidate, CardQuery, Grading } from './types';
 
 export const fold = (value: string | null | undefined) =>
   String(value || '')
@@ -126,27 +127,7 @@ export const sameGrading = (a: Grading | null, b: Grading | null) =>
 
 export const formatGrading = (grading: Grading) => grading.company.toUpperCase() + ' ' + grading.grade.replace('.', ',');
 
-const RAW_CONDITION_PHRASES: [RegExp, RawCondition][] = [
-  [/(^| )(nm|near mint)( |$)/, 'NM'],
-  [/(^| )(lp|lightly played|light played)( |$)/, 'LP'],
-  [/(^| )(mp|moderately played)( |$)/, 'MP'],
-  [/(^| )(hp|heavily played|heavy played)( |$)/, 'HP'],
-  [/(^| )(dm|dmg|damaged)( |$)/, 'DM'],
-];
-
-/**
- * Ordnet einen Zustandstext nur dann einer Raw-Kategorie zu, wenn er GENAU eine der festen
- * Bezeichnungen enthält. "Mint", "sehr gut" o. Ä. werden nicht umgedeutet → null.
- */
-export function normalizeRawCondition(value: string | null | undefined): RawCondition | null {
-  const text = normText(value);
-  if (!text) return null;
-  const found = new Set<RawCondition>();
-  RAW_CONDITION_PHRASES.forEach(([pattern, code]) => {
-    if (pattern.test(text)) found.add(code);
-  });
-  return found.size === 1 ? [...found][0] : null;
-}
+// Zustände: siehe conditions.ts (zentrale Taxonomie).
 
 // ---------------------------------------------------------------------------
 // Kandidatenauswahl
@@ -159,22 +140,38 @@ export type MatchResult =
   | { status: 'not_found' | 'not_unique'; reason: string; remaining: CardCandidate[]; rejected: CandidateRejection[] };
 
 export type MatchOptions = {
-  /** Explizite, von Menschen gepflegte Zuordnung Setname → expansion.id (z. B. deutsche Setnamen). */
-  expansionAliases?: Record<string, string>;
+  /** Kontrolliert gepflegte Set-Zuordnungen. Standard: EXPANSION_ALIASES (expansionAliases.ts). */
+  expansionAliases?: ExpansionAlias[];
 };
 
-function setMatches(query: CardQuery, candidate: CardCandidate, aliases: Record<string, string>): boolean | null {
-  if (query.setId) return compact(query.setId) === compact(candidate.expansionId);
-  if (!query.setName) return null; // kein Set bekannt → nicht prüfbar
+/**
+ * 'match'        : Set exakt bestätigt (Name, ID oder bestätigter Alias)
+ * 'conflict'     : Set bekannt und widerspricht (Alias vorhanden und passt nicht, oder ID abweichend)
+ * 'unverifiable' : Setname ohne Alias und ohne exakte Übereinstimmung – z. B. anderssprachiger Name
+ * 'unknown'      : kein Set erkannt
+ */
+type SetCheck = 'match' | 'conflict' | 'unverifiable' | 'unknown';
+
+function checkSet(query: CardQuery, candidate: CardCandidate, aliases: ExpansionAlias[]): SetCheck {
+  if (query.setId) return compact(query.setId) === compact(candidate.expansionId) ? 'match' : 'conflict';
+  if (!query.setName) return 'unknown';
   const name = normText(query.setName);
-  if (name === normText(candidate.expansionName)) return true;
-  const alias = aliases[name];
-  return Boolean(alias && compact(alias) === compact(candidate.expansionId));
+  if (name === normText(candidate.expansionName)) return 'match';
+  const matching = aliases.filter(entry => entry.game === query.game && normText(entry.alias) === name);
+  if (!matching.length) return 'unverifiable';
+  const hit = matching.some(
+    entry =>
+      normText(entry.expansionName) === normText(candidate.expansionName) ||
+      Boolean(entry.expansionId && compact(entry.expansionId) === compact(candidate.expansionId))
+  );
+  return hit ? 'match' : 'conflict';
 }
 
+/** Ablehnungsgründe, die einen echten Widerspruch zur erkannten Identität bedeuten. */
+export const IDENTITY_CONFLICT_REASONS = ['number_mismatch', 'language_mismatch', 'set_mismatch', 'variant_mismatch'];
+
 export function matchCandidates(query: CardQuery, candidates: CardCandidate[], options: MatchOptions = {}): MatchResult {
-  const aliases: Record<string, string> = {};
-  Object.entries(options.expansionAliases || {}).forEach(([key, value]) => (aliases[normText(key)] = value));
+  const aliases = options.expansionAliases || EXPANSION_ALIASES;
   const rejected: CandidateRejection[] = [];
 
   if (!query.number) {
@@ -196,11 +193,12 @@ export function matchCandidates(query: CardQuery, candidates: CardCandidate[], o
       if (candidateLanguage !== queryLanguage) return reject('language_mismatch');
     }
 
-    const setOk = setMatches(query, candidate, aliases);
-    if (setOk === false) return reject('set_mismatch');
-    if (numberMatch === 'lead' && setOk !== true) return reject('number_not_exact_without_set');
+    const set = checkSet(query, candidate, aliases);
+    if (set === 'conflict') return reject('set_mismatch');
+    if (set === 'unverifiable') return reject('set_unverifiable_no_alias');
+    if (numberMatch === 'lead' && set !== 'match') return reject('number_not_exact_without_set');
     // Ohne bestätigtes Set muss wenigstens der Name exakt passen (sonst könnten Nachdrucke/Promos verwechselt werden).
-    if (setOk === null && query.name && normText(query.name) !== normText(candidate.name)) return reject('name_mismatch_without_set');
+    if (set === 'unknown' && query.name && normText(query.name) !== normText(candidate.name)) return reject('name_mismatch_without_set');
 
     const variants = candidate.variants.map(entry => entry.name);
     if (queryVariant) {
@@ -216,6 +214,10 @@ export function matchCandidates(query: CardQuery, candidates: CardCandidate[], o
 
   if (!accepted.length) {
     const reasons = Array.from(new Set(rejected.map(item => item.reason)));
+    // Setname nicht prüfbar (kein Alias) → nicht eindeutig statt "nicht gefunden".
+    if (reasons.includes('set_unverifiable_no_alias')) {
+      return { status: 'not_unique', reason: 'set_unverifiable_no_alias', remaining: [], rejected };
+    }
     return { status: 'not_found', reason: reasons.length ? reasons.join(',') : 'no_candidates', remaining: [], rejected };
   }
   if (accepted.length > 1) {

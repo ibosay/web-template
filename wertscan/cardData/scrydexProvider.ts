@@ -16,6 +16,7 @@
  */
 import { CardCandidate, CardDataProvider, CardQuery, EvidenceRequest, PriceEvidence } from './types';
 import { cardNumberKey, normalizeGrading } from './cardIdentity';
+import { SCRYDEX_RAW_CONDITIONS, normalizeCardCondition } from './conditions';
 
 // PRÜFEN: Header-Namen laut Scrydex-Doku.
 export const SCRYDEX_API_KEY_HEADER = 'X-Api-Key';
@@ -61,6 +62,7 @@ export class ScrydexProvider implements CardDataProvider {
   readonly id = 'scrydex';
   readonly displayName = 'Scrydex';
   readonly supportedLanguages = ['en', 'ja'];
+  readonly supportedRawConditions = SCRYDEX_RAW_CONDITIONS;
 
   private readonly config: Required<Omit<ScrydexConfig, 'fetch'>> & { fetch: FetchLike };
   /** Rohdaten der zuletzt gefundenen Karten (für Preise aus include=prices ohne erneuten Abruf). */
@@ -179,6 +181,7 @@ export class ScrydexProvider implements CardDataProvider {
         const grading = type === 'graded' ? normalizeGrading(str(entry.company), str(entry.grade) ?? num(entry.grade)) : null;
         if (type === 'graded' && !grading) return; // Graded ohne Firma/Note ist nicht zuordenbar
         const priceTypes = type === 'graded' ? ['market', 'low', 'mid', 'high'] : ['market', 'low'];
+        const condition = type === 'graded' ? null : normalizeCardCondition(str(entry.condition));
         priceTypes.forEach(priceType => {
           const price = num(entry[priceType]);
           if (price == null || price <= 0) return;
@@ -190,7 +193,8 @@ export class ScrydexProvider implements CardDataProvider {
             variant,
             title: null,
             grading,
-            condition: type === 'graded' ? null : str(entry.condition),
+            condition,
+            conditionSource: condition ? 'provider_field' : null,
             priceType,
             price,
             currency: currency.toUpperCase(),
@@ -224,6 +228,8 @@ export class ScrydexProvider implements CardDataProvider {
       const grading = company || gradeValue != null ? normalizeGrading(company, gradeValue) : null;
       // Graded-Angabe unvollständig (nur Firma oder nur Note) → nicht zuordenbar, weder raw noch graded.
       if ((company || gradeValue != null) && !grading) return;
+      // Zustand nur aus dem Feld DIESES Listings. Kein Rückschluss aus Titel oder Anfragefilter.
+      const condition = normalizeCardCondition(str(item.condition));
       evidence.push({
         kind: str(item.sold_at) ? 'sold' : 'listing',
         providerId: this.id,
@@ -232,7 +238,8 @@ export class ScrydexProvider implements CardDataProvider {
         variant: str(item.variant),
         title: str(item.title),
         grading,
-        condition: str(item.condition), // nur wenn in DIESER Antwort vorhanden
+        condition,
+        conditionSource: condition ? 'provider_field' : null,
         priceType: null,
         price,
         currency: currency.toUpperCase(),

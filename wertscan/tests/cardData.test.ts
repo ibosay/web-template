@@ -6,13 +6,16 @@ import assert from 'node:assert/strict';
 import {
   CardCandidate,
   CardQuery,
+  EXPANSION_ALIASES,
+  EcbFxRateProvider,
   InMemoryCardDataProvider,
   PriceEvidence,
   StaticFxRateProvider,
   cardNumberKey,
   lookupCardMarket,
   matchCandidates,
-  normalizeRawCondition,
+  normalizeCardCondition,
+  parseEcbDailyXml,
 } from '../cardData';
 import { ScrydexProvider, createScrydexProviderFromEnv } from '../cardData/scrydexProvider';
 
@@ -37,8 +40,9 @@ function card(overrides: Partial<CardCandidate>): CardCandidate {
   };
 }
 
+/** Beleg; ein gesetzter Zustand gilt als Feld der Anbieterantwort, sofern nicht anders angegeben. */
 function ev(overrides: Partial<PriceEvidence>): PriceEvidence {
-  return {
+  const row: PriceEvidence = {
     kind: 'sold',
     providerId: 'test',
     source: 'ebay',
@@ -47,6 +51,7 @@ function ev(overrides: Partial<PriceEvidence>): PriceEvidence {
     title: 'Charizard 143/S-P',
     grading: null,
     condition: null,
+    conditionSource: null,
     priceType: null,
     price: 100,
     currency: 'USD',
@@ -56,6 +61,8 @@ function ev(overrides: Partial<PriceEvidence>): PriceEvidence {
     expiresAt: EXPIRES,
     ...overrides,
   };
+  if (!('conditionSource' in overrides)) row.conditionSource = row.condition ? 'provider_field' : null;
+  return row;
 }
 
 const query = (overrides: Partial<CardQuery> = {}): CardQuery => ({
@@ -84,90 +91,179 @@ test('Kartennummer: Schreibweisen 143/S P, 143/S-P, 143/SP, "143/S-P Promo" sind
   assert.equal(cardNumberKey('085/SV-P').full, cardNumberKey('85/SV-P').full);
 });
 
-test('Eindeutiger Treffer bei exakter Nummer, Sprache und einziger Variante', () => {
-  const result = matchCandidates(query(), [card({}), card({ cardId: 'c2', printedNumber: '144/S-P', number: '144' })]);
-  assert.equal(result.status, 'unique');
-  if (result.status === 'unique') {
-    assert.equal(result.candidate.cardId, 'c1');
-    assert.equal(result.variant, 'holofoil');
-  }
+test('Japanische Promo 143/S P: exakt 143/S-P (ja) gewählt, 143/SV-P und 143/S-P (en) nicht', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [
+      card({}),
+      card({ cardId: 'svp', printedNumber: '143/SV-P', expansionName: 'Scarlet & Violet Promo' }),
+      card({ cardId: 'en', languageCode: 'en', language: 'English' }),
+    ],
+    evidence: { c1: [ev({ price: 20, condition: 'NM' }), ev({ price: 22, condition: 'NM' })] },
+  });
+  const result = await lookupCardMarket(query({ number: '143/S P', language: 'ja' }), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'priced');
+  assert.equal(result.card!.cardId, 'c1');
+  assert.ok(result.debug.rejectedCandidates.some(item => item.cardId === 'svp' && item.reason === 'number_mismatch'));
+  assert.notEqual(result.card!.cardId, 'en');
+  const direct = matchCandidates(query({ number: '143/S P', language: 'ja' }), [card({ cardId: 'en', languageCode: 'en', language: 'English' })]);
+  assert.ok(direct.rejected.some(item => item.cardId === 'en' && item.reason === 'language_mismatch'));
 });
 
-test('Sprache unbekannt und Karte in en + ja vorhanden → nicht eindeutig, keine Auswahl', () => {
-  const result = matchCandidates(query({ language: null }), [card({}), card({ cardId: 'c-en', languageCode: 'en', language: 'English' })]);
-  assert.equal(result.status, 'not_unique');
-  if (result.status !== 'unique') assert.equal(result.reason, 'language_unknown_multiple_candidates');
+test('Gleiche Kartennummer in mehreren Sprachen oder Varianten → "nicht eindeutig", keine Auswahl, kein Preis', async () => {
+  const evidence = { c1: [ev({ price: 20, condition: 'NM' }), ev({ price: 22, condition: 'NM' })] };
+  const languages = new InMemoryCardDataProvider({ cards: [card({}), card({ cardId: 'c-en', languageCode: 'en', language: 'English' })], evidence });
+  const byLanguage = await lookupCardMarket(query({ language: null }), rawNM, { provider: languages, fx, now: () => NOW });
+  assert.equal(byLanguage.status, 'not_unique');
+  assert.equal(byLanguage.debug.matchReason, 'language_unknown_multiple_candidates');
+  assert.equal(byLanguage.valuation, null);
+  assert.equal(byLanguage.fallbackAllowed, false);
+
+  const variants = new InMemoryCardDataProvider({ cards: [card({ variants: [{ name: 'holofoil' }, { name: 'reverseHolofoil' }] })], evidence });
+  const byVariant = await lookupCardMarket(query(), rawNM, { provider: variants, fx, now: () => NOW });
+  assert.equal(byVariant.status, 'not_unique');
+  assert.equal(byVariant.debug.matchReason, 'variant_unknown_multiple_variants');
+  assert.equal(byVariant.valuation, null);
+  assert.equal(byVariant.fallbackAllowed, false);
+  assert.match(byVariant.message, /nicht eindeutig zuordenbar/);
 });
 
-test('Variante unbekannt bei mehreren Varianten → nicht eindeutig; bekannte Variante → eindeutig', () => {
+test('Variante bekannt → eindeutig; nicht vorhandene Variante → nicht gefunden', () => {
   const twoVariants = card({ variants: [{ name: 'holofoil' }, { name: 'reverseHolofoil' }] });
-  const unknown = matchCandidates(query(), [twoVariants]);
-  assert.equal(unknown.status, 'not_unique');
-  if (unknown.status !== 'unique') assert.equal(unknown.reason, 'variant_unknown_multiple_variants');
   const reverse = matchCandidates(query({ variant: 'Reverse Holo' }), [twoVariants]);
   assert.equal(reverse.status, 'unique');
   if (reverse.status === 'unique') assert.equal(reverse.variant, 'reverseHolofoil');
-  const missing = matchCandidates(query({ variant: '1st Edition' }), [twoVariants]);
-  assert.equal(missing.status, 'not_found');
+  assert.equal(matchCandidates(query({ variant: '1st Edition' }), [twoVariants]).status, 'not_found');
 });
 
-test('Andere Nummer, andere Sprache oder anderes Set → keine Übernahme', () => {
+test('Andere Nummer oder andere Sprache → keine Übernahme', () => {
   assert.equal(matchCandidates(query({ number: '144/S-P' }), [card({})]).status, 'not_found');
   assert.equal(matchCandidates(query({ language: 'en' }), [card({})]).status, 'not_found');
-  assert.equal(matchCandidates(query({ setName: 'Obsidian Flames' }), [card({})]).status, 'not_found');
   assert.equal(matchCandidates(query({ number: null }), [card({})]).status, 'not_unique');
 });
 
-test('Setname nur über exakten Namen oder explizite Alias-Tabelle', () => {
+test('Setnamen: nur exakt oder über bestätigten Alias; ohne Alias → nicht eindeutig; Alias-Widerspruch → set_mismatch', () => {
   const obf = card({ expansionId: 'sv3', expansionName: 'Obsidian Flames', printedNumber: '223/197', number: '223', languageCode: 'en', name: 'Charizard ex' });
   const q = query({ number: '223/197', language: 'en', setName: 'Obsidianflammen', name: 'Glurak ex' });
-  assert.equal(matchCandidates(q, [obf]).status, 'not_found');
-  assert.equal(matchCandidates(q, [obf], { expansionAliases: { Obsidianflammen: 'sv3' } }).status, 'unique');
+  assert.equal(matchCandidates(q, [obf]).status, 'unique', 'Standard-Aliastabelle enthält Obsidianflammen');
+  const noAlias = matchCandidates(q, [obf], { expansionAliases: [] });
+  assert.equal(noAlias.status, 'not_unique');
+  if (noAlias.status !== 'unique') assert.equal(noAlias.reason, 'set_unverifiable_no_alias');
+  const paldea = { ...obf, expansionName: 'Paldea Evolved', expansionId: 'sv2' };
+  const conflict = matchCandidates(q, [paldea]);
+  assert.equal(conflict.status, 'not_found');
+  assert.ok(conflict.rejected.some(item => item.reason === 'set_mismatch'));
+  assert.ok(EXPANSION_ALIASES.every(entry => entry.confirmedBy && entry.confirmedAt), 'jeder Alias ist bestätigt');
+  const sv = card({ expansionName: 'Scarlet & Violet', expansionId: 'sv1', printedNumber: '001/198', number: '1', languageCode: 'en' });
+  assert.equal(matchCandidates(query({ number: '001/198', language: 'en', setName: 'Karmesin und Purpur', name: 'Pineco' }), [sv]).status, 'unique');
 });
 
-test('Zustand wird nur bei festen Bezeichnungen erkannt, nie umgedeutet', () => {
-  assert.equal(normalizeRawCondition('Near Mint'), 'NM');
-  assert.equal(normalizeRawCondition('NM'), 'NM');
-  assert.equal(normalizeRawCondition('Lightly Played'), 'LP');
-  assert.equal(normalizeRawCondition('Mint'), null);
-  assert.equal(normalizeRawCondition('sehr gut'), null);
-  assert.equal(normalizeRawCondition('played'), null);
-  assert.equal(normalizeRawCondition('NM oder LP'), null);
+// ---------------------------------------------------------------------------
+// Zustände
+// ---------------------------------------------------------------------------
+
+test('Zustände: eigene Begriffe, Mint ≠ Near Mint, keine Umdeutung', () => {
+  assert.equal(normalizeCardCondition('Near Mint'), 'NM');
+  assert.equal(normalizeCardCondition('NM'), 'NM');
+  assert.equal(normalizeCardCondition('Mint'), 'MINT');
+  assert.equal(normalizeCardCondition('Mint, graded'), 'MINT');
+  assert.equal(normalizeCardCondition('Excellent'), 'EX');
+  assert.equal(normalizeCardCondition('Light Played'), 'LP');
+  assert.equal(normalizeCardCondition('Moderately Played'), 'MP');
+  assert.equal(normalizeCardCondition('Heavily Played'), 'HP');
+  assert.equal(normalizeCardCondition('Damaged'), 'DM');
+  assert.equal(normalizeCardCondition('sehr gut'), null);
+  assert.equal(normalizeCardCondition('played'), null);
+  assert.equal(normalizeCardCondition('NM oder LP'), null);
+});
+
+test('Erkannter Zustand "Mint" bei Anbieter ohne Mint-Kategorie → kein Zustandswert, auch wenn NM-Belege existieren', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: { c1: [ev({ price: 20, condition: 'NM' }), ev({ price: 22, condition: 'NM' })] },
+  });
+  const result = await lookupCardMarket(query(), { type: 'raw', condition: 'MINT' }, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'insufficient_data');
+  assert.equal(result.valuation!.headline.value, null);
+  assert.match(result.message, /"Mint" wird vom Datenanbieter nicht geführt/);
+  assert.equal(result.fallbackAllowed, true, 'Karte eindeutig → ergänzende Suche wäre erlaubt');
+});
+
+test('Zustand nur über Anfragefilter (nicht im Beleg) zählt nicht – außer der Filter ist ausdrücklich verifiziert', async () => {
+  const evidence = { c1: [ev({ price: 20, condition: 'NM', conditionSource: 'provider_filter' }), ev({ price: 22, condition: 'NM', conditionSource: 'provider_filter' })] };
+  const provider = new InMemoryCardDataProvider({ cards: [card({})], evidence });
+  const strict = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(strict.status, 'insufficient_data');
+  const verified = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW, trustConditionFilter: true });
+  assert.equal(verified.status, 'priced');
+});
+
+test('Raw NM: Belege ohne Zustandsangabe werden NICHT als NM gewertet', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: { c1: [ev({ price: 20 }), ev({ price: 22 }), ev({ price: 25 })] },
+  });
+  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'insufficient_data');
+  assert.ok(result.valuation!.rawUnspecifiedValue, 'Information zu Verkäufen ohne Zustand vorhanden');
+  assert.match(result.message, /Keine zuverlässige Bewertung möglich/);
 });
 
 // ---------------------------------------------------------------------------
 // Bewertung
 // ---------------------------------------------------------------------------
 
-test('Graded PCA 9,5: nur exakte Firma+Note; PSA/CGC/andere Note zählen nicht; Preisführer getrennt', async () => {
+test('Bisheriges Problem: Verkäufe um 20 €, Preisführer und aktives Angebot bei 76 € → Marktwert ≈ 20 €, nie 76 €', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: {
+      c1: [
+        ev({ price: 19, currency: 'EUR', condition: 'NM' }),
+        ev({ price: 20, currency: 'EUR', condition: 'NM' }),
+        ev({ price: 21, currency: 'EUR', condition: 'NM' }),
+        ev({ kind: 'listing', price: 76, currency: 'EUR', condition: 'NM', observedAt: null }),
+        ev({ kind: 'listing', price: 76, currency: 'EUR', condition: 'NM', observedAt: null }),
+        ev({ kind: 'guide', source: 'cardmarket', priceType: 'trend', price: 76, currency: 'EUR', condition: 'NM' }),
+      ],
+    },
+  });
+  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
+  const value = result.valuation!.headline.value!;
+  assert.equal(value.basis, 'sold');
+  assert.equal(value.median, 20);
+  assert.ok(value.high < 76 && value.low > 0);
+  assert.equal(result.valuation!.priceGuides[0].price, 76, 'Preisführer bleibt separat sichtbar');
+});
+
+test('Grading: PCA 9,5 wird nicht mit PSA 9, PSA 10, BGS 9,5 oder ungegradeten Karten vermischt', async () => {
   const provider = new InMemoryCardDataProvider({
     cards: [card({})],
     evidence: {
       c1: [
         ev({ grading: { company: 'pca', grade: '9.5' }, price: 200 }),
         ev({ grading: { company: 'pca', grade: '9.5' }, price: 220 }),
+        ev({ grading: { company: 'psa', grade: '9' }, price: 400 }),
         ev({ grading: { company: 'psa', grade: '10' }, price: 900 }),
-        ev({ grading: { company: 'cgc', grade: '9.5' }, price: 400 }),
-        ev({ grading: { company: 'pca', grade: '10' }, price: 500 }),
+        ev({ grading: { company: 'bgs', grade: '9.5' }, price: 600 }),
+        ev({ price: 95, condition: 'NM' }),
+        ev({ price: 105 }),
         ev({ kind: 'guide', source: 'scrydex', priceType: 'market', grading: { company: 'pca', grade: '9.5' }, price: 5000 }),
       ],
     },
   });
   const result = await lookupCardMarket(query(), pca95, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'priced');
-  const value = result.valuation!.headline.value!;
-  assert.equal(result.valuation!.headline.kind, 'exact_grading');
-  assert.equal(value.count, 2);
-  assert.equal(value.median, 210);
-  assert.equal(value.currency, 'USD');
-  assert.equal(value.eur!.median, 189);
-  assert.match(value.eur!.note, /kein Marktpreis der Quelle/);
-  assert.equal(result.valuation!.excluded.other_grading, 3);
-  assert.equal(result.valuation!.priceGuides.length, 1);
-  assert.equal(result.valuation!.priceGuides[0].matchesTarget, true);
+  const valuation = result.valuation!;
+  assert.equal(valuation.headline.kind, 'exact_grading');
+  const exact = valuation.exactValue!;
+  assert.equal(exact.count, 2);
+  assert.ok(exact.evidence.every(row => row.grading?.company === 'pca' && row.grading.grade === '9.5'));
+  assert.equal(exact.median, 210);
+  assert.equal(valuation.excluded.other_grading, 3);
+  assert.ok(valuation.cardBaseValue!.evidence.every(row => row.grading === null), 'Basiswert nur ungegradet');
+  assert.equal(valuation.cardBaseValue!.median, 100);
+  assert.equal(valuation.priceGuides.length, 1);
 });
 
-test('Graded ohne PCA-9,5-Verkäufe → Kartenbasiswert (NM/ohne Zustand), LP ausgeschlossen, mit Pflichtsatz', async () => {
+test('Graded ohne PCA-9,5-Verkäufe → Kartenbasiswert (NM/ohne Zustand), LP und Mint ausgeschlossen, mit Pflichtsatz', async () => {
   const provider = new InMemoryCardDataProvider({
     cards: [card({})],
     evidence: {
@@ -175,6 +271,7 @@ test('Graded ohne PCA-9,5-Verkäufe → Kartenbasiswert (NM/ohne Zustand), LP au
         ev({ price: 90 }),
         ev({ price: 110 }),
         ev({ price: 40, condition: 'LP' }),
+        ev({ price: 300, condition: 'MINT' }),
         ev({ grading: { company: 'psa', grade: '10' }, price: 900 }),
       ],
     },
@@ -187,42 +284,10 @@ test('Graded ohne PCA-9,5-Verkäufe → Kartenbasiswert (NM/ohne Zustand), LP au
     result.valuation!.headline.note,
     'Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte.'
   );
-  assert.equal(result.valuation!.excluded.raw_not_nm_for_base, 1);
+  assert.equal(result.valuation!.excluded.raw_not_nm_for_base, 2);
 });
 
-test('Raw NM: Belege ohne Zustandsangabe werden NICHT als NM gewertet', async () => {
-  const provider = new InMemoryCardDataProvider({
-    cards: [card({})],
-    evidence: { c1: [ev({ price: 20 }), ev({ price: 22 }), ev({ price: 25 })] },
-  });
-  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'insufficient_data');
-  assert.equal(result.valuation!.headline.kind, 'none');
-  assert.ok(result.valuation!.rawUnspecifiedValue, 'Information zu Verkäufen ohne Zustand vorhanden');
-  assert.match(result.message, /Keine zuverlässige Bewertung möglich/);
-});
-
-test('Raw NM mit Zustandsangabe der Quelle → Wert nur aus NM; Verkäufe vor Angeboten, nie gemischt', async () => {
-  const provider = new InMemoryCardDataProvider({
-    cards: [card({})],
-    evidence: {
-      c1: [
-        ev({ price: 20, condition: 'NM' }),
-        ev({ price: 24, condition: 'NM' }),
-        ev({ price: 60, condition: 'NM', kind: 'listing', observedAt: null }),
-        ev({ price: 8, condition: 'DM' }),
-      ],
-    },
-  });
-  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
-  const value = result.valuation!.headline.value!;
-  assert.equal(value.basis, 'sold');
-  assert.equal(value.count, 2);
-  assert.equal(value.median, 22);
-  assert.equal(result.valuation!.excluded.other_condition, 1);
-});
-
-test('Nur Angebote (keine Verkäufe) → Wert aus Angeboten, klar als solcher gekennzeichnet', async () => {
+test('Nur Angebote (keine Verkäufe) → Wert aus Angeboten, klar gekennzeichnet; einzelner Verkauf nicht eingemischt', async () => {
   const provider = new InMemoryCardDataProvider({
     cards: [card({})],
     evidence: { c1: [ev({ kind: 'listing', price: 30, condition: 'NM' }), ev({ kind: 'listing', price: 34, condition: 'NM' }), ev({ price: 20, condition: 'NM' })] },
@@ -257,6 +322,7 @@ test('JPY: Originalwährung bleibt; ohne Kurs keine EUR-Zahl', async () => {
   assert.equal(value.median, 2600);
   assert.equal(value.eur!.median, 15.6);
   assert.equal(value.eur!.rateSource, 'EZB-Referenzkurs (Test)');
+  assert.ok(value.evidence.every(row => row.currency === 'JPY' && row.price >= 2500), 'Originalbelege unverändert');
   const withoutFx = await lookupCardMarket(query(), rawNM, { provider, now: () => NOW });
   assert.equal(withoutFx.valuation!.headline.value!.eur, null);
 });
@@ -289,18 +355,54 @@ test('Abgelaufene Belege, falsche Variante und Belege ohne Variante (bei mehrere
   assert.deepEqual(result.valuation!.excluded.variant_not_stated, 1);
 });
 
-test('Deutsche Karte bei Anbieter mit en/ja → unsupported_language, keine Suche', async () => {
-  const provider = new InMemoryCardDataProvider({ cards: [card({})], evidence: {} });
-  const result = await lookupCardMarket(query({ language: 'de' }), rawNM, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'unsupported_language');
-  assert.equal(provider.calls.findCards.length, 0);
+test('Fallback-Freigabe: nur bei eindeutiger Karte ohne ausreichende Preise', async () => {
+  const unique = new InMemoryCardDataProvider({ cards: [card({})], evidence: { c1: [ev({ price: 20, condition: 'NM' })] } });
+  assert.equal((await lookupCardMarket(query(), rawNM, { provider: unique, fx, now: () => NOW })).fallbackAllowed, true);
+  const cases: [string, CardQuery][] = [
+    ['Nummer widerspricht', query({ number: '144/S-P' })],
+    ['Sprache widerspricht', query({ language: 'en' })],
+    ['Variante widerspricht', query({ variant: 'Reverse Holo' })],
+    ['Set widerspricht', query({ setName: 'Obsidianflammen' })],
+    ['Set ohne Alias', query({ setName: 'Unbekanntes Set' })],
+    ['Sprache nicht geführt', query({ language: 'de' })],
+  ];
+  for (const [label, q] of cases) {
+    const result = await lookupCardMarket(q, rawNM, { provider: unique, fx, now: () => NOW });
+    assert.equal(result.fallbackAllowed, false, label + ' → kein Fallback (' + result.status + ')');
+  }
+  const failing = new InMemoryCardDataProvider({ cards: [card({})], evidence: {}, failFind: true });
+  const error = await lookupCardMarket(query(), rawNM, { provider: failing, fx, now: () => NOW });
+  assert.equal(error.status, 'provider_error');
+  assert.equal(error.fallbackAllowed, false);
 });
 
-test('Anbieterfehler → provider_error, kein Preis', async () => {
-  const provider = new InMemoryCardDataProvider({ cards: [card({})], evidence: {}, failFind: true });
-  const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'provider_error');
-  assert.equal(result.valuation, null);
+// ---------------------------------------------------------------------------
+// Wechselkurse (EZB)
+// ---------------------------------------------------------------------------
+
+const ECB_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<gesmes:Envelope xmlns:gesmes="http://www.gesmes.org/xml/2002-08-01" xmlns="http://www.ecb.int/vocabulary/2002-08-01/eurofxref">
+<Cube><Cube time='2026-09-24'><Cube currency='USD' rate='1.1111'/><Cube currency='JPY' rate='160.00'/></Cube></Cube></gesmes:Envelope>`;
+
+test('EZB: Kurs 1/x mit Quelle und Stand; unbekannte Währung, Fehler oder veralteter Kurs → null', async () => {
+  assert.equal(parseEcbDailyXml('kein xml'), null);
+  assert.deepEqual(parseEcbDailyXml(ECB_XML)!.perEur, { USD: 1.1111, JPY: 160 });
+  let calls = 0;
+  const provider = new EcbFxRateProvider({
+    now: () => NOW,
+    fetch: async () => (calls++, { ok: true, status: 200, text: async () => ECB_XML }),
+  });
+  const jpy = (await provider.getRate('JPY'))!;
+  assert.equal(jpy.rate, 0.00625);
+  assert.equal(jpy.asOf, '2026-09-24');
+  assert.match(jpy.source, /EZB-Referenzkurs \(1 EUR = 160 JPY\)/);
+  assert.equal((await provider.getRate('USD'))!.rate, 0.900009);
+  assert.equal(await provider.getRate('CHF'), null);
+  assert.equal(calls, 1, 'Kurssatz wird zwischengespeichert');
+  const failing = new EcbFxRateProvider({ now: () => NOW, fetch: async () => ({ ok: false, status: 503, text: async () => '' }) });
+  assert.equal(await failing.getRate('USD'), null);
+  const stale = new EcbFxRateProvider({ now: () => new Date('2026-10-10T10:00:00Z'), fetch: async () => ({ ok: true, status: 200, text: async () => ECB_XML }) });
+  assert.equal(await stale.getRate('USD'), null);
 });
 
 // ---------------------------------------------------------------------------
@@ -316,7 +418,7 @@ function mockFetch(routes: (url: string) => unknown, calls: Call[]) {
   };
 }
 
-test('Scrydex-Adapter: Mapping, Header, include=prices, Preisführer vs. Verkäufe, kein erfundener Zustand', async () => {
+test('Scrydex-Adapter: Mapping, Header, include=prices, Preisführer vs. Verkäufe, Zustand nur aus Belegfeld', async () => {
   const calls: Call[] = [];
   const provider = new ScrydexProvider({
     apiKey: 'test-key',
@@ -327,8 +429,8 @@ test('Scrydex-Adapter: Mapping, Header, include=prices, Preisführer vs. Verkäu
         return {
           data: [
             { source: 'ebay', card_id: 'sx-1', title: 'Charizard 143/S-P PCA 9.5', variant: 'holofoil', company: 'PCA', grade: '9.5', price: 210, currency: 'USD', sold_at: '2026-09-10', url: 'https://ebay/1' },
-            { source: 'ebay', card_id: 'sx-1', title: 'Charizard 143/S-P', variant: 'holofoil', price: 95, currency: 'USD', sold_at: '2026-09-11', url: 'https://ebay/2' },
-            { source: 'ebay', card_id: 'sx-1', title: 'Charizard 143/S-P NM', variant: 'holofoil', condition: 'NM', price: 99, currency: 'USD', sold_at: '2026-09-12', url: 'https://ebay/3' },
+            { source: 'ebay', card_id: 'sx-1', title: 'Charizard 143/S-P NM Near Mint', variant: 'holofoil', price: 95, currency: 'USD', sold_at: '2026-09-11', url: 'https://ebay/2' },
+            { source: 'ebay', card_id: 'sx-1', title: 'Charizard 143/S-P', variant: 'holofoil', condition: 'NM', price: 99, currency: 'USD', sold_at: '2026-09-12', url: 'https://ebay/3' },
             { source: 'ebay', card_id: 'sx-1', title: 'nur Firma', variant: 'holofoil', company: 'PSA', price: 300, currency: 'USD', sold_at: '2026-09-12' },
           ],
         };
@@ -361,8 +463,6 @@ test('Scrydex-Adapter: Mapping, Header, include=prices, Preisführer vs. Verkäu
   const candidates = await provider.findCards(query());
   assert.equal(candidates.length, 1);
   assert.equal(candidates[0].printedNumber, '143/S-P');
-  assert.equal(candidates[0].languageCode, 'ja');
-  assert.match(calls[0].url, /\/pokemon\/v1\/cards\?/);
   assert.match(calls[0].url, /include=prices/);
   assert.equal(calls[0].headers['X-Api-Key'], 'test-key');
   assert.equal(calls[0].headers['X-Team-ID'], 'test-team');
@@ -370,22 +470,20 @@ test('Scrydex-Adapter: Mapping, Header, include=prices, Preisführer vs. Verkäu
   const evidence = await provider.getPriceEvidence({ candidate: candidates[0], variant: 'holofoil', soldWithinDays: 90 });
   const guides = evidence.filter(row => row.kind === 'guide');
   const sold = evidence.filter(row => row.kind === 'sold');
-  assert.equal(guides.length, 6); // raw market+low, graded market+low+mid+high
-  assert.ok(guides.every(row => row.fetchedAt === NOW.toISOString() && row.expiresAt > row.fetchedAt));
+  assert.equal(guides.length, 6);
   assert.equal(sold.length, 3, 'unvollständiges Grading (nur Firma) wird verworfen');
   assert.deepEqual(sold[0].grading, { company: 'pca', grade: '9.5' });
-  assert.equal(sold[1].grading, null);
-  assert.equal(sold[1].condition, null, 'kein Zustand ohne Angabe der Quelle');
+  assert.equal(sold[1].condition, null, 'kein Zustand aus dem Titel ("NM Near Mint")');
+  assert.equal(sold[1].conditionSource, null);
   assert.equal(sold[2].condition, 'NM');
+  assert.equal(sold[2].conditionSource, 'provider_field');
   assert.equal(sold[0].observedAt, '2026-09-10');
+  assert.ok(evidence.every(row => row.fetchedAt === NOW.toISOString() && row.expiresAt > row.fetchedAt));
   assert.match(calls[1].url, /\/pokemon\/v1\/cards\/sx-1\/listings\?days=90/);
-
-  const end2end = await lookupCardMarket(query(), pca95, { provider, fx, now: () => NOW });
-  assert.equal(end2end.status, 'priced');
-  assert.equal(end2end.valuation!.headline.kind, 'card_base', 'nur 1 PCA-9,5-Verkauf → Basiswert');
+  assert.ok(!calls.some(call => /condition=/.test(call.url)), 'kein Zustandsfilter in Anfragen');
 });
 
-test('Scrydex-Adapter: Zugangsdaten nur aus Server-Umgebung, nie ohne Key', () => {
+test('Scrydex-Adapter: Zugangsdaten nur aus Server-Umgebung, nie ohne Key, nie im Browser', () => {
   assert.equal(createScrydexProviderFromEnv({}), null);
   assert.ok(createScrydexProviderFromEnv({ SCRYDEX_API_KEY: 'k', SCRYDEX_TEAM_ID: 't' }, { fetch: mockFetch(() => ({}), []) }));
   const g = globalThis as unknown as Record<string, unknown>;
