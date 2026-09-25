@@ -24,10 +24,18 @@ const path = nodeRequire('path');
 type CaseConfig = {
   id: string;
   beschreibung: string;
-  query: CardQuery;
+  /** Entweder eine Anfrage wie aus der Bilderkennung … */
+  query?: CardQuery;
+  /** … oder eine dokumentierte Scrydex-Karten-ID: Die Anfrage wird aus der Karte abgeleitet
+   *  (Name, printed_number, expansion.id, language_code) und läuft durch Suche + Prüfung. */
+  cardId?: string;
+  /** Variante für die aus cardId abgeleitete Anfrage (null = unbekannt). */
+  variant?: string | null;
   segment: CardSegment;
   alsoWithVariant?: string;
   allConditions?: boolean;
+  /** Erwartetes Ergebnis; der Bericht bewertet OK/ABWEICHUNG. */
+  erwartung?: { status?: string[]; cardId?: string; variante?: string | null };
 };
 
 type Json = Record<string, unknown>;
@@ -49,25 +57,40 @@ function redact(text: string) {
 // ---------------------------------------------------------------------------
 
 function mockFetch(): FetchLike {
-  const card = (id: string, extra: Json) => ({ id, name: 'Charizard', number: '143', printed_number: '143/S-P', expansion: { id: 'svp', name: 'Promo' }, language: 'Japanese', language_code: 'ja', variants: [{ name: 'holofoil', prices: [{ type: 'raw', condition: 'NM', low: 1500, market: 76, currency: 'USD' }] }], ...extra });
+  // MOCK: Namen, Nummern und Preise sind erfunden. Nur die Variantenstruktur von xy1-1 und base1-4
+  // folgt der Scrydex-Dokumentation.
+  const guide = [{ type: 'raw', condition: 'NM', low: 15, market: 76, currency: 'USD' }];
+  const cards: Json[] = [
+    { id: 'mock-promo', name: 'Charizard', number: '143', printed_number: '143/S-P', expansion: { id: 'mock-svp', name: 'MOCK Promo' }, language: 'Japanese', language_code: 'ja', variants: [{ name: 'holofoil', prices: guide }] },
+    { id: 'xy1-1', name: 'MOCK xy1-1', number: '1', printed_number: '1/146', expansion: { id: 'xy1', name: 'MOCK XY' }, language: 'English', language_code: 'en', variants: [{ name: 'normal', prices: guide }, { name: 'reverseHolofoil', prices: guide }] },
+    { id: 'base1-4', name: 'MOCK base1-4', number: '4', printed_number: '4/102', expansion: { id: 'base1', name: 'MOCK Base' }, language: 'English', language_code: 'en', variants: [{ name: 'unlimitedHolofoil', prices: guide }, { name: 'firstEditionShadowlessHolofoil', prices: guide }, { name: 'unlimitedShadowlessHolofoil', prices: guide }] },
+  ];
+  const listings = (cardId: string, variant: string) => [
+    { id: cardId + '-1', source: 'ebay', card_id: cardId, title: 'MOCK', variant, price: 19, currency: 'USD', sold_at: '2026-09-01', url: null },
+    { id: cardId + '-2', source: 'ebay', card_id: cardId, title: 'MOCK', variant, price: 21, currency: 'USD', sold_at: '2026-09-02', url: null },
+    { id: cardId + '-3', source: 'ebay', card_id: cardId, title: 'MOCK PSA 9', variant, company: 'PSA', grade: '9', price: 300, currency: 'USD', sold_at: '2026-09-03', url: null },
+    { id: cardId + '-4', source: 'ebay', card_id: cardId, title: 'MOCK PSA 9', variant, company: 'PSA', grade: '9', price: 320, currency: 'USD', sold_at: '2026-09-04', url: null },
+  ];
+  const page = (data: unknown[]) => ({ data, page: 1, pageSize: 100, totalCount: data.length });
   return async (url: string) => {
     const u = new URL(url);
-    let body: unknown = { data: [], page: 1, pageSize: 100, totalCount: 0 };
+    const parts = u.pathname.split('/').filter(Boolean);
+    let body: unknown;
     if (u.pathname.endsWith('/listings')) {
-      body = {
-        data: [
-          { id: 'm1', source: 'ebay', card_id: 'mock-1', title: 'MOCK Charizard 143/S-P', variant: 'holofoil', price: 19, currency: 'USD', sold_at: '2026-09-01', url: null },
-          { id: 'm2', source: 'ebay', card_id: 'mock-1', title: 'MOCK Charizard 143/S-P', variant: 'holofoil', price: 21, currency: 'USD', sold_at: '2026-09-02', url: null },
-          { id: 'm3', source: 'ebay', card_id: 'mock-1', title: 'MOCK Charizard 143/S-P PSA 9', variant: 'holofoil', company: 'PSA', grade: '9', price: 300, currency: 'USD', sold_at: '2026-09-03', url: null },
-        ],
-        page: 1,
-        pageSize: 100,
-        totalCount: 3,
-      };
-    } else if (u.pathname.startsWith('/pokemon/v1/cards/')) {
-      body = { data: card('mock-1', {}) };
+      const card = cards.find(entry => entry.id === parts[3]);
+      body = page(card ? listings(String(card.id), u.searchParams.get('variant') || String(((card.variants as Json[])[0] || {}).name)) : []);
+    } else if (parts.length === 4 && parts[2] === 'cards') {
+      body = { data: cards.find(entry => entry.id === decodeURIComponent(parts[3])) || null };
     } else {
-      body = { data: [card('mock-1', {})], page: 1, pageSize: 100, totalCount: 1 };
+      const q = decodeURIComponent(u.searchParams.get('q') || '');
+      const printed = (q.match(/printed_number:"?([^"]+)"?/) || [])[1];
+      const number = (q.match(/(?:^| )number:"?([^" ]+)"?/) || [])[1];
+      const language = parts[2] === 'en' || parts[2] === 'ja' ? parts[2] : null;
+      body = page(
+        cards.filter(
+          entry => (printed ? entry.printed_number === printed : number ? entry.number === number : false) && (!language || entry.language_code === language)
+        )
+      );
     }
     return { ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) };
   };
@@ -114,6 +137,37 @@ class RecordingProvider extends ScrydexProvider {
     this.lastEvidence = await super.getPriceEvidence(request);
     return this.lastEvidence;
   }
+}
+
+/** Anfrage aus einer Scrydex-Karte ableiten (für dokumentierte Testkarten). */
+async function queryFromCardId(cardId: string, variant: string | null): Promise<CardQuery> {
+  const url = 'https://api.scrydex.com/pokemon/v1/cards/' + encodeURIComponent(cardId);
+  const response = await fetchImpl(url, { headers: { 'X-Api-Key': apiKey, 'X-Team-ID': teamId, Accept: 'application/json' } });
+  if (!response.ok) throw new Error('Karte ' + cardId + ' nicht abrufbar (HTTP ' + response.status + ')');
+  const body = (await response.json()) as Json;
+  const card = (body && typeof body.data === 'object' && body.data ? body.data : body) as Json;
+  const expansion = (card.expansion || {}) as Json;
+  const text = (value: unknown) => (typeof value === 'string' && value.trim() ? value.trim() : null);
+  return {
+    game: 'pokemon',
+    name: text(card.name),
+    number: text(card.printed_number) || text(card.number),
+    setName: null,
+    setId: text(expansion.id),
+    language: text(card.language_code),
+    variant,
+  };
+}
+
+function checkExpectation(config: CaseConfig, status: string, cardId: string | null, variant: string | null, query: CardQuery) {
+  const expected = config.erwartung;
+  if (!expected) return null;
+  // Erwartungen gelten für den Grundlauf; Läufe mit alsoWithVariant werden separat bewertet.
+  const problems: string[] = [];
+  if (expected.status && !expected.status.includes(status)) problems.push('Status ' + status + ' statt ' + expected.status.join(' | '));
+  if (expected.cardId && cardId !== expected.cardId) problems.push('Karte ' + cardId + ' statt ' + expected.cardId);
+  if (expected.variante !== undefined && variant !== expected.variante) problems.push('Variante ' + variant + ' statt ' + expected.variante);
+  return { erwartet: expected, anfrageVariante: query.variant, ergebnis: problems.length ? 'ABWEICHUNG: ' + problems.join('; ') : 'OK' };
 }
 
 async function runCase(config: CaseConfig, segment: CardSegment, query: CardQuery, fx: FxRateProvider) {
@@ -192,6 +246,9 @@ async function runCase(config: CaseConfig, segment: CardSegment, query: CardQuer
     },
     listingRohdaten: result.card ? await rawListingInspection(result.card.cardId) : null,
     wertscanStatus: { kartenanbieter: result.status, pipeline: CARD_STATUS_TO_MARKET_STATUS[result.status], fallbackErlaubt: result.fallbackAllowed },
+    erwartung: query.variant === (config.query?.variant ?? config.variant ?? null)
+      ? checkExpectation(config, result.status, result.card?.cardId || null, result.variant, query)
+      : null,
     meldung: result.message,
     fehler: result.debug.error ? redact(result.debug.error) : null,
   };
@@ -256,12 +313,19 @@ async function main() {
 
   const results: unknown[] = [];
   for (const config of cases) {
+    let baseQuery: CardQuery;
+    try {
+      baseQuery = config.cardId ? await queryFromCardId(config.cardId, config.variant ?? null) : (config.query as CardQuery);
+    } catch (error) {
+      results.push({ fall: config.id, fehler: redact(String(error)) });
+      continue;
+    }
     const runs: [CardSegment, CardQuery][] = [];
     if (config.allConditions) {
-      CARD_CONDITIONS.forEach(condition => runs.push([{ type: 'raw', condition }, config.query]));
+      CARD_CONDITIONS.forEach(condition => runs.push([{ type: 'raw', condition }, baseQuery]));
     } else {
-      runs.push([config.segment, config.query]);
-      if (config.alsoWithVariant) runs.push([config.segment, { ...config.query, variant: config.alsoWithVariant }]);
+      runs.push([config.segment, baseQuery]);
+      if (config.alsoWithVariant) runs.push([config.segment, { ...baseQuery, variant: config.alsoWithVariant }]);
     }
     for (const [segment, query] of runs) {
       try {

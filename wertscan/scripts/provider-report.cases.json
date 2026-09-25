@@ -1,5 +1,5 @@
 {
-  "_hinweis": "Testkarten für den Scrydex-Prüfbericht. Werte sind Vorschläge und können ohne Codeänderung angepasst werden. setId nur eintragen, wenn die Scrydex expansion.id bekannt ist.",
+  "_hinweis": "Testkarten für den Scrydex-Prüfbericht. Entweder 'query' (wie aus der Bilderkennung) oder 'cardId' (dokumentierte Scrydex-Karte; Anfrage wird daraus abgeleitet und läuft durch Suche + Prüfung). 'erwartung' wird im Bericht mit OK/ABWEICHUNG bewertet.",
   "cases": [
     {
       "id": "1_englisch_raw",
@@ -14,28 +14,48 @@
       "segment": { "type": "raw", "condition": "NM" }
     },
     {
-      "id": "3_mehrere_varianten",
-      "beschreibung": "Karte mit Normal und Reverse Holo – einmal ohne, einmal mit Variante",
-      "query": { "game": "pokemon", "name": "Pikachu", "number": "063/198", "setName": "Scarlet & Violet", "setId": null, "language": "en", "variant": null },
+      "id": "3a_xy1-1_variante_unbekannt",
+      "beschreibung": "xy1-1 (laut Scrydex mindestens normal und reverseHolofoil), Variante unbekannt: keine Vermischung, nicht eindeutig",
+      "cardId": "xy1-1",
+      "variant": null,
       "segment": { "type": "raw", "condition": "NM" },
-      "alsoWithVariant": "Reverse Holo"
+      "erwartung": { "status": ["not_unique"] }
+    },
+    {
+      "id": "3b_xy1-1_reverse_holo",
+      "beschreibung": "xy1-1, Variante reverseHolofoil bekannt: nur diese Variante darf verwendet werden",
+      "cardId": "xy1-1",
+      "variant": "reverseHolofoil",
+      "segment": { "type": "raw", "condition": "NM" },
+      "erwartung": { "cardId": "xy1-1", "variante": "reverseHolofoil" }
+    },
+    {
+      "id": "3c_base1-4_variante_unbekannt",
+      "beschreibung": "base1-4 (u. a. unlimitedHolofoil, firstEditionShadowlessHolofoil, unlimitedShadowlessHolofoil), Variante unbekannt: keine automatische Auswahl",
+      "cardId": "base1-4",
+      "variant": null,
+      "segment": { "type": "raw", "condition": "NM" },
+      "erwartung": { "status": ["not_unique"] }
     },
     {
       "id": "4_raw_mehrere_zustaende",
-      "beschreibung": "Raw-Karte, Bewertung je Zustand NM, LP, MP, HP, DM",
-      "query": { "game": "pokemon", "name": "Charizard", "number": "4/102", "setName": "Base", "setId": null, "language": "en", "variant": null },
+      "beschreibung": "base1-4 unlimitedHolofoil, Bewertung je Zustand NM, LP, MP, HP, DM (Variante nötig, sonst nicht eindeutig)",
+      "cardId": "base1-4",
+      "variant": "unlimitedHolofoil",
       "segment": { "type": "raw", "condition": "NM" },
       "allConditions": true
     },
     {
       "id": "5_psa",
-      "beschreibung": "PSA-Karte mit mehreren Verkäufen derselben Note",
-      "query": { "game": "pokemon", "name": "Charizard", "number": "4/102", "setName": "Base", "setId": null, "language": "en", "variant": null },
-      "segment": { "type": "graded", "grading": { "company": "psa", "grade": "9" } }
+      "beschreibung": "base1-4 unlimitedHolofoil, PSA 9 (mehrere Verkäufe derselben Note?)",
+      "cardId": "base1-4",
+      "variant": "unlimitedHolofoil",
+      "segment": { "type": "graded", "grading": { "company": "psa", "grade": "9" } },
+      "erwartung": { "cardId": "base1-4", "variante": "unlimitedHolofoil" }
     },
     {
       "id": "6_pca",
-      "beschreibung": "PCA-Karte: führt Scrydex PCA, wie viele echte PCA-Verkäufe gibt es?",
+      "beschreibung": "PCA 9,5 auf der japanischen Promo 143/S-P: führt Scrydex PCA, wie viele echte PCA-Verkäufe?",
       "query": { "game": "pokemon", "name": "Charizard", "number": "143/S-P", "setName": null, "setId": null, "language": "ja", "variant": null },
       "segment": { "type": "graded", "grading": { "company": "pca", "grade": "9.5" } }
     }

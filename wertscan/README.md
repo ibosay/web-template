@@ -81,6 +81,10 @@ unsichtbar bleiben und fälschlich Eindeutigkeit entstehen.
 | nur Nummer, Sprache bekannt, kein Set | `name:"…" number:…` (die Prüfung verlangt dann ohnehin den Namen; nicht exakt, also Obermenge) |
 | nur Nummer, sonst | `number:…` global |
 
+Endpunkt ohne Set-ID: bei **sicher bekannter** Sprache `/pokemon/v1/en/cards` bzw. `/pokemon/v1/ja/cards`
+(die Sprache ist Teil der exakten Identität), bei unbekannter Sprache immer `/pokemon/v1/cards`.
+Das verhindert, dass Nummernsuchen bei bekannter Sprache unnötig bei `provider_search_incomplete` enden.
+
 - Keine exakte Namenssuche (`!name`) für die Kandidatenmenge: Bei bekanntem Set verlangt die Prüfung
   keinen gleichen Namen, `!name` könnte also z. B. eine Promo-Variante als eigenes Kartenobjekt verbergen.
 - Kein vorzeitiger Abbruch: alle vorgesehenen Suchen laufen vollständig (paginiert). Liefert
@@ -117,7 +121,8 @@ const display = buildMarketDisplay(market); // für das Frontend
 
 ### Laut Scrydex-Dokumentation bestätigt (fest im Adapter)
 
-- Header `X-Api-Key`, `X-Team-ID`; allgemeiner Endpunkt `/pokemon/v1/cards` (keine en/ja-Endpunkte),
+- Header `X-Api-Key`, `X-Team-ID`; allgemeiner Endpunkt `/pokemon/v1/cards` (mehrere Sprachen),
+  sprachspezifisch `/pokemon/v1/en/cards` und `/pokemon/v1/ja/cards` (nur bei sicher bekannter Sprache genutzt),
   Einzelkarte `/pokemon/v1/cards/<id>`, Set `/pokemon/v1/expansions/<id>/cards`
 - `q` Lucene-ähnlich: `!name:…` (exakt), `name:…`, `number:…`, `expansion.id:…`; mehrere Wörter in
   Anführungszeichen (`name:"venusaur v"`, `!name:"lost thunder"`)

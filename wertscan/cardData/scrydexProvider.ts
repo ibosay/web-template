@@ -6,7 +6,8 @@
  *
  * Laut Scrydex-Dokumentation bestätigt (vom WertScan-Team geprüft, 2026-09):
  *   - Auth-Header: X-Api-Key, X-Team-ID
- *   - GET /pokemon/v1/cards?q=…                     allgemeiner Kartenendpunkt (keine eigenen en/ja-Endpunkte)
+ *   - GET /pokemon/v1/cards?q=…                     allgemeiner Kartenendpunkt (mehrere Sprachen)
+ *   - GET /pokemon/v1/en/cards, /pokemon/v1/ja/cards sprachspezifische Kartensuche
  *   - GET /pokemon/v1/cards/<id>                    Einzelkarte
  *   - GET /pokemon/v1/expansions/<expansionId>/cards Karten eines Sets
  *   - q: Lucene-ähnlich, z. B. name:charizard, !name:charizard (exakt), expansion.id:sm1, kombinierbar
@@ -40,6 +41,13 @@ export const SCRYDEX_API_KEY_HEADER = 'X-Api-Key';
 export const SCRYDEX_TEAM_ID_HEADER = 'X-Team-ID';
 export const SCRYDEX_BASE_URL = 'https://api.scrydex.com';
 const CARDS_PATH = '/pokemon/v1/cards';
+/** Laut Doku vorhandene sprachspezifische Suchendpunkte. */
+const LANGUAGE_CARD_PATHS: Record<string, string> = { en: '/pokemon/v1/en/cards', ja: '/pokemon/v1/ja/cards' };
+/**
+ * Suchendpunkt ohne Set: sprachspezifisch NUR bei sicher bekannter Sprache (die Sprache ist Teil der
+ * exakten Identität, die Eingrenzung ist also nie strenger als die Prüfung). Sonst allgemein.
+ */
+const searchPathFor = (language: string | null) => (language && LANGUAGE_CARD_PATHS[language.toLowerCase()]) || CARDS_PATH;
 /** Laut Doku Standard und Maximum für Pokémon-Karten. */
 export const SCRYDEX_MAX_PAGE_SIZE = 100;
 
@@ -200,16 +208,17 @@ export class ScrydexProvider implements CardDataProvider {
     const printedValue = key.hasDenominator || /[a-z]/.test(key.full) ? raw : '';
     const numberTerm = 'number:' + luceneValue(numberValue);
     const setPath = query.setId ? expansionCardsPath(query.setId) : null;
+    const cardsPath = searchPathFor(query.language);
 
     if (printedValue) {
-      const searches = [{ path: setPath || CARDS_PATH, q: 'printed_number:' + luceneValue(printedValue) }];
+      const searches = [{ path: setPath || cardsPath, q: 'printed_number:' + luceneValue(printedValue) }];
       if (setPath) searches.push({ path: setPath, q: numberTerm });
       return searches;
     }
     if (setPath) return [{ path: setPath, q: numberTerm }];
     const nameRequiredByMatcher = Boolean(query.language && query.name && !query.setName);
-    if (nameRequiredByMatcher) return [{ path: CARDS_PATH, q: 'name:' + luceneValue(query.name!) + ' ' + numberTerm }];
-    return [{ path: CARDS_PATH, q: numberTerm }];
+    if (nameRequiredByMatcher) return [{ path: cardsPath, q: 'name:' + luceneValue(query.name!) + ' ' + numberTerm }];
+    return [{ path: cardsPath, q: numberTerm }];
   }
 
   /**

@@ -523,11 +523,12 @@ test('Scrydex-Suche: Kandidaten nur aus Suchen, die nie strenger sind als die ei
   // Vollständige gedruckte Nummer → printed_number (namens- und sprachunabhängig), kein !name.
   const printed = await collect(query({ name: 'Charizard ex', number: '143/S-P', language: 'ja' }), () => ({ data: [{ id: 'x', number: '143', printed_number: '143/S-P' }] }));
   assert.deepEqual(printed.map(qOf), ['printed_number:"143/S-P"']);
-  assert.equal(pathOf(printed[0]), '/pokemon/v1/cards');
+  assert.equal(pathOf(printed[0]), '/pokemon/v1/ja/cards', 'Sprache sicher bekannt → Sprachendpunkt');
 
   // printed_number ohne Treffer → Ausweichen auf number (global, da Set unbekannt).
   const fallback = await collect(query({ name: 'Charizard', number: '143/S-P', language: null }));
   assert.deepEqual(fallback.map(qOf), ['printed_number:"143/S-P"', 'number:143']);
+  assert.ok(fallback.every(call => pathOf(call) === '/pokemon/v1/cards'), 'Sprache unbekannt → allgemeiner Endpunkt');
 
   // Set-ID bekannt → Set-Endpunkt, printed_number plus number im Set.
   const scoped = await collect(query({ setId: 'sv3', number: '223/197', name: 'Charizard ex', language: 'en' }));
@@ -537,10 +538,12 @@ test('Scrydex-Suche: Kandidaten nur aus Suchen, die nie strenger sind als die ei
   // Nur Nummer ohne Nenner, Sprache bekannt, kein Set → Name wird von der Prüfung verlangt → name + number.
   const named = await collect(query({ name: 'Pikachu', number: '25', language: 'en' }));
   assert.deepEqual(named.map(qOf), ['name:Pikachu number:25']);
+  assert.equal(pathOf(named[0]), '/pokemon/v1/en/cards');
 
   // Nur Nummer, Sprache unbekannt → reine Nummernsuche (Namen unterscheiden sich je Sprache).
   const unknownLanguage = await collect(query({ name: 'Pikachu', number: '25', language: null }));
   assert.deepEqual(unknownLanguage.map(qOf), ['number:25']);
+  assert.equal(pathOf(unknownLanguage[0]), '/pokemon/v1/cards');
 
   const all = [...printed, ...fallback, ...scoped, ...named, ...unknownLanguage];
   assert.ok(all.every(call => !qOf(call).includes('!name')), 'keine exakte Namenssuche');
