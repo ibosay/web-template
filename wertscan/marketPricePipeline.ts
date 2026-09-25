@@ -1,5 +1,5 @@
 /**
- * WertScan – Marktpreis-Pipeline (korrigierte Fassung)
+ * WertScan – Marktpreis-Pipeline (korrigierte Fassung, Stand 2)
  *
  * Ersetzt 1:1 die folgenden bestehenden Funktionen/Konstanten:
  *   marketRowSchema, marketExtractSchema, marketSearchVariants, cleanMarketRows,
@@ -11,18 +11,22 @@
  *   digitsOnly, categorySignals, isCasioWatch, isHotWheelsAnalysis, marketQuery, cardmarketGamePath,
  *   productAliasQueries, ai (ai.scrape / ai.extract), Typen Analysis und Valuation.
  *
- * Die Bilderkennung wird nicht angefasst. Alle Änderungen betreffen ausschließlich
- * Query-Aufbau, Quellenabruf, Extraktion, Validierung, Zustandszuordnung und Aggregation.
+ * Die Bilderkennung wird nicht angefasst.
  *
  * Grundsatz: Jeder ausgegebene Preis stammt aus einem externen Marktbeleg, dessen Preistext
  * nachweislich im abgerufenen Quelltext steht. Es gibt keine Seed-, Schätz- oder Offline-Preise.
+ *
+ * Gegradete Sammelkarten – zwei strikt getrennte Märkte:
+ *   A. Kartenbasiswert (cardBaseValue): ungegradete Treffer exakt derselben Karte (Name/Nummer).
+ *   B. Grading-Wert (exactGradingValue): nur exakt dieselbe Grading-Firma UND Note.
+ *   Fehlt B, wird A mit klarem Hinweis angezeigt. Andere Firmen/Noten zählen für keinen der beiden.
+ *
+ * Diagnose: MarketData.debug zeigt für jeden Schritt, wo Belege verloren gehen
+ * (formatMarketDebug(debug) liefert eine lesbare Textfassung).
  */
 
 // ---------------------------------------------------------------------------
 // Quellen: EINE Quelle der Wahrheit für Typ, Schema, Prompt und Anzeige.
-// Behebt die Inkonsistenz "cardmarket_public fehlt im Schema-Enum": Keys können nicht mehr
-// auseinanderlaufen, weil Typ und Metadaten aus derselben Konstante abgeleitet werden und die
-// Extraktion gar keinen sourceKey mehr zurückgibt (sondern eine sectionId, siehe unten).
 // ---------------------------------------------------------------------------
 
 export const SOURCE_KEYS = [
@@ -51,7 +55,6 @@ type SourceMeta = {
   retailNew: boolean;
 };
 
-// Record<SourceKey, …> erzwingt beim Kompilieren, dass jeder Key Metadaten hat.
 const SOURCE_META: Record<SourceKey, SourceMeta> = {
   ebay_sold: { display: 'eBay verkauft', kind: 'sold', retailNew: false },
   ebay_offer: { display: 'eBay Angebot', kind: 'offer', retailNew: false },
@@ -68,7 +71,7 @@ const SOURCE_META: Record<SourceKey, SourceMeta> = {
 };
 
 // ---------------------------------------------------------------------------
-// Typen (abwärtskompatibel erweitert: alle bisherigen Felder bleiben erhalten)
+// Typen (abwärtskompatibel erweitert: alle ursprünglichen Felder bleiben erhalten)
 // ---------------------------------------------------------------------------
 
 type MarketListing = {
@@ -85,9 +88,11 @@ type MarketListing = {
   sourceKey?: SourceKey;
   kind?: 'listing' | 'guide';
   conditionGroup?: ConditionKey;
-  /** 'raw' oder z. B. 'psa 10'; nur bei Sammelkarten gesetzt. */
+  /** 'raw' oder z. B. 'pca 9.5'; nur bei Sammelkarten gesetzt. */
   grading?: string;
-  /** Rohkarten-Beleg für eine gegradete Karte: nur Basiswert, kein Grading-Vergleich. */
+  /** Sammelkarten: 'exact' = exakt gleiche Firma+Note, 'raw' = ungegradet (Basiswert). */
+  gradingClass?: 'exact' | 'raw';
+  /** true = Beleg zählt nur für den Kartenbasiswert, nie als Grading-Vergleich. */
   rawCardBase?: boolean;
   originalPrice?: number;
   originalCurrency?: string;
@@ -101,7 +106,6 @@ type ConditionMarketPrice = {
   offerCount: number;
   sampleCount: number;
   basis: string;
-  // neu:
   status: 'ok' | 'low_sample' | 'none';
   /** Genau ein echter Beleg: wird gezeigt, aber NICHT als Marktpreis ausgegeben. */
   referencePrice: number | null;
@@ -124,43 +128,93 @@ export type MarketSearchStatus =
   | 'filtered_all'
   | 'insufficient_identity';
 
+/** Was die Oberfläche als Hauptwert anzeigen soll – statt pauschal "Preisreferenzen fehlen". */
+export type MarketHeadline = {
+  kind: 'condition' | 'exact_grading' | 'card_base' | 'pooled' | 'reference' | 'none';
+  price: number | null;
+  from: number | null;
+  to: number | null;
+  /** Nur bei kind 'reference': ein einzelner echter Beleg, kein Marktpreis. */
+  referencePrice: number | null;
+  soldCount: number;
+  offerCount: number;
+  sampleCount: number;
+  basis: string;
+  note: string;
+};
+
+type QueryRole = 'base' | 'grading' | 'product';
+
+type QueryPlanEntry = { index: number; role: QueryRole; query: string };
+
 type UnreadableReason = 'http_error' | 'scrape_failed' | 'timeout' | 'empty' | 'blocked' | 'no_prices';
 
-type SourceDiagnostic = {
+export type PageDebug = {
   sourceKey: SourceKey;
   display: string;
+  role: QueryRole;
   queryIndex: number;
   query: string;
   url: string;
   httpStatus: number | null;
   readable: boolean;
   unreadableReason: UnreadableReason | null;
-  priceSignals: number;
   textChars: number;
+  condensedChars: number;
+  priceSignals: number;
+  /** Zeilen im Rohtext, die exakt die gesuchte Identität nennen (Karte: Kartennummer). */
+  identityMentionsRaw: number;
+  /** Dieselbe Zählung nach condenseListingText – Differenz = Verlust durch Verdichtung. */
+  identityMentionsCondensed: number;
   rawListings: number;
   validatedListings: number;
   extractionError: string | null;
+  textPreview: string;
 };
 
-export type MarketDiagnostics = {
+export type LossStage =
+  | 'none'
+  | 'identity_gate'
+  | 'fetch'
+  | 'source_content'
+  | 'condense'
+  | 'extraction'
+  | 'validation'
+  | 'aggregation';
+
+export type MarketDebug = {
   marketSearchStatus: MarketSearchStatus;
-  sourcesAttempted: number;
-  sourcesReadable: number;
-  sourcesWithListings: number;
-  rawListingsFound: number;
+  lossStage: LossStage;
+  lossExplanation: string;
+  isCard: boolean;
+  cardNumberCanonical: string;
+  targetGrading: string;
+  queriesGenerated: QueryPlanEntry[];
+  pagesRequested: PageDebug[];
+  pagesReadable: number;
+  priceSignalsFound: number;
+  identityMentionsInPages: number;
+  identityMentionsAfterCondense: number;
+  rawListingsExtracted: number;
   validatedListings: number;
-  rejectedListings: number;
+  rawCardListings: number;
+  exactGradingListings: number;
   duplicatesRemoved: number;
+  rejectedListings: number;
   rejectionReasons: Record<string, number>;
+  rejectedSamples: { source: string; title: string; priceText: string; reason: string }[];
+  acceptedSamples: { source: string; title: string; price: number; class: string }[];
   extractionErrors: string[];
-  perSource: SourceDiagnostic[];
+  cardBaseValue: ConditionMarketPrice | null;
+  exactGradingValue: ConditionMarketPrice | null;
+  headline: MarketHeadline;
 };
 
 type MarketData = {
   connected: boolean;
   query: string;
   searchedQueries: string[];
-  /** Nur Quellen, deren Inhalt tatsächlich lesbar war (vorher: alle versuchten). */
+  /** Nur Quellen, deren Inhalt tatsächlich lesbar war. */
   sourcesChecked: string[];
   soldComparables: MarketListing[];
   currentOffers: MarketListing[];
@@ -171,12 +225,16 @@ type MarketData = {
   message: string;
   // neu:
   status: MarketSearchStatus;
-  diagnostics: MarketDiagnostics;
-  /** Rohkarten-Basiswert derselben Karte bei gegradeten Karten (separat, kein Grading-Vergleich). */
+  headline: MarketHeadline;
+  /** A. Kartenbasiswert: ungegradete Belege derselben Karte (nur bei gegradeten Karten). */
   cardBaseValue: ConditionMarketPrice | null;
+  /** B. Direkter Grading-Vergleich: nur exakt gleiche Firma + Note. */
+  exactGradingValue: ConditionMarketPrice | null;
+  debug: MarketDebug;
+  /** @deprecated gleiche Referenz wie debug (Kompatibilität zur vorherigen Fassung). */
+  diagnostics: MarketDebug;
 };
 
-/** Optionaler strukturierter Datenlieferant (z. B. eBay Browse API) – läuft durch dieselbe Validierung. */
 export type MarketProviderListing = {
   title: string;
   price: number;
@@ -199,20 +257,15 @@ export type MarketLookupOptions = {
   extractTimeoutMs?: number;
   scrapeConcurrency?: number;
   extractConcurrency?: number;
+  /** Wird immer mit ('debug', MarketDebug) aufgerufen. Standard: formatierte Ausgabe per console.info. */
   log?: (event: string, data: unknown) => void;
 };
 
 // ---------------------------------------------------------------------------
-// Extraktions-Schema
-// Fix 1: sourceKey wird NICHT mehr vom Modell geliefert. Das Modell nennt nur die sectionId des
-//        Abschnitts; Quelle, URL und Verkauft/Angebot werden deterministisch daraus abgeleitet.
-//        Damit ist jede Enum-Inkonsistenz (cardmarket_public) strukturell ausgeschlossen.
-// Fix 2: Flache Liste mit conditionGroup statt vier Arrays – kleinere Ausgaben, weniger
-//        Abbrüche durch maxTokens, Zustand wird zusätzlich deterministisch geprüft.
-// Fix 3: priceText (wörtlich) wird mitgeliefert und gegen den Quelltext geprüft (Anti-Halluzination).
+// Extraktions-Schema: das Modell nennt nur die sectionId, nie die Quelle.
 // ---------------------------------------------------------------------------
 
-const MAX_ITEMS_PER_EXTRACT = 20;
+const MAX_ITEMS_PER_EXTRACT = 25;
 
 const marketRowSchema = {
   type: 'object',
@@ -269,14 +322,14 @@ type ExtractedMarketRow = {
 
 const known = (value?: string | null) => (value && !isUnknown(value) ? String(value).trim() : '');
 
-const looseTokens = (value: string) =>
+const foldText = (value: string) =>
   String(value || '')
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
-    .replace(/ß/g, 'ss')
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
+    .replace(/ß/g, 'ss');
+
+const looseTokens = (value: string) => foldText(value).split(/[^a-z0-9]+/).filter(Boolean);
 
 const compactId = (value: string) => looseTokens(value).join('');
 
@@ -290,9 +343,11 @@ const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\
 
 const hasLettersAndDigits = (token: string) => /[a-z]/.test(token) && /\d/.test(token);
 
-/** Unter 20 € auf Cent runden (Sammelkarten für 0,40 € dürfen nicht zu 1 € werden), sonst ganze Euro. */
-const roundPrice = (value: number) =>
-  value < 20 ? Math.round(value * 100) / 100 : Math.round(value);
+/** Unter 20 € auf Cent runden (Karten für 0,40 € dürfen nicht zu 1 € werden), sonst ganze Euro. */
+const roundPrice = (value: number) => (value < 20 ? Math.round(value * 100) / 100 : Math.round(value));
+
+const formatEuro = (value: number) =>
+  value.toLocaleString('de-DE', { minimumFractionDigits: value < 20 ? 2 : 0, maximumFractionDigits: 2 }) + ' €';
 
 function countBy(target: Record<string, number>, key: string) {
   target[key] = (target[key] || 0) + 1;
@@ -320,10 +375,50 @@ async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: nu
 }
 
 // ---------------------------------------------------------------------------
-// Seiteninhalt: Lesbarkeit prüfen und auf Listings verdichten
-// Fix: HTTP < 400 allein galt als "lesbar". Jetzt zählt nur Text mit Preissignalen; Bot-/Consent-/
-//      Captcha-Seiten werden als 'blocked' erkannt. Statt text.slice(0, 8500) (bei eBay fast nur
-//      Navigation) werden gezielt die Zeilen um Preise herum behalten.
+// Scrape-Ergebnis robust lesen
+// FIX: Bisher wurde nur result.status (Zahl) und result.text gelesen. Liefert ai.scrape z. B.
+//      { statusCode, markdown } oder rohes HTML, galten ALLE Quellen als unlesbar
+//      (→ "sources_unreachable", 0 Belege), obwohl Listings vorhanden waren.
+// ---------------------------------------------------------------------------
+
+function htmlToText(html: string) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<(br|\/p|\/div|\/li|\/h\d|\/tr|\/span|\/a|\/section|\/article)\b[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&euro;|&#8364;/gi, '€')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n');
+}
+
+function readScrapeResult(result: unknown): { status: number | null; text: string } {
+  if (typeof result === 'string') {
+    return { status: null, text: /<(div|span|li|a|body)\b/i.test(result) ? htmlToText(result) : result };
+  }
+  const r = (result || {}) as Record<string, unknown>;
+  const rawStatus = r.status ?? r.statusCode ?? r.httpStatus ?? r.code;
+  const numeric = rawStatus == null || rawStatus === '' ? NaN : Number(rawStatus);
+  const candidates = [r.text, r.markdown, r.content, r.body, r.html].filter(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0
+  );
+  let text = candidates[0] || '';
+  if (text && /<(div|span|li|a|body)\b/i.test(text.slice(0, 20000))) text = htmlToText(text);
+  return { status: Number.isFinite(numeric) ? numeric : null, text };
+}
+
+// ---------------------------------------------------------------------------
+// Preiserkennung und Verdichtung
+// FIX: condenseListingText behielt nur 3 Zeilen VOR einem Preis. Bei eBay stehen zwischen Titel
+//      und Preis oft Zustand, Verkäufer, "Top-Rated", Verkaufsdatum → Titel fiel weg, das Modell
+//      konnte Titel und Preis nicht mehr zuordnen. Außerdem wurden kurze Seiten an "12. Sep"
+//      zerschnitten. Jetzt: großzügiges Fenster, Zeilen mit der gesuchten Identität werden
+//      immer behalten, Verlust wird in debug gemessen.
 // ---------------------------------------------------------------------------
 
 const PRICE_SOURCE =
@@ -338,25 +433,33 @@ function countPriceSignals(text: string) {
   return (text.match(new RegExp(PRICE_SOURCE, 'gi')) || []).length;
 }
 
-function condenseListingText(text: string, maxChars = 6000) {
+function splitLines(text: string) {
   let lines = String(text || '')
     .split(/\r?\n/)
     .map(line => line.replace(/\s+/g, ' ').trim())
     .filter(Boolean);
-  // Manche Scraper liefern einen einzigen Fließtext – dann an typischen Trennern aufteilen.
-  if (lines.length < 20) {
-    lines = lines.flatMap(line => line.split(/\s{2,}| \| | · |(?<=[.!?])\s+(?=[A-ZÄÖÜ0-9])/)).filter(Boolean);
+  // Nur echte Fließtext-Blobs (sehr lange Zeilen) aufteilen – nicht an Datumsangaben wie "12. Sep".
+  if (lines.some(line => line.length > 600)) {
+    lines = lines.flatMap(line => (line.length > 600 ? line.split(/\s{2,}| \| | · /) : [line])).filter(Boolean);
   }
+  return lines;
+}
+
+function condenseListingText(text: string, maxChars = 9000, keepLine?: (line: string) => boolean) {
+  const lines = splitLines(text);
   const keep = new Set<number>();
+  const keepRange = (from: number, to: number) => {
+    for (let j = Math.max(0, from); j <= Math.min(lines.length - 1, to); j++) keep.add(j);
+  };
   lines.forEach((line, index) => {
-    if (!PRICE_TEST.test(line)) return;
-    for (let j = Math.max(0, index - 3); j <= Math.min(lines.length - 1, index + 2); j++) keep.add(j);
+    if (PRICE_TEST.test(line)) keepRange(index - 7, index + 2);
+    if (keepLine && keepLine(line)) keepRange(index - 1, index + 8);
   });
-  const condensed = [...keep]
+  return [...keep]
     .sort((a, b) => a - b)
     .map(index => lines[index])
-    .join('\n');
-  return condensed.slice(0, maxChars);
+    .join('\n')
+    .slice(0, maxChars);
 }
 
 // ---------------------------------------------------------------------------
@@ -395,19 +498,13 @@ function currencyOf(priceText: string, fallback: string) {
   return (fallback || 'EUR').toUpperCase();
 }
 
-const isPriceRange = (priceText: string) =>
-  /\b(bis|to)\b/i.test(priceText) || /\d\s*[-–]\s*\d/.test(priceText);
+const isPriceRange = (priceText: string) => /\b(bis|to)\b/i.test(priceText) || /\d\s*[-–]\s*\d/.test(priceText);
 
 function priceVariants(price: number) {
   const fixed = price.toFixed(2);
   const [intPart, dec] = fixed.split('.');
   const withThousands = (sep: string) => intPart.replace(/\B(?=(\d{3})+(?!\d))/g, sep);
-  const variants = [
-    withThousands('.') + ',' + dec,
-    intPart + ',' + dec,
-    withThousands(',') + '.' + dec,
-    fixed,
-  ];
+  const variants = [withThousands('.') + ',' + dec, intPart + ',' + dec, withThousands(',') + '.' + dec, fixed];
   if (dec === '00') variants.push(withThousands('.'), intPart, intPart + ',-');
   return Array.from(new Set(variants));
 }
@@ -419,22 +516,19 @@ function priceGrounded(priceText: string, price: number, haystack: string) {
   const currency = '(?:€|eur|us\\$|\\$|£|chf)';
   return priceVariants(price).some(variant => {
     const v = escapeRegExp(variant);
-    return new RegExp(currency + '\\s?' + v + '(?![\\d])|(?<![\\d.,])' + v + '\\s?' + currency, 'i').test(
-      haystack
-    );
+    return new RegExp(currency + '\\s?' + v + '(?![\\d])|(?<![\\d.,])' + v + '\\s?' + currency, 'i').test(haystack);
   });
 }
 
+/** Mindestens die Hälfte der Titelwörter muss im Quelltext stehen (Modell darf kürzen, nicht erfinden). */
 function titleGrounded(title: string, haystackTokens: Set<string>) {
   const tokens = looseTokens(title).filter(token => token.length >= 3);
-  if (!tokens.length) return false;
+  if (!tokens.length) return true; // z. B. rein japanischer Titel: Preisprüfung trägt allein
   return tokens.filter(token => haystackTokens.has(token)).length / tokens.length >= 0.5;
 }
 
 // ---------------------------------------------------------------------------
 // Zustandsgruppen
-// Fix: "neu ovp", "originalverpackt", "sealed", "brandneu", "new" landeten bisher in 'used',
-//      weil nur n === 'neu' geprüft wurde. Gegradete Karten gelten als likeNew.
 // ---------------------------------------------------------------------------
 
 function conditionGroupFromText(text: string): ConditionKey | null {
@@ -443,7 +537,7 @@ function conditionGroupFromText(text: string): ConditionKey | null {
   const negatedDefect = / (nicht|kein|keine|ohne|no) (defekt|defekte|kaputt|defects?) /.test(n);
   if (
     !negatedDefect &&
-    / (defekt|defekte|kaputt|bastler\w*|ersatzteil\w*|ersatzteilspender|for parts|not working|broken|defective|beschadigt|funktioniert nicht) /.test(
+    / (defekt|defekte|kaputt|bastler\w*|ersatzteil\w*|ersatzteilspender|for parts|not working|broken|defective|beschadigt|damaged|poor|funktioniert nicht) /.test(
       n
     )
   ) {
@@ -452,7 +546,11 @@ function conditionGroupFromText(text: string): ConditionKey | null {
   if (/ (neuwertig\w*|wie neu|like new|sehr gut|near mint|mint|nm|hervorragend|top zustand) /.test(n)) {
     return 'likeNew';
   }
-  if (/ (gebraucht|used|pre owned|preowned|getragen|bespielt|gut|akzeptabel|played|refurbished|generalüberholt|generaluberholt) /.test(n)) {
+  if (
+    / (gebraucht|used|pre owned|preowned|getragen|bespielt|gut|akzeptabel|played|lightly played|excellent|refurbished|generaluberholt) /.test(
+      n
+    )
+  ) {
     return 'used';
   }
   if (/ (neu|new|brandneu|neuware|ovp|originalverpackt|versiegelt|sealed|ungeoffnet|unbenutzt|unopened|bnib|nib) /.test(n)) {
@@ -466,70 +564,133 @@ function detectedConditionKey(condition: string): ConditionKey {
   return conditionGroupFromText(condition) || 'used';
 }
 
+// ---------------------------------------------------------------------------
+// Sammelkarten: Erkennung, Kartennummer, Grading
+// ---------------------------------------------------------------------------
+
+/**
+ * FIX: Bisher galt eine Analyse nur als Sammelkarte, wenn category exakt "Sammelkarten" oder
+ * objectType exakt "Sammelkarte" war. Bei "Pokémon Karten", "Trading Card" o. Ä. lief die Karte
+ * durch die Produktlogik (Queries "Pokémon", "Pokémon Karte", keine Nummernprüfung, kein Grading).
+ */
+function isCardAnalysis(analysis: Analysis) {
+  const category = normalize(analysis.category);
+  const objectType = normalize(analysis.objectType);
+  if (category === 'sammelkarten' || objectType === 'sammelkarte') return true;
+  const c = analysis.cardDetails;
+  return Boolean(c && (known(c.cardNumber) || known(c.cardName)));
+}
+
+/** Folge normalisierter Token einer Kartennummer: "143/S P", "143/S-P Promo", "#143/SP" → 143,s,p */
+function cardNumberTokens(raw: string): string[] {
+  const tokens = looseTokens(raw).map(token => (/^\d+$/.test(token) ? String(Number(token)) : token));
+  while (tokens.length > 1 && /^(nr|no|nummer|number|card|karte)$/.test(tokens[0])) tokens.shift();
+  // Nachgestellte Wörter (Promo, Holo, Secret, Rare …) gehören nicht zur Nummer.
+  while (tokens.length > 1 && /^[a-z]{3,}$/.test(tokens[tokens.length - 1])) tokens.pop();
+  return tokens;
+}
+
+const normalizeIdChunk = (value: string) => value.replace(/(^|[a-z])0+(\d)/g, '$1$2');
+
+/**
+ * Suchtaugliche Schreibweise: "143/S P" → "143/S-P", "143/S-P Promo" → "143/S-P", "158/147" bleibt.
+ * FIX: Die erkannte Schreibweise "143/S P" ging bisher unverändert in eBay-URLs; die Listings
+ *      schreiben "143/S-P".
+ */
+function canonicalCardNumber(raw: string) {
+  const value = String(raw || '').trim().replace(/^#\s*/, '');
+  const match = value.match(/^([A-Za-z]{0,4}\d{1,4}[A-Za-z]?)\s*\/\s*(.+)$/);
+  if (!match) {
+    const parts = value.split(/\s+/).filter(Boolean);
+    while (parts.length > 1 && /^[A-Za-z]{3,}$/.test(parts[parts.length - 1])) parts.pop();
+    return parts.join(' ');
+  }
+  const right = match[2]
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .filter((part, index) => index === 0 || !/^[A-Za-z]{3,}$/.test(part));
+  return match[1] + '/' + right.join('-').toUpperCase();
+}
+
+type Grading = { company: string; grade: string };
+
+const GRADER_NAMES = ['psa', 'bgs', 'beckett', 'cgc', 'pca', 'sgc', 'ace', 'tag', 'ags', 'gma', 'mnt', 'ccc', 'hga', 'ksa', 'pgs', 'ggs'];
+const MAJOR_GRADERS = ['psa', 'bgs', 'cgc'];
+const GRADED_MARKERS = ['graded', 'gegradet', 'gradiert', 'slab', 'slabbed'];
+
+const normalizeGrader = (company: string) => (company === 'beckett' ? 'bgs' : company);
+
+/**
+ * Liefert Firma+Note, { company, grade: '' } bei erkennbarem, aber unklarem Grading, sonst null.
+ * FIX: Bisher musste die Note direkt hinter der Firma stehen. "PSA GEM MINT 10", "PCA Gem Mint 9.5"
+ *      oder "CGC Pristine 10" wurden als UNGEGRADET gewertet → teure Slabs verfälschten den
+ *      Rohkartenwert, echte PCA-9,5-Vergleiche gingen verloren. "TAG TEAM"/"ACE SPEC" sind keine Grader.
+ */
+function gradingOf(text: string): Grading | null {
+  const tokens = foldText(text).match(/[a-z]+|\d+(?:[.,]\d)?/g) || [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (!GRADER_NAMES.includes(token)) continue;
+    const nextToken = tokens[i + 1] || '';
+    if ((token === 'tag' && nextToken === 'team') || (token === 'ace' && nextToken === 'spec')) continue;
+    for (let j = i + 1; j <= Math.min(tokens.length - 1, i + 5); j++) {
+      const candidate = tokens[j].replace(',', '.');
+      if (!/^\d+(\.\d)?$/.test(candidate)) continue;
+      const value = Number(candidate);
+      if (value >= 1 && value <= 10 && (Number.isInteger(value) || candidate.endsWith('.5'))) {
+        return { company: normalizeGrader(token), grade: String(value) };
+      }
+    }
+    return { company: normalizeGrader(token), grade: '' };
+  }
+  if (tokens.some(token => GRADED_MARKERS.includes(token))) return { company: '', grade: '' };
+  return null;
+}
+
+/**
+ * FIX: Bisher nur gradingCompany + grade im festen Format. "9,5 Mint" o. Ä. ergab die Note
+ *      "mint 9.5" → kein Treffer konnte je exakt passen. Jetzt robust über mehrere Felder.
+ */
+function targetGrading(analysis: Analysis): Grading | null {
+  const c = analysis.cardDetails;
+  const fromFields = gradingOf([known(c?.gradingCompany), known(c?.grade)].join(' '));
+  if (fromFields && fromFields.company) return fromFields;
+  const fromCondition = gradingOf(analysis.condition);
+  if (fromCondition && fromCondition.company) return fromCondition;
+  const fromTitle = gradingOf(analysis.title);
+  if (fromTitle && fromTitle.company) return fromTitle;
+  const company = compactId(known(c?.gradingCompany));
+  return company ? { company: normalizeGrader(company), grade: '' } : null;
+}
+
+const formatGrading = (grading: Grading | null) =>
+  grading ? (grading.company.toUpperCase() + ' ' + grading.grade.replace('.', ',')).trim() : '';
+
 function isGradedCard(analysis: Analysis) {
   return isCardAnalysis(analysis) && Boolean(targetGrading(analysis));
 }
 
-/** Zustandsgruppe des gescannten Gegenstands (gegradete Karten => likeNew). */
+/** Zustandsgruppe des gescannten Gegenstands (gegradete Karten ⇒ likeNew). */
 function targetConditionKey(analysis: Analysis): ConditionKey {
   if (isGradedCard(analysis)) return 'likeNew';
   return detectedConditionKey(analysis.condition);
 }
 
 // ---------------------------------------------------------------------------
-// Grading (Sammelkarten)
-// ---------------------------------------------------------------------------
-
-type Grading = { company: string; grade: string };
-
-const GRADER_PATTERN =
-  /\b(psa|bgs|beckett|cgc|pca|sgc|ace|tag|ags|gma|mnt|ccc)\s*(?:grade\s*|note\s*)?(10|[1-9](?:[.,]5)?)(?![\d])/i;
-
-const normalizeGrader = (company: string) => {
-  const c = company.toLowerCase().trim();
-  return c === 'beckett' ? 'bgs' : c;
-};
-
-function gradingOf(text: string): Grading | null {
-  const match = String(text || '').match(GRADER_PATTERN);
-  return match ? { company: normalizeGrader(match[1]), grade: match[2].replace(',', '.') } : null;
-}
-
-function targetGrading(analysis: Analysis): Grading | null {
-  const company = known(analysis.cardDetails?.gradingCompany);
-  if (!company) return null;
-  const grade = known(analysis.cardDetails?.grade).replace(',', '.');
-  const parsed = gradingOf(company + ' ' + grade);
-  return parsed || { company: normalizeGrader(compactId(company)), grade };
-}
-
-const MAJOR_GRADERS = ['psa', 'bgs', 'cgc'];
-
-// ---------------------------------------------------------------------------
-// Identitätsprofil – deterministische Prüfung, ob ein Treffer DASSELBE Produkt ist
+// Identitätsprofil
 // ---------------------------------------------------------------------------
 
 const VARIANT_WORDS = ['pro', 'max', 'mini', 'plus', 'ultra', 'lite'];
 const COVERAGE_STOPWORDS = new Set(['und', 'mit', 'for', 'fur', 'the', 'der', 'die', 'das', 'neu', 'gebraucht', 'preis']);
-const ACCESSORY_WORDS = [
-  'hulle',
-  'schutzhulle',
-  'silikonhulle',
-  'cover',
-  'skin',
-  'sticker',
-  'aufkleber',
-  'schutzfolie',
-  'panzerglas',
-  'displayschutz',
-  'etui',
-];
+const ACCESSORY_WORDS = ['hulle', 'schutzhulle', 'silikonhulle', 'cover', 'skin', 'sticker', 'aufkleber', 'schutzfolie', 'panzerglas', 'displayschutz', 'etui'];
 const LOT_WORDS = ['konvolut', 'sammlung', 'lot', 'bundle', 'bulk', 'paket'];
 const FAKE_CARD_WORDS = ['proxy', 'fake', 'custom', 'replica', 'orica', 'fanart'];
+const GENERIC_SET_WORDS = new Set(['promo', 'promos', 'card', 'cards', 'karte', 'karten', 'pokemon', 'holo', 'rare', 'japanese', 'japanisch', 'english', 'deutsch', 'edition', 'set', 'the', 'and']);
 
 type IdentityProfile = {
   isCard: boolean;
-  cardNumberCompact: string;
+  cardNumberTokens: string[];
+  cardNumberConcat: string;
   cardNumberLead: string;
   cardNameTokens: string[];
   setTokens: string[];
@@ -540,10 +701,6 @@ type IdentityProfile = {
   matchQueries: string[];
   grading: Grading | null;
 };
-
-function isCardAnalysis(analysis: Analysis) {
-  return normalize(analysis.category) === 'sammelkarten' || normalize(analysis.objectType) === 'sammelkarte';
-}
 
 function generationOf(text: string): string | null {
   const t = String(text || '').toLowerCase();
@@ -557,7 +714,7 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
   const d = analysis.universalDetails;
   const c = analysis.cardDetails;
   const isCard = isCardAnalysis(analysis) && Boolean(c);
-  const cardNumber = known(c?.cardNumber);
+  const numberTokens = cardNumberTokens(known(c?.cardNumber));
   const model = known(analysis.model) || known(d?.modelName);
   const brand = known(analysis.brand) || known(d?.manufacturer);
   const identityText = [
@@ -572,25 +729,62 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     known(c?.setName),
     ...productAliasQueries(analysis),
   ].join(' ');
-
   const modelTokens = looseTokens(model).filter(token => !looseTokens(brand).includes(token));
   return {
     isCard,
-    cardNumberCompact: compactId(cardNumber),
-    cardNumberLead: looseTokens(cardNumber)[0] || '',
+    cardNumberTokens: numberTokens,
+    cardNumberConcat: normalizeIdChunk(numberTokens.join('')),
+    cardNumberLead: numberTokens.find(token => /^\d+$/.test(token)) || '',
     cardNameTokens: looseTokens(known(c?.cardName)),
-    setTokens: looseTokens(known(c?.setName)).filter(token => token.length >= 3),
-    // Ist das Modell selbst eine Kennung wie "G213", muss sie im Treffer stehen.
+    setTokens: looseTokens(known(c?.setName)).filter(token => token.length >= 3 && !GENERIC_SET_WORDS.has(token)),
     primaryHardTokens: modelTokens.filter(token => token.length >= 3 && hasLettersAndDigits(token)),
-    // Modellnummer/SKU (z. B. A2540) fehlt oft in Titeln: nur Bestätigung, keine Pflicht.
-    boostTokens: [known(d?.modelNumber), known(d?.skuOrPartNumber)]
-      .map(compactId)
-      .filter(token => token.length >= 4),
+    boostTokens: [known(d?.modelNumber), known(d?.skuOrPartNumber)].map(compactId).filter(token => token.length >= 4),
     identityTokens: new Set(looseTokens(identityText)),
     generation: generationOf([model, known(d?.generation), analysis.title].join(' ')),
     matchQueries: queries,
     grading: isCard ? targetGrading(analysis) : null,
   };
+}
+
+/**
+ * Exakter Kartennummer-Treffer als zusammenhängende Token-Folge.
+ * FIX: Bisher Teilstring-Suche im zusammengeklebten Titel ("143sp" passte in "143 spanish").
+ */
+function hasExactCardNumber(tokens: string[], profile: IdentityProfile) {
+  if (!profile.cardNumberConcat) return false;
+  const normalized = tokens.map(token => (/^\d+$/.test(token) ? String(Number(token)) : token));
+  for (let i = 0; i < normalized.length; i++) {
+    let joined = '';
+    for (let j = i; j < Math.min(normalized.length, i + 6); j++) {
+      joined = normalizeIdChunk(joined + normalized[j]);
+      if (joined === profile.cardNumberConcat) {
+        // Folgetoken darf die Nummer nicht verlängern (143/S-P vs. 143/S-PX).
+        return true;
+      }
+      if (joined.length >= profile.cardNumberConcat.length) break;
+    }
+  }
+  return false;
+}
+
+/**
+ * 'exact' = Kartennummer exakt; 'lead' = nur Hauptnummer + Name/Set; 'name' = keine Nummer bekannt.
+ * FIX: "Charizard Promo 143/SV-P" (andere Karte!) wurde über "143" + "promo" akzeptiert.
+ *      Steht im Titel eine andere vollständige Nummer mit derselben Hauptnummer, wird abgelehnt.
+ */
+function cardIdentityMatch(title: string, profile: IdentityProfile): 'exact' | 'lead' | 'name' | null {
+  const tokens = looseTokens(title);
+  const tokenSet = new Set(tokens.map(token => (/^\d+$/.test(token) ? String(Number(token)) : token)));
+  if (profile.cardNumberConcat) {
+    if (hasExactCardNumber(tokens, profile)) return 'exact';
+    if (!profile.cardNumberLead || !tokenSet.has(profile.cardNumberLead)) return null;
+    const otherFullNumber = new RegExp('(^|[^\\d])0*' + profile.cardNumberLead + '\\s*/\\s*[a-z0-9]', 'i').test(foldText(title));
+    if (otherFullNumber) return null;
+    const nameMatches = profile.cardNameTokens.length > 0 && profile.cardNameTokens.every(token => tokenSet.has(token));
+    const setMatches = profile.setTokens.some(token => tokenSet.has(token));
+    return nameMatches || setMatches ? 'lead' : null;
+  }
+  return profile.cardNameTokens.length && profile.cardNameTokens.every(token => tokenSet.has(token)) ? 'name' : null;
 }
 
 function queryCoverage(query: string, titleTokens: Set<string>) {
@@ -608,35 +802,20 @@ function identityRejection(title: string, profile: IdentityProfile): string | nu
 
   if (/^(suche|tausche|ankauf|kaufe|wtb|wanted)\b/.test(tokens.join(' '))) return 'wanted_ad';
   if (text.includes(' shop on ebay ') || text.includes(' neues angebot ')) return 'placeholder';
-  if (/ (leerkarton|nur ovp|nur box|nur karton|nur verpackung|empty box|box only) /.test(text)) {
-    return 'packaging_only';
-  }
+  if (/ (leerkarton|nur ovp|nur box|nur karton|nur verpackung|empty box|box only) /.test(text)) return 'packaging_only';
   const foreign = (words: string[]) => words.some(word => tokenSet.has(word) && !profile.identityTokens.has(word));
   if (foreign(ACCESSORY_WORDS)) return 'accessory';
   if (foreign(LOT_WORDS)) return 'lot_or_bundle';
 
   if (profile.isCard) {
     if (foreign(FAKE_CARD_WORDS)) return 'fake_or_proxy';
-    if (profile.cardNumberCompact) {
-      if (compact.includes(profile.cardNumberCompact)) return null;
-      const leadMatches = profile.cardNumberLead && tokenSet.has(profile.cardNumberLead);
-      const nameMatches =
-        profile.cardNameTokens.length > 0 && profile.cardNameTokens.every(token => tokenSet.has(token));
-      const setMatches = profile.setTokens.some(token => tokenSet.has(token));
-      return leadMatches && (nameMatches || setMatches) ? null : 'card_number_mismatch';
-    }
-    return profile.cardNameTokens.length && profile.cardNameTokens.every(token => tokenSet.has(token))
-      ? null
-      : 'card_name_mismatch';
+    if (cardIdentityMatch(title, profile)) return null;
+    return profile.cardNumberConcat ? 'card_number_mismatch' : 'card_name_mismatch';
   }
 
-  if (VARIANT_WORDS.some(word => tokenSet.has(word) && !profile.identityTokens.has(word))) {
-    return 'variant_mismatch';
-  }
+  if (VARIANT_WORDS.some(word => tokenSet.has(word) && !profile.identityTokens.has(word))) return 'variant_mismatch';
   const titleGeneration = generationOf(title);
-  if (profile.generation && titleGeneration && titleGeneration !== profile.generation) {
-    return 'generation_mismatch';
-  }
+  if (profile.generation && titleGeneration && titleGeneration !== profile.generation) return 'generation_mismatch';
   if (profile.boostTokens.some(token => compact.includes(token))) return null;
   if (profile.primaryHardTokens.length && !profile.primaryHardTokens.some(token => compact.includes(token))) {
     return 'model_mismatch';
@@ -645,14 +824,29 @@ function identityRejection(title: string, profile: IdentityProfile): string | nu
   return bestCoverage >= 0.6 ? null : 'model_mismatch';
 }
 
+/** Für die Diagnose: nennt diese Zeile eindeutig die gesuchte Identität? */
+function mentionsIdentity(line: string, profile: IdentityProfile) {
+  if (profile.isCard) {
+    return profile.cardNumberConcat
+      ? hasExactCardNumber(looseTokens(line), profile)
+      : cardIdentityMatch(line, profile) !== null;
+  }
+  const tokens = looseTokens(line);
+  const compact = tokens.join('');
+  if (profile.boostTokens.some(token => compact.includes(token))) return true;
+  if (profile.primaryHardTokens.length) return profile.primaryHardTokens.some(token => compact.includes(token));
+  const tokenSet = new Set(tokens);
+  return profile.matchQueries.some(query => queryCoverage(query, tokenSet) >= 0.8);
+}
+
 // ---------------------------------------------------------------------------
-// Query-Aufbau
-// Fix: Die bisherige Primär-Query hängte Marke, Modell, Modellnummer, SKU, Generation,
-//      Speicher bzw. Set, Seltenheit, Finish, Grading aneinander. eBay/Willhaben verknüpfen
-//      alle Wörter mit UND → 0 Treffer. Außerdem stand ein Barcode an Position 0 und wurde so
-//      auch an Cardmarket/PriceCharting geschickt. Jetzt: kurze, gestufte Queries (max. 8 Wörter),
-//      spezifische Queries pro Quelle, Kartennummer als sprachunabhängige Suche ("Glurak" vs.
-//      "Charizard" auf eBay.de).
+// Query-Plan
+// FIX: Bei gegradeten Karten stand die Grading-Query ("Charizard 143/S P PCA 9.5") auf Position 0.
+//      Dadurch liefen Bing, Willhaben und DuckDuckGo NUR mit der Grading-Query, die es für
+//      seltene Grader praktisch nie gibt – die ungegradete Karte (Basiswert) wurde dort nie gesucht.
+//      Jetzt: Basis-Queries zuerst, Grading-Query separat mit Rolle 'grading' und nur auf eBay.
+//      Die Grading-Query enthält die Firma, aber keine Note ("9,5" vs. "9.5" würde bei eBay das
+//      UND-Matching brechen); die exakte Note prüft der Code.
 // ---------------------------------------------------------------------------
 
 function cleanQuery(value: string, maxWords = 8) {
@@ -672,32 +866,36 @@ function cleanQuery(value: string, maxWords = 8) {
     .join(' ');
 }
 
-function marketSearchVariants(analysis: Analysis): string[] {
-  const candidates: string[] = [];
-  const add = (...parts: string[]) => {
+function buildQueryPlan(analysis: Analysis): QueryPlanEntry[] {
+  const entries: { role: QueryRole; query: string }[] = [];
+  const add = (role: QueryRole, ...parts: string[]) => {
     const query = cleanQuery(parts.filter(Boolean).join(' '));
-    if (query.length >= 3) candidates.push(query);
+    if (query.length >= 3) entries.push({ role, query });
   };
 
   if (isCardAnalysis(analysis) && analysis.cardDetails) {
     const c = analysis.cardDetails;
     const name = known(c.cardName);
-    const number = known(c.cardNumber);
+    const number = canonicalCardNumber(known(c.cardNumber));
     const set = known(c.setName);
     const franchise = known(c.franchise);
     const grading = targetGrading(analysis);
-    if (grading && name) add(name, number, grading.company.toUpperCase(), grading.grade);
-    if (name) add(name, number);
-    if (franchise && number) add(franchise, number);
-    if (name && set) add(name, number, set);
-    if (franchise && name) add(franchise, name, number);
+    if (number) {
+      add('base', name, number);
+      add('base', franchise, number); // sprachunabhängig (Glurak/Dracaufeu/リザードン)
+      if (set) add('base', name, number, set);
+    } else {
+      if (name && set) add('base', name, set);
+      if (franchise && name) add('base', franchise, name);
+    }
+    if (grading && grading.company && (name || number)) add('grading', name, number, grading.company.toUpperCase());
   } else {
     const d = analysis.universalDetails;
     const special =
       (analysis.casioDetails && isCasioWatch(analysis)) ||
       (analysis.hotWheelsDetails && isHotWheelsAnalysis(analysis)) ||
       (normalize(analysis.category) === 'modellautos' && analysis.modelCarDetails);
-    if (special) add(marketQuery(analysis));
+    if (special) add('product', marketQuery(analysis));
 
     const brand = known(analysis.brand) || known(d?.manufacturer);
     const model = known(analysis.model) || known(d?.modelName);
@@ -711,41 +909,42 @@ function marketSearchVariants(analysis: Analysis): string[] {
     const modelWithGeneration = generation && !modelHasGeneration ? model + ' ' + generation : model;
     const brandPrefix = brand && !normalize(model).startsWith(normalize(brand)) ? brand : '';
 
-    if (model) add(brandPrefix, modelWithGeneration);
-    productAliasQueries(analysis).forEach(alias => add(alias));
-    if (brand && modelNumber) add(brand, modelNumber);
-    if (brand && sku) add(brand, sku);
+    if (model) add('product', brandPrefix, modelWithGeneration);
+    productAliasQueries(analysis).forEach(alias => add('product', alias));
+    if (brand && modelNumber) add('product', brand, modelNumber);
+    if (brand && sku) add('product', brand, sku);
     if (!model) {
-      add(brand, known(d?.productFamily));
-      add(brand, known(analysis.objectType));
+      add('product', brand, known(d?.productFamily));
+      add('product', brand, known(analysis.objectType));
     }
-    add(marketQuery(analysis));
-    if (analysis.title) add(analysis.title);
+    add('product', marketQuery(analysis));
+    if (analysis.title) add('product', analysis.title);
   }
 
   const seen = new Set<string>();
-  return candidates
-    .filter(query => {
-      const key = normalize(query);
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .slice(0, isCardAnalysis(analysis) ? 4 : 3);
+  const unique = entries.filter(entry => {
+    const key = normalize(entry.query);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const primary = unique.filter(entry => entry.role !== 'grading').slice(0, 3);
+  const grading = unique.filter(entry => entry.role === 'grading').slice(0, 1);
+  return [...primary, ...grading].map((entry, index) => ({ ...entry, index }));
+}
+
+/** Bestehende Signatur (string[]) bleibt erhalten. */
+function marketSearchVariants(analysis: Analysis): string[] {
+  return buildQueryPlan(analysis).map(entry => entry.query);
 }
 
 // ---------------------------------------------------------------------------
 // Suchseiten
-// Fix: Google-Suche liefert serverseitig fast immer Consent/Captcha → durch DuckDuckGo-HTML und
-//      Bing ersetzt, ohne erzwungene Exakt-Phrase und ohne Keyword-Ballast.
-// Fix: cardmarket_public (Cardmarket-Startseite) entfernt: Sie enthält nie die gesuchte Karte,
-//      nur Preise anderer Karten – reines Fehlerrisiko und ein verschwendeter Abruf.
-// Fix: Chrono24/AbeBooks über .de-Domains (EUR). PriceCharting/Discogs liefern oft USD →
-//      werden nur mit echtem Wechselkurs verwendet, sonst sauber als 'currency_not_eur' verworfen.
 // ---------------------------------------------------------------------------
 
 type SearchPage = {
   sourceKey: SourceKey;
+  role: QueryRole;
   queryIndex: number;
   query: string;
   url: string;
@@ -767,7 +966,7 @@ const NON_RETAIL_CATEGORIES = new Set([
   'teppiche',
 ]);
 
-function buildSearchPages(analysis: Analysis, queries: string[]): SearchPage[] {
+function buildSearchPages(analysis: Analysis, plan: QueryPlanEntry[]): SearchPage[] {
   const category = normalize(analysis.category);
   const objectType = normalize(analysis.objectType);
   const brand = normalize(analysis.brand);
@@ -776,8 +975,7 @@ function buildSearchPages(analysis: Analysis, queries: string[]): SearchPage[] {
 
   const isCard = isCardAnalysis(analysis);
   const isLego = category === 'lego' || brand === 'lego' || objectType === 'lego set' || objectType === 'minifigur';
-  const isGame =
-    category === 'videospiele' || category === 'konsolen' || objectType === 'videospiel' || objectType === 'spielkonsole';
+  const isGame = category === 'videospiele' || category === 'konsolen' || objectType === 'videospiel' || objectType === 'spielkonsole';
   const isWatch =
     category === 'uhren' &&
     objectType !== 'smartwatch' &&
@@ -786,34 +984,35 @@ function buildSearchPages(analysis: Analysis, queries: string[]): SearchPage[] {
     !isCasioWatch(analysis);
   const isBook = category === 'bucher' || objectType === 'buch';
   const isVinyl = category === 'schallplatten' || category === 'vinyl' || objectType === 'schallplatte';
-  // Fix: vorher Whitelist – Kategorien wie "zubehor"/"elektronik" (Siri Remote) fielen heraus.
   const checkRetailNew = !isCard && !NON_RETAIL_CATEGORIES.has(category);
 
   const pages: SearchPage[] = [];
-  const push = (sourceKey: SourceKey, queryIndex: number, query: string, url: string) =>
-    pages.push({ sourceKey, queryIndex, query, url });
+  const push = (sourceKey: SourceKey, entry: QueryPlanEntry, query: string, url: string) =>
+    pages.push({ sourceKey, role: entry.role, queryIndex: entry.index, query, url });
 
-  queries.forEach((query, index) => {
-    const q = encodeURIComponent(query);
-    push('ebay_sold', index, query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&LH_Sold=1&LH_Complete=1&rt=nc');
-    push('ebay_offer', index, query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&rt=nc');
-    if (index < 2) {
-      push('willhaben_offer', index, query, 'https://www.willhaben.at/iad/kaufen-und-verkaufen/marktplatz?keyword=' + q);
-      push('web_search', index, query, 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(query + ' Preis €'));
-    }
-    if (index === 0) {
-      push('web_search', index, query, 'https://www.bing.com/search?setlang=de&cc=AT&q=' + encodeURIComponent(query + ' Preis'));
-    }
+  const primaryEntries = plan.filter(entry => entry.role !== 'grading');
+  const primaryEntry = primaryEntries[0];
+
+  plan.forEach(entry => {
+    const q = encodeURIComponent(entry.query);
+    push('ebay_sold', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&LH_Sold=1&LH_Complete=1&rt=nc');
+    push('ebay_offer', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&rt=nc');
   });
+  primaryEntries.slice(0, 2).forEach(entry => {
+    push('willhaben_offer', entry, entry.query, 'https://www.willhaben.at/iad/kaufen-und-verkaufen/marktplatz?keyword=' + encodeURIComponent(entry.query));
+    push('web_search', entry, entry.query, 'https://html.duckduckgo.com/html/?q=' + encodeURIComponent(entry.query + ' Preis €'));
+  });
+  if (!primaryEntry) return pages;
+  push('web_search', primaryEntry, primaryEntry.query, 'https://www.bing.com/search?setlang=de&cc=AT&q=' + encodeURIComponent(primaryEntry.query + ' Preis'));
 
-  const primary = queries[0] || '';
+  const primary = primaryEntry.query;
   const encodedPrimary = encodeURIComponent(primary);
 
-  if (checkRetailNew && primary) {
+  if (checkRetailNew) {
     const barcode = known(d?.barcodeOrEan);
     const geizhalsQuery = barcode && isValidGtin(barcode) ? digitsOnly(barcode) : primary;
-    push('geizhals_offer', 0, geizhalsQuery, 'https://geizhals.at/?fs=' + encodeURIComponent(geizhalsQuery) + '&hloc=at&hloc=de');
-    push('mediamarkt_offer', 0, primary, 'https://www.mediamarkt.at/de/search.html?query=' + encodedPrimary);
+    push('geizhals_offer', primaryEntry, geizhalsQuery, 'https://geizhals.at/?fs=' + encodeURIComponent(geizhalsQuery) + '&hloc=at&hloc=de');
+    push('mediamarkt_offer', primaryEntry, primary, 'https://www.mediamarkt.at/de/search.html?query=' + encodedPrimary);
   }
 
   if (isLego) {
@@ -821,39 +1020,35 @@ function buildSearchPages(analysis: Analysis, queries: string[]): SearchPage[] {
     const url = /^\d{3,7}(?:-\d+)?$/.test(setNumber)
       ? 'https://www.bricklink.com/catalogPG.asp?S=' + encodeURIComponent(setNumber.includes('-') ? setNumber : setNumber + '-1')
       : 'https://www.bricklink.com/v2/search.page?q=' + encodedPrimary;
-    push('bricklink_guide', 0, setNumber || primary, url);
+    push('bricklink_guide', primaryEntry, setNumber || primary, url);
   }
 
   if (isCard) {
+    // Hinweis: Cardmarket durchsucht nur Produktnamen (keine Kartennummern). Die Namenssuche
+    // liefert viele Drucke; ob die gesuchte Nummer überhaupt auf der Seite steht, zeigt
+    // debug.pagesRequested[].identityMentionsRaw.
     const gamePath = cardmarketGamePath(analysis);
-    // Cardmarket findet Karten über den Namen, nicht über Nummer/Set/Grading.
-    const cardName = known(analysis.cardDetails?.cardName) || primary;
+    const cardName = known(analysis.cardDetails?.cardName);
     if (gamePath && cardName) {
       push(
         'cardmarket_offer',
-        0,
+        primaryEntry,
         cardName,
         'https://www.cardmarket.com/de/' + gamePath + '/Products/Search?searchString=' + encodeURIComponent(cardName)
       );
     }
   }
 
-  if (isGame && primary) {
-    push('pricecharting_guide', 0, primary, 'https://www.pricecharting.com/search-products?type=prices&q=' + encodedPrimary);
-  }
-  if (isWatch && primary) {
-    push('chrono24_offer', 0, primary, 'https://www.chrono24.de/search/index.htm?query=' + encodedPrimary);
-  }
+  if (isGame) push('pricecharting_guide', primaryEntry, primary, 'https://www.pricecharting.com/search-products?type=prices&q=' + encodedPrimary);
+  if (isWatch) push('chrono24_offer', primaryEntry, primary, 'https://www.chrono24.de/search/index.htm?query=' + encodedPrimary);
   if (isBook) {
     const isbn = known(d?.barcodeOrEan);
     const url = isValidIsbn(isbn)
       ? 'https://www.abebooks.de/servlet/SearchResults?isbn=' + encodeURIComponent(digitsOnly(isbn))
       : 'https://www.abebooks.de/servlet/SearchResults?kn=' + encodedPrimary;
-    push('abebooks_offer', 0, isbn || primary, url);
+    push('abebooks_offer', primaryEntry, isbn || primary, url);
   }
-  if (isVinyl && primary) {
-    push('discogs_offer', 0, primary, 'https://www.discogs.com/search/?q=' + encodedPrimary + '&type=release');
-  }
+  if (isVinyl) push('discogs_offer', primaryEntry, primary, 'https://www.discogs.com/search/?q=' + encodedPrimary + '&type=release');
 
   return pages;
 }
@@ -874,7 +1069,7 @@ function emptyConditionMarketPrice(): ConditionMarketPrice {
     soldCount: 0,
     offerCount: 0,
     sampleCount: 0,
-    basis: 'Keine passenden Marktbelege in dieser Zustandsgruppe gefunden.',
+    basis: 'Keine passenden Marktbelege in dieser Gruppe gefunden.',
     status: 'none',
     referencePrice: null,
   };
@@ -889,13 +1084,7 @@ function emptyConditionPriceSet(): ConditionPriceSet {
   };
 }
 
-/**
- * Fix: (1) Ein Verkauf + ein Angebot ergab bisher keinen Preis, obwohl 2 echte Belege vorlagen.
- *      (2) Genau ein Beleg wird jetzt als 'low_sample' mit referencePrice diagnostiziert statt
- *          wie "kein Markt" auszusehen – er wird aber bewusst NICHT als Marktpreis ausgegeben.
- *      (3) Kein doppelter IQR-Filter auf Kleinstmengen; kein Math.max(1, …), das 0,40-€-Karten
- *          zu 1 € machte.
- */
+/** Mindestens 2 echte Belege für einen Marktpreis; genau 1 Beleg ⇒ nur referencePrice. */
 function conditionMarketPrice(rows: MarketListing[]): ConditionMarketPrice {
   const sold = rows.filter(row => row.type === 'sold');
   const offers = rows.filter(row => row.type === 'offer');
@@ -910,10 +1099,7 @@ function conditionMarketPrice(rows: MarketListing[]): ConditionMarketPrice {
       ...counts,
       status: 'low_sample',
       referencePrice: roundPrice(only.price),
-      basis:
-        'Nur ein passender Marktbeleg (' +
-        only.source +
-        ') – zu wenig Daten für einen verlässlichen Marktpreis. Der Einzelbeleg wird nur als Referenz gezeigt.',
+      basis: 'Nur ein passender Marktbeleg (' + only.source + ') – zu wenig Daten für einen verlässlichen Marktpreis',
     };
   }
 
@@ -947,8 +1133,8 @@ function conditionMarketPrice(rows: MarketListing[]): ConditionMarketPrice {
   };
 }
 
-/** Fix: Schlüssel ohne Datum/Quelle, damit dasselbe Listing aus mehreren Query-Varianten nur einmal zählt. */
-function dedupeMarketRows(rows: MarketListing[]) {
+/** Dasselbe Listing aus mehreren Query-Varianten zählt nur einmal. */
+function dedupeMarketRows<T extends MarketListing>(rows: T[]) {
   const seen = new Set<string>();
   return rows.filter(row => {
     const key = normalize(row.title) + '|' + row.price.toFixed(2) + '|' + row.type;
@@ -958,9 +1144,9 @@ function dedupeMarketRows(rows: MarketListing[]) {
   });
 }
 
-/** Entfernt Ausreißer je Gruppe (nur ab 4 Belegen). Liefert behaltene und verworfene Zeilen. */
-function cleanMarketRows(rows: MarketListing[]) {
-  if (rows.length < 4) return { kept: rows, outliers: [] as MarketListing[] };
+/** Entfernt Ausreißer je Gruppe (nur ab 4 Belegen). */
+function cleanMarketRows<T extends MarketListing>(rows: T[]) {
+  if (rows.length < 4) return { kept: rows, outliers: [] as T[] };
   const keptPrices = new Set(iqrFilter(rows.map(row => row.price)));
   return {
     kept: rows.filter(row => keptPrices.has(row.price)),
@@ -970,9 +1156,14 @@ function cleanMarketRows(rows: MarketListing[]) {
 
 // ---------------------------------------------------------------------------
 // Extraktion je Quelle
-// Fix: Vorher EIN ai.extract-Aufruf für alle Quellen, ohne try/catch, maxTokens 3600 für bis zu
-//      64 Zeilen → Abbruch/Schemafehler ließ die gesamte Pipeline leer bzw. warf eine Exception.
-//      Jetzt: ein Aufruf pro Quelle, parallel, isoliert, mit Timeout und Fehlerdiagnose.
+// FIX 1: Der Prompt nannte bei gegradeten Karten "Gesuchtes Produkt: … PCA 9.5" und
+//        "ähnliche, aber andere Produkte → relevance < 0.4". Ungegradete Treffer wurden dadurch
+//        als "anderes Produkt" niedrig bewertet oder gar nicht extrahiert (→ low_relevance,
+//        0 Basisbelege). Außerdem kopierte das Modell "PCA 9.5" ins grading-Feld von Raw-Treffern,
+//        wodurch Raw-Preise als direkter PCA-Vergleich zählten. Jetzt: Identität ohne Grading,
+//        ALLE Treffer der Karte extrahieren, Grading wird ausschließlich aus dem Titel bestimmt.
+// FIX 2: Deutsche/französische/japanische Kartennamen (Glurak, Dracaufeu) ausdrücklich erlaubt.
+// FIX 3: Antwortformat robust gelesen (data.items, items, Array, JSON-String, Alt-Schema).
 // ---------------------------------------------------------------------------
 
 type ReadableSection = SearchPage & { sectionId: number; text: string; haystack: string; tokens: Set<string> };
@@ -980,28 +1171,45 @@ type ReadableSection = SearchPage & { sectionId: number; text: string; haystack:
 const EXTRACT_SYSTEM = [
   'Du extrahierst ausschließlich reale Marktangebote, Verkäufe und Preisführer-Werte aus den bereitgestellten Abschnitten.',
   'Erfinde niemals Produkte, Preise, Zustände oder Daten. Wenn nichts Passendes sichtbar ist, gib eine leere Liste zurück.',
-  'Nimm nur Treffer auf, bei denen Titel und Preis im selben sichtbaren Treffer stehen.',
-  'priceText muss den Preis exakt so enthalten, wie er im Text steht (z. B. "1.234,56 €" oder "EUR 12,50").',
-  'Keine Versandkosten, keine Preisspannen ("12 € bis 20 €"), keine durchgestrichenen Ursprungspreise, keine Ratenpreise.',
+  'Nimm nur Treffer auf, bei denen Titel und Preis zum selben sichtbaren Treffer gehören.',
+  'title: der Treffertitel möglichst wörtlich aus dem Text (nicht übersetzen, nichts ergänzen).',
+  'priceText: der Preis exakt so, wie er im Text steht (z. B. "1.234,56 €" oder "EUR 12,50").',
+  'Keine Versandkosten, keine Preisspannen, keine durchgestrichenen Ursprungspreise, keine Ratenpreise.',
   'Bei verkauften eBay-Artikeln den tatsächlich erzielten Preis nehmen.',
-  'Ignoriere Treffer unter Hinweisen wie "Ergebnisse für weniger Suchbegriffe", "Ähnliche Artikel", "Results matching fewer words" oder "Gesponsert", wenn sie nicht exakt passen.',
-  'Ignoriere Suchgesuche ("Suche …"), Zubehör, Leerverpackungen, Konvolute und Sammlungen, außer genau das wird gesucht.',
-  'sectionId ist die Nummer des Abschnitts, aus dem der Treffer stammt.',
+  'Ignoriere Suchgesuche ("Suche …"), Zubehör, Leerverpackungen, Konvolute und Sammlungen.',
+  'sectionId: die Zahl aus der Kopfzeile "=== SECTION <Zahl>" des Abschnitts, aus dem der Treffer stammt.',
   'conditionText: Zustandsangabe wörtlich aus dem Treffer, sonst leer.',
-  'conditionGroup: new = fabrikneu/unbenutzt/versiegelt/Händler-Neuware; likeNew = neuwertig/wie neu/Near Mint/gegradet;',
-  'used = gebraucht und funktionsfähig; defective = defekt/Bastlerware/Ersatzteile; unknown = nicht erkennbar.',
-  'grading: bei Sammelkarten "raw" für ungegradete Karten, sonst Firma und Note wie "PSA 10" oder "PCA 9.5"; bei anderen Produkten leer.',
-  'Bei Sammelkarten ist Kartenname plus Kartennummer die harte Identität; Set, Sprache, Finish und Seltenheit erhöhen nur die Relevanz. Nie den Preis einer anderen Kartennummer übernehmen.',
-  'Prüfe Modell, Modellnummer, Generation, Speicher, Größe, Edition, Farbe, Maßstab streng. Ähnliche, aber andere Produkte erhalten relevance unter 0.4.',
-  'relevance: 1 = exakt dasselbe Produkt, 0.7 = sehr wahrscheinlich dasselbe, unter 0.5 = zweifelhaft.',
-  'currency: Währung des Preises (EUR, USD, GBP, CHF oder OTHER).',
-  'date: Verkaufs- oder Angebotsdatum, falls sichtbar, sonst leer.',
+  'conditionGroup: new = fabrikneu/versiegelt/Händler-Neuware; likeNew = neuwertig/wie neu/Near Mint/Mint;',
+  'used = gebraucht/played; defective = defekt/beschädigt/Bastlerware; unknown = nicht erkennbar.',
+  'grading: nur was im Treffertext steht (z. B. "PSA 10", "PCA 9.5"); steht dort kein Grading, "raw". Nie aus der Suchanfrage übernehmen.',
+  'relevance: nur ob es DASSELBE Produkt bzw. dieselbe Karte ist (1 = sicher, 0.7 = wahrscheinlich, < 0.5 = zweifelhaft) – unabhängig von Zustand, Grading und Preis.',
+  'currency: Währung des Preises (EUR, USD, GBP, CHF oder OTHER). date: Datum, falls sichtbar, sonst leer.',
 ].join(' ');
+
+function readExtractItems(extracted: unknown): { items: ExtractedMarketRow[] | null; shape: string } {
+  const root = (extracted || {}) as Record<string, unknown>;
+  let data: unknown = root.data ?? root.output ?? root.result ?? extracted;
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch {
+      return { items: null, shape: 'string (kein JSON)' };
+    }
+  }
+  if (Array.isArray(data)) return { items: data as ExtractedMarketRow[], shape: 'array' };
+  const record = (data || {}) as Record<string, unknown>;
+  if (Array.isArray(record.items)) return { items: record.items as ExtractedMarketRow[], shape: 'items' };
+  const legacyKeys = ['newItems', 'likeNewItems', 'usedItems', 'defectiveItems'];
+  if (legacyKeys.some(key => Array.isArray(record[key]))) {
+    return { items: legacyKeys.flatMap(key => (Array.isArray(record[key]) ? (record[key] as ExtractedMarketRow[]) : [])), shape: 'legacy' };
+  }
+  return { items: null, shape: 'keys: ' + Object.keys(record).join(',') };
+}
 
 async function extractSourceGroup(
   sourceKey: SourceKey,
   sections: ReadableSection[],
-  context: { identity: string; cardIdentity: string; grading: Grading | null },
+  context: { identityLines: string[] },
   timeoutMs: number
 ): Promise<{ rows: ExtractedMarketRow[]; error: string | null }> {
   const meta = SOURCE_META[sourceKey];
@@ -1015,21 +1223,15 @@ async function extractSourceGroup(
           : 'Diese Abschnitte sind aktuelle Angebote bzw. Suchtreffer.';
 
   const prompt = [
-    'Gesuchtes Produkt: ' + context.identity + '.',
-    context.cardIdentity ? 'Verbindliche Kartenidentität (Name + Nummer): ' + context.cardIdentity + '.' : '',
-    context.grading
-      ? 'Gescannte Karte ist gegradet: ' + context.grading.company.toUpperCase() + ' ' + context.grading.grade +
-        '. Extrahiere sowohl exakt passende gegradete Treffer als auch Raw-Treffer derselben Karte und kennzeichne sie im Feld grading.'
-      : '',
+    ...context.identityLines,
     'Quelle: ' + meta.display + '. ' + sourceHint,
     'Extrahiere höchstens ' + MAX_ITEMS_PER_EXTRACT + ' passende Treffer.',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  ].join(' ');
 
   const content = sections
     .map(section => '=== SECTION ' + section.sectionId + ' | QUERY: ' + section.query + ' ===\n' + section.text)
-    .join('\n\n');
+    .join('\n\n')
+    .slice(0, 36000);
 
   try {
     const extracted = await withTimeout(
@@ -1040,17 +1242,34 @@ async function extractSourceGroup(
         schema: marketExtractSchema,
         thinkingMode: 'FAST',
         maxRetries: 1,
-        maxTokens: 4000,
+        maxTokens: 5000,
         temperature: 0,
       }),
       timeoutMs,
       'extract:' + sourceKey
     );
-    const items = (extracted?.data as { items?: ExtractedMarketRow[] } | undefined)?.items;
-    return { rows: Array.isArray(items) ? items : [], error: null };
+    const { items, shape } = readExtractItems(extracted);
+    if (!items) return { rows: [], error: sourceKey + ': unerwartetes Antwortformat (' + shape + ')' };
+    return { rows: items, error: null };
   } catch (error) {
     return { rows: [], error: sourceKey + ': ' + (error instanceof Error ? error.message : String(error)) };
   }
+}
+
+/**
+ * FIX: Treffer mit einer sectionId außerhalb der Gruppe wurden als 'invalid_section' verworfen –
+ *      z. B. wenn das Modell die Abschnitte je Quelle neu durchnummeriert. Jetzt wird der Abschnitt
+ *      über den nachweisbaren Preis (und Titel) im Text bestimmt; die sectionId ist nur ein Hinweis.
+ */
+function resolveSection(row: ExtractedMarketRow, groupSections: ReadableSection[]) {
+  const claimed = groupSections.find(section => section.sectionId === Number(row.sectionId));
+  const ordered = claimed ? [claimed, ...groupSections.filter(section => section !== claimed)] : groupSections;
+  const parsed = parseLocalePrice(row.priceText);
+  const price = parsed != null ? parsed : Number(row.price);
+  const grounded = ordered.find(
+    section => Number.isFinite(price) && priceGrounded(row.priceText, price, section.haystack) && titleGrounded(row.title, section.tokens)
+  );
+  return grounded || claimed || groupSections[0];
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,7 +1288,6 @@ type CandidateRow = {
   grading: string;
   date: string;
   relevance: number;
-  /** Quelltext für die Belegprüfung; null bei strukturierten Providern (API). */
   section: ReadableSection | null;
 };
 
@@ -1091,7 +1309,6 @@ function validateRow(
   if (!Number.isFinite(price)) return { reason: 'invalid_price' };
 
   if (row.section) {
-    // Anti-Halluzination: Preis und Titel müssen im gelesenen Quelltext stehen.
     if (!priceGrounded(priceText, price, row.section.haystack)) return { reason: 'price_not_in_source' };
     if (!titleGrounded(title, row.section.tokens)) return { reason: 'title_not_in_source' };
   }
@@ -1112,32 +1329,43 @@ function validateRow(
   if (identityReason) return { reason: identityReason };
 
   const relevance = clamp01(row.relevance, 0);
-  if (relevance < 0.5) return { reason: 'low_relevance' };
-
   const meta = SOURCE_META[row.sourceKey];
 
   let grading: string | undefined;
-  let rawCardBase = false;
+  let gradingClass: 'exact' | 'raw' | undefined;
   if (profile.isCard) {
-    const found = gradingOf(title) || gradingOf(row.grading);
-    grading = found ? found.company + ' ' + found.grade : 'raw';
+    // FIX: Die exakte Kartennummer ist ein deterministischer Identitätsbeweis. Eine niedrige
+    //      Modell-Relevanz (z. B. weil der Treffer ungegradet ist) darf ihn nicht mehr aufheben.
+    const match = cardIdentityMatch(title, profile);
+    if (match !== 'exact' && relevance < 0.5) return { reason: 'low_relevance' };
+
+    // FIX: Grading nur aus Titel/Zustandstext, nie aus dem grading-Feld des Modells.
+    const found = gradingOf(title + ' ' + (row.conditionText || ''));
+    if (found && !found.grade) return { reason: 'grading_unclear' };
     if (profile.grading) {
-      if (!found) rawCardBase = true;
-      else if (found.company !== profile.grading.company || found.grade !== profile.grading.grade) {
-        return { reason: 'grading_mismatch' };
+      if (!found) {
+        gradingClass = 'raw';
+        grading = 'raw';
+      } else if (found.company === profile.grading.company && profile.grading.grade && found.grade === profile.grading.grade) {
+        gradingClass = 'exact';
+        grading = found.company + ' ' + found.grade;
+      } else {
+        return { reason: found.company === profile.grading.company ? 'grading_other_grade' : 'grading_other_company' };
       }
     } else if (found) {
       return { reason: 'graded_vs_raw' };
+    } else {
+      grading = 'raw';
     }
+  } else if (relevance < 0.5) {
+    return { reason: 'low_relevance' };
   }
 
   const llmGroup = row.conditionGroup !== 'unknown' ? row.conditionGroup : null;
   let conditionGroup: ConditionKey =
-    conditionGroupFromText(row.conditionText) ||
-    llmGroup ||
-    conditionGroupFromText(title) ||
-    (meta.retailNew ? 'new' : 'used');
-  if (profile.isCard && profile.grading && !rawCardBase) conditionGroup = 'likeNew';
+    conditionGroupFromText(row.conditionText) || llmGroup || conditionGroupFromText(title) || (meta.retailNew ? 'new' : 'used');
+  if (gradingClass === 'exact') conditionGroup = 'likeNew';
+  if (gradingClass === 'raw' && conditionGroup === 'defective') return { reason: 'raw_card_damaged' };
 
   return {
     row: {
@@ -1154,7 +1382,8 @@ function validateRow(
       relevance,
       conditionGroup,
       grading,
-      rawCardBase,
+      gradingClass,
+      rawCardBase: gradingClass === 'raw' && Boolean(profile.grading),
       originalPrice,
       originalCurrency,
     },
@@ -1162,16 +1391,93 @@ function validateRow(
 }
 
 // ---------------------------------------------------------------------------
-// Statusmeldungen – ein technischer Quellenfehler ist NICHT "es gibt keinen Marktpreis"
+// Hauptwert (Headline) – eine Stelle, die Status, Anzeige und Bewertung speist
+// FIX: cardBaseValue wurde berechnet, aber nur für "Drittanbieter-Grader" und nur in
+//      marketValuation genutzt; Status und Frontend kannten den Wert nicht → "Preisreferenzen
+//      fehlen", obwohl ein belegter Kartenbasiswert vorlag.
+// ---------------------------------------------------------------------------
+
+function toHeadline(kind: MarketHeadline['kind'], value: ConditionMarketPrice, note: string): MarketHeadline {
+  return {
+    kind,
+    price: value.price,
+    from: value.from,
+    to: value.to,
+    referencePrice: value.referencePrice,
+    soldCount: value.soldCount,
+    offerCount: value.offerCount,
+    sampleCount: value.sampleCount,
+    basis: value.basis,
+    note,
+  };
+}
+
+const NO_HEADLINE: MarketHeadline = {
+  kind: 'none',
+  price: null,
+  from: null,
+  to: null,
+  referencePrice: null,
+  soldCount: 0,
+  offerCount: 0,
+  sampleCount: 0,
+  basis: '',
+  note: '',
+};
+
+function buildHeadline(
+  targetKey: ConditionKey,
+  grading: Grading | null,
+  isCard: boolean,
+  conditionPrices: ConditionPriceSet,
+  cardBaseValue: ConditionMarketPrice | null,
+  comparableRows: MarketListing[]
+): MarketHeadline {
+  if (isCard && grading) {
+    const label = formatGrading(grading);
+    const exact = conditionPrices.likeNew;
+    if (exact.price != null) return toHeadline('exact_grading', exact, 'Direkter Vergleich: nur ' + label + '-Belege derselben Karte.');
+    const exactHint =
+      exact.referencePrice != null
+        ? ' Ein einzelner direkter ' + label + '-Beleg liegt bei ' + formatEuro(exact.referencePrice) + ' (zu wenig für einen Marktpreis).'
+        : '';
+    const baseNote =
+      'Für ' + label + ' wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte.';
+    if (cardBaseValue && cardBaseValue.price != null) return toHeadline('card_base', cardBaseValue, baseNote + exactHint);
+    if (exact.referencePrice != null) {
+      return toHeadline('reference', exact, 'Nur ein direkter ' + label + '-Beleg – kein verlässlicher Marktpreis.');
+    }
+    if (cardBaseValue && cardBaseValue.referencePrice != null) {
+      return toHeadline('reference', cardBaseValue, baseNote + ' Es liegt nur ein einzelner Beleg der ungegradeten Karte vor – kein verlässlicher Marktpreis.');
+    }
+    return NO_HEADLINE;
+  }
+
+  const exact = conditionPrices[targetKey];
+  if (exact.price != null) return toHeadline('condition', exact, '');
+  if (targetKey === 'used' || targetKey === 'likeNew') {
+    const pooled = conditionMarketPrice(
+      comparableRows.filter(row => row.conditionGroup === 'used' || row.conditionGroup === 'likeNew')
+    );
+    if (pooled.price != null) {
+      return toHeadline('pooled', pooled, 'Zu wenige Belege im exakten Zustand – Wert aus gebrauchten und neuwertigen Vergleichen zusammen.');
+    }
+  }
+  if (exact.referencePrice != null) return toHeadline('reference', exact, 'Nur ein passender Beleg – kein verlässlicher Marktpreis.');
+  return NO_HEADLINE;
+}
+
+// ---------------------------------------------------------------------------
+// Status, Meldungen, Diagnose
 // ---------------------------------------------------------------------------
 
 const STATUS_MESSAGES: Record<MarketSearchStatus, string> = {
   loading: 'Marktpreise werden gesucht …',
-  found: 'Marktpreise über mehrere Suchvarianten und Quellen geprüft. Jeder angezeigte Preis stammt ausschließlich aus passenden, im Quelltext belegten Marktdaten.',
-  low_sample: 'Es wurden echte Marktbelege gefunden, aber zu wenige für einen verlässlichen Marktpreis im erkannten Zustand. Einzelbelege werden nur als Referenz gezeigt.',
-  sources_unreachable: 'Die Marktquellen waren gerade technisch nicht lesbar (blockiert oder nicht erreichbar). Das bedeutet nicht, dass es keinen Markt gibt – bitte später erneut versuchen.',
-  no_exact_matches: 'Die Quellen waren lesbar, enthielten aber keine Angebote oder Verkäufe exakt dieses Produkts.',
-  extraction_failed: 'Die Marktseiten wurden gelesen, die Auswertung der Angebote ist jedoch technisch fehlgeschlagen. Bitte erneut versuchen.',
+  found: 'Marktpreise über mehrere Quellen geprüft. Jeder angezeigte Preis stammt ausschließlich aus passenden, im Quelltext belegten Marktdaten.',
+  low_sample: 'Es wurden echte Marktbelege gefunden, aber zu wenige für einen verlässlichen Marktpreis. Einzelbelege werden nur als Referenz gezeigt.',
+  sources_unreachable: 'Die Marktquellen waren gerade technisch nicht lesbar (blockiert oder nicht erreichbar). Das bedeutet nicht, dass es keinen Markt gibt.',
+  no_exact_matches: 'Die Quellen waren lesbar, enthielten aber keine Angebote oder Verkäufe exakt dieses Gegenstands.',
+  extraction_failed: 'Die Marktseiten wurden gelesen, die Auswertung der Angebote ist jedoch technisch fehlgeschlagen.',
   filtered_all: 'Es wurden Angebote gefunden, aber keines hat die Prüfung auf Identität, Beleg und Plausibilität bestanden.',
   insufficient_identity: 'Keine Live-Marktsuche gestartet, weil der Gegenstand noch nicht sicher genug identifiziert ist.',
 };
@@ -1182,25 +1488,123 @@ const IDENTITY_REASONS = new Set([
   'model_mismatch',
   'variant_mismatch',
   'generation_mismatch',
-  'grading_mismatch',
-  'graded_vs_raw',
   'low_relevance',
 ]);
 
-function emptyDiagnostics(status: MarketSearchStatus): MarketDiagnostics {
+function newDebug(isCard: boolean, grading: Grading | null, cardNumber: string, plan: QueryPlanEntry[]): MarketDebug {
   return {
-    marketSearchStatus: status,
-    sourcesAttempted: 0,
-    sourcesReadable: 0,
-    sourcesWithListings: 0,
-    rawListingsFound: 0,
+    marketSearchStatus: 'loading',
+    lossStage: 'none',
+    lossExplanation: '',
+    isCard,
+    cardNumberCanonical: cardNumber,
+    targetGrading: formatGrading(grading),
+    queriesGenerated: plan,
+    pagesRequested: [],
+    pagesReadable: 0,
+    priceSignalsFound: 0,
+    identityMentionsInPages: 0,
+    identityMentionsAfterCondense: 0,
+    rawListingsExtracted: 0,
     validatedListings: 0,
-    rejectedListings: 0,
+    rawCardListings: 0,
+    exactGradingListings: 0,
     duplicatesRemoved: 0,
+    rejectedListings: 0,
     rejectionReasons: {},
+    rejectedSamples: [],
+    acceptedSamples: [],
     extractionErrors: [],
-    perSource: [],
+    cardBaseValue: null,
+    exactGradingValue: null,
+    headline: NO_HEADLINE,
   };
+}
+
+function diagnoseLoss(debug: MarketDebug, status: MarketSearchStatus): { stage: LossStage; explanation: string } {
+  const topReasons = Object.entries(debug.rejectionReasons)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([reason, count]) => reason + ' ×' + count)
+    .join(', ');
+  if (status === 'found') return { stage: 'none', explanation: 'Kein Verlust: Hauptwert aus belegten Marktdaten ermittelt.' };
+  if (status === 'insufficient_identity') return { stage: 'identity_gate', explanation: 'Suche nicht gestartet: Identität zu unsicher.' };
+  if (!debug.pagesReadable) {
+    const reasons: Record<string, number> = {};
+    debug.pagesRequested.forEach(page => countBy(reasons, page.unreadableReason || 'ok'));
+    return { stage: 'fetch', explanation: 'ABRUF: keine Seite mit Preisen lesbar (' + JSON.stringify(reasons) + ').' };
+  }
+  if (!debug.identityMentionsInPages) {
+    return {
+      stage: 'source_content',
+      explanation: 'ABRUF/QUELLE: ' + debug.pagesReadable + ' Seiten lesbar, aber keine nennt die gesuchte Identität (' +
+        (debug.cardNumberCanonical || debug.queriesGenerated[0]?.query || '') + '). Die Suchseiten liefern andere Artikel.',
+    };
+  }
+  if (!debug.identityMentionsAfterCondense) {
+    return { stage: 'condense', explanation: 'VERDICHTUNG: Identität steht im Rohtext, ging aber in condenseListingText verloren.' };
+  }
+  if (!debug.rawListingsExtracted) {
+    return {
+      stage: 'extraction',
+      explanation: 'EXTRAKTION: ' + debug.identityMentionsAfterCondense + ' Zeilen nennen die Identität, ai.extract lieferte 0 Treffer' +
+        (debug.extractionErrors.length ? ' (Fehler: ' + debug.extractionErrors.join(' | ') + ')' : '') + '.',
+    };
+  }
+  if (!debug.validatedListings) {
+    return { stage: 'validation', explanation: 'PRÜFUNG: ' + debug.rawListingsExtracted + ' extrahierte Treffer, alle verworfen (' + topReasons + ').' };
+  }
+  return {
+    stage: 'aggregation',
+    explanation: 'AGGREGATION: ' + debug.validatedListings + ' gültige Belege (Rohkarte ' + debug.rawCardListings + ', exaktes Grading ' +
+      debug.exactGradingListings + '), aber je Gruppe weniger als 2 – kein verlässlicher Marktpreis.',
+  };
+}
+
+/** Lesbare Debug-Ausgabe für Konsole oder Entwickler-Panel. */
+export function formatMarketDebug(debug: MarketDebug): string {
+  const lines: string[] = [];
+  const price = (value: ConditionMarketPrice | null) =>
+    !value
+      ? '–'
+      : value.price != null
+        ? formatEuro(value.price) + ' (' + formatEuro(value.from || 0) + '–' + formatEuro(value.to || 0) + ', n=' + value.sampleCount + ')'
+        : value.referencePrice != null
+          ? 'nur Einzelbeleg ' + formatEuro(value.referencePrice)
+          : 'kein Wert (n=' + value.sampleCount + ')';
+  lines.push('=== WertScan Marktpreis-Debug ===');
+  lines.push('status: ' + debug.marketSearchStatus + ' | lossStage: ' + debug.lossStage);
+  lines.push('→ ' + debug.lossExplanation);
+  lines.push('isCard: ' + debug.isCard + ' | cardNumber: ' + (debug.cardNumberCanonical || '–') + ' | targetGrading: ' + (debug.targetGrading || '–'));
+  lines.push('queriesGenerated:');
+  debug.queriesGenerated.forEach(entry => lines.push('  [' + entry.index + '] ' + entry.role + ': ' + entry.query));
+  lines.push('pagesRequested: ' + debug.pagesRequested.length + ' | pagesReadable: ' + debug.pagesReadable + ' | priceSignalsFound: ' + debug.priceSignalsFound);
+  lines.push('identityMentions: roh ' + debug.identityMentionsInPages + ' → nach Verdichtung ' + debug.identityMentionsAfterCondense);
+  debug.pagesRequested.forEach(page =>
+    lines.push(
+      '  ' + (page.readable ? 'OK ' : 'XX ') + page.sourceKey + ' [' + page.role + ' q' + page.queryIndex + '] http=' + (page.httpStatus ?? '?') +
+        (page.unreadableReason ? ' reason=' + page.unreadableReason : '') + ' chars=' + page.textChars + '/' + page.condensedChars +
+        ' prices=' + page.priceSignals + ' identity=' + page.identityMentionsRaw + '/' + page.identityMentionsCondensed +
+        ' extracted=' + page.rawListings + ' valid=' + page.validatedListings + (page.extractionError ? ' ERR=' + page.extractionError : '') +
+        '\n     ' + page.url + (page.readable ? '' : '\n     preview: ' + page.textPreview.replace(/\s+/g, ' ').slice(0, 160))
+    )
+  );
+  lines.push('rawListingsExtracted: ' + debug.rawListingsExtracted + ' | validatedListings: ' + debug.validatedListings +
+    ' | duplicatesRemoved: ' + debug.duplicatesRemoved);
+  lines.push('rawCardListings: ' + debug.rawCardListings + ' | exactGradingListings: ' + debug.exactGradingListings);
+  lines.push('rejectionReasons: ' + JSON.stringify(debug.rejectionReasons));
+  debug.rejectedSamples.slice(0, 12).forEach(sample =>
+    lines.push('  ✗ ' + sample.reason.padEnd(22) + ' ' + sample.priceText.padEnd(12) + ' ' + sample.source + ': ' + sample.title)
+  );
+  debug.acceptedSamples.slice(0, 12).forEach(sample =>
+    lines.push('  ✓ ' + sample.class.padEnd(22) + ' ' + formatEuro(sample.price).padEnd(12) + ' ' + sample.source + ': ' + sample.title)
+  );
+  if (debug.extractionErrors.length) lines.push('extractionErrors: ' + debug.extractionErrors.join(' | '));
+  lines.push('cardBaseValue: ' + price(debug.cardBaseValue));
+  lines.push('exactGradingValue: ' + price(debug.exactGradingValue));
+  lines.push('headline: ' + debug.headline.kind + ' ' + (debug.headline.price != null ? formatEuro(debug.headline.price) : '') +
+    (debug.headline.note ? ' – ' + debug.headline.note : ''));
+  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -1211,37 +1615,35 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   const {
     fxRatesToEur = {},
     providers = [],
-    scrapeTimeoutMs = 20000,
-    extractTimeoutMs = 45000,
+    scrapeTimeoutMs = 30000,
+    extractTimeoutMs = 60000,
     scrapeConcurrency = 6,
     extractConcurrency = 4,
-    log = (event: string, data: unknown) => console.info('[wertscan:market] ' + event, JSON.stringify(data)),
+    log = (event: string, data: unknown) =>
+      console.info(event === 'debug' ? formatMarketDebug(data as MarketDebug) : '[wertscan:market] ' + event + ' ' + JSON.stringify(data)),
   } = options;
 
   const searchedAt = new Date().toISOString();
-  const queries = marketSearchVariants(analysis);
+  const plan = buildQueryPlan(analysis);
+  const queries = plan.map(entry => entry.query);
+  const baseQueries = plan.filter(entry => entry.role !== 'grading').map(entry => entry.query);
   const query = queries[0] || marketQuery(analysis);
-  const profile = buildIdentityProfile(analysis, queries);
+  const profile = buildIdentityProfile(analysis, baseQueries);
   const isCard = profile.isCard;
   const grading = profile.grading;
   const targetKey = targetConditionKey(analysis);
+  const debug = newDebug(isCard, grading, canonicalCardNumber(known(analysis.cardDetails?.cardNumber)), plan);
 
-  const finish = (
-    status: MarketSearchStatus,
-    diagnostics: MarketDiagnostics,
-    extra: Partial<MarketData> = {}
-  ): MarketData => {
-    diagnostics.marketSearchStatus = status;
-    log('result', {
-      status,
-      query,
-      sourcesAttempted: diagnostics.sourcesAttempted,
-      sourcesReadable: diagnostics.sourcesReadable,
-      raw: diagnostics.rawListingsFound,
-      validated: diagnostics.validatedListings,
-      rejected: diagnostics.rejectionReasons,
-      extractionErrors: diagnostics.extractionErrors,
-    });
+  const finish = (status: MarketSearchStatus, extra: Partial<MarketData> = {}): MarketData => {
+    debug.marketSearchStatus = status;
+    const loss = diagnoseLoss(debug, status);
+    debug.lossStage = loss.stage;
+    debug.lossExplanation = loss.explanation;
+    try {
+      log('debug', debug);
+    } catch {
+      // Logging darf die Pipeline nie abbrechen.
+    }
     return {
       connected: status !== 'sources_unreachable' && status !== 'extraction_failed',
       query,
@@ -1255,52 +1657,54 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       searchedAt,
       message: STATUS_MESSAGES[status],
       status,
-      diagnostics,
+      headline: debug.headline,
       cardBaseValue: null,
+      exactGradingValue: null,
+      debug,
+      diagnostics: debug,
       ...extra,
     };
   };
 
-  // Fix: Suche nicht mehr wegen categoryConfidence < 0.65 komplett blockieren – die Kategorie
-  //      steuert nur die Quellenauswahl; die Identitätsprüfung schützt vor falschen Treffern.
   const hasHardIdentity = isCard
-    ? Boolean(profile.cardNumberCompact || profile.cardNameTokens.length)
+    ? Boolean(profile.cardNumberConcat || profile.cardNameTokens.length)
     : profile.primaryHardTokens.length > 0 || profile.boostTokens.length > 0;
-  if (!queries.length || (analysis.confidence < 0.55 && !hasHardIdentity)) {
-    return finish('insufficient_identity', emptyDiagnostics('insufficient_identity'));
-  }
+  if (!queries.length || (analysis.confidence < 0.55 && !hasHardIdentity)) return finish('insufficient_identity');
 
-  const diagnostics = emptyDiagnostics('loading');
-  const pages = buildSearchPages(analysis, queries);
-  diagnostics.sourcesAttempted = pages.length + providers.length;
-
-  // 1) Abruf -------------------------------------------------------------------------------
-  const perSource: SourceDiagnostic[] = pages.map(page => ({
+  const pages = buildSearchPages(analysis, plan);
+  const perPage: PageDebug[] = pages.map(page => ({
     sourceKey: page.sourceKey,
     display: SOURCE_META[page.sourceKey].display,
+    role: page.role,
     queryIndex: page.queryIndex,
     query: page.query,
     url: page.url,
     httpStatus: null,
     readable: false,
     unreadableReason: null,
-    priceSignals: 0,
     textChars: 0,
+    condensedChars: 0,
+    priceSignals: 0,
+    identityMentionsRaw: 0,
+    identityMentionsCondensed: 0,
     rawListings: 0,
     validatedListings: 0,
     extractionError: null,
+    textPreview: '',
   }));
-  diagnostics.perSource = perSource;
+  debug.pagesRequested = perPage;
 
+  // 1) Abruf + Verdichtung --------------------------------------------------------------------
+  const keepIdentityLine = (line: string) => mentionsIdentity(line, profile);
   const sections: ReadableSection[] = [];
   await mapLimit(pages, scrapeConcurrency, async (page, index) => {
-    const diag = perSource[index];
+    const diag = perPage[index];
     try {
-      const result = await withTimeout(ai.scrape({ url: page.url }), scrapeTimeoutMs, 'scrape');
-      diag.httpStatus = typeof result?.status === 'number' ? result.status : null;
-      const text = String(result?.text || '');
+      const { status, text } = readScrapeResult(await withTimeout(ai.scrape({ url: page.url }), scrapeTimeoutMs, 'scrape'));
+      diag.httpStatus = status;
       diag.textChars = text.length;
-      if (diag.httpStatus == null || diag.httpStatus >= 400) {
+      diag.textPreview = text.slice(0, 400);
+      if (status != null && status >= 400) {
         diag.unreadableReason = 'http_error';
         return;
       }
@@ -1308,7 +1712,10 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
         diag.unreadableReason = 'empty';
         return;
       }
-      const condensed = condenseListingText(text);
+      diag.identityMentionsRaw = splitLines(text).filter(keepIdentityLine).length;
+      const condensed = condenseListingText(text, 9000, keepIdentityLine);
+      diag.condensedChars = condensed.length;
+      diag.identityMentionsCondensed = condensed.split('\n').filter(keepIdentityLine).length;
       diag.priceSignals = countPriceSignals(condensed);
       if (!diag.priceSignals) {
         diag.unreadableReason = BLOCK_PATTERN.test(text) ? 'blocked' : 'no_prices';
@@ -1324,27 +1731,37 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       });
     } catch (error) {
       diag.unreadableReason = String(error).includes('timeout:') ? 'timeout' : 'scrape_failed';
+      diag.textPreview = String(error).slice(0, 400);
     }
   });
-  diagnostics.sourcesReadable = sections.length;
+  debug.pagesReadable = sections.length;
+  debug.priceSignalsFound = perPage.reduce((sum, page) => sum + page.priceSignals, 0);
+  debug.identityMentionsInPages = perPage.filter(page => page.readable).reduce((sum, page) => sum + page.identityMentionsRaw, 0);
+  debug.identityMentionsAfterCondense = perPage.filter(page => page.readable).reduce((sum, page) => sum + page.identityMentionsCondensed, 0);
 
-  // 2) Extraktion je Quelle -----------------------------------------------------------------
+  // 2) Extraktion je Quelle -------------------------------------------------------------------
+  const c = analysis.cardDetails;
+  const identityLines =
+    isCard && c
+      ? [
+          'Gesuchte Karte (Identität unabhängig von Zustand und Grading): ' +
+            [known(c.franchise), known(c.cardName), debug.cardNumberCanonical ? 'Kartennummer ' + debug.cardNumberCanonical : '', known(c.setName)]
+              .filter(Boolean)
+              .join(', ') + '.',
+          'Der Kartenname kann in anderer Sprache stehen (z. B. deutsch, französisch, japanisch); entscheidend ist die Kartennummer.',
+          'Extrahiere ALLE sichtbaren Treffer dieser Karte – ungegradet (raw) UND gegradet mit beliebiger Firma und Note. Filtere NICHT nach Grading oder Zustand.',
+          'Treffer mit anderer Kartennummer nicht aufnehmen.',
+        ]
+      : ['Gesuchtes Produkt: ' + baseQueries.join(' | ') + '.', 'Ähnliche, aber andere Produkte (andere Generation, Variante, Modellnummer) erhalten relevance unter 0.4.'];
+
   const candidates: CandidateRow[] = [];
-  const sectionById = new Map(sections.map(section => [section.sectionId, section]));
   const groups = new Map<SourceKey, ReadableSection[]>();
-  sections
+  [...sections]
     .sort((a, b) => a.sectionId - b.sectionId)
     .forEach(section => groups.set(section.sourceKey, [...(groups.get(section.sourceKey) || []), section]));
-
-  const cardIdentity =
-    isCard && analysis.cardDetails
-      ? [known(analysis.cardDetails.cardName), known(analysis.cardDetails.cardNumber)].filter(Boolean).join(' ')
-      : '';
-  const identity = [query, ...queries.slice(1)].join(' | ');
-
   const groupEntries = [...groups.entries()];
   const groupResults = await mapLimit(groupEntries, extractConcurrency, ([sourceKey, groupSections]) =>
-    extractSourceGroup(sourceKey, groupSections, { identity, cardIdentity, grading }, extractTimeoutMs)
+    extractSourceGroup(sourceKey, groupSections, { identityLines }, extractTimeoutMs)
   );
 
   let failedGroups = 0;
@@ -1352,38 +1769,26 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     const [sourceKey, groupSections] = groupEntries[groupIndex];
     if (result.error) {
       failedGroups++;
-      diagnostics.extractionErrors.push(result.error);
-      groupSections.forEach(section => (perSource[section.sectionId].extractionError = result.error));
+      debug.extractionErrors.push(result.error);
+      groupSections.forEach(section => (perPage[section.sectionId].extractionError = result.error));
     }
-    const allowedIds = new Set(groupSections.map(section => section.sectionId));
     result.rows.forEach(row => {
-      diagnostics.rawListingsFound++;
-      // sectionId außerhalb dieser Gruppe → Treffer kann keiner Quelle zugeordnet werden.
-      const section = allowedIds.has(Number(row.sectionId))
-        ? sectionById.get(Number(row.sectionId))
-        : groupSections.length === 1
-          ? groupSections[0]
-          : undefined;
-      if (!section) {
-        diagnostics.rejectedListings++;
-        countBy(diagnostics.rejectionReasons, 'invalid_section');
-        return;
-      }
-      perSource[section.sectionId].rawListings++;
+      debug.rawListingsExtracted++;
+      const section = resolveSection(row, groupSections);
+      perPage[section.sectionId].rawListings++;
       candidates.push({ ...row, sourceKey, url: section.url, section });
     });
   });
 
-  // Optionale strukturierte Provider (z. B. offizielle APIs) – gleiche Validierung, ohne Scraping.
-  const providerResults = await Promise.allSettled(providers.map(provider => provider.fetch({ analysis, queries })));
+  const providerResults = await Promise.allSettled(providers.map(provider => provider.fetch({ analysis, queries: baseQueries })));
   providerResults.forEach((result, index) => {
     const provider = providers[index];
     if (result.status === 'rejected') {
-      diagnostics.extractionErrors.push('provider ' + provider.sourceKey + ': ' + String(result.reason));
+      debug.extractionErrors.push('provider ' + provider.sourceKey + ': ' + String(result.reason));
       return;
     }
     result.value.forEach(listing => {
-      diagnostics.rawListingsFound++;
+      debug.rawListingsExtracted++;
       candidates.push({
         sourceKey: provider.sourceKey,
         url: listing.url,
@@ -1401,45 +1806,62 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     });
   });
 
-  // 3) Validierung ---------------------------------------------------------------------------
+  // 3) Validierung -----------------------------------------------------------------------------
   const validated: ValidatedRow[] = [];
   candidates.forEach(candidate => {
     const outcome = validateRow(candidate, profile, fxRatesToEur);
     if ('reason' in outcome) {
-      diagnostics.rejectedListings++;
-      countBy(diagnostics.rejectionReasons, outcome.reason);
+      debug.rejectedListings++;
+      countBy(debug.rejectionReasons, outcome.reason);
+      const sample = {
+        source: SOURCE_META[candidate.sourceKey].display,
+        title: String(candidate.title || '').slice(0, 120),
+        priceText: String(candidate.priceText || candidate.price || ''),
+        reason: outcome.reason,
+      };
+      const seen = debug.rejectedSamples.some(
+        item => item.title === sample.title && item.reason === sample.reason && item.source === sample.source
+      );
+      if (!seen && debug.rejectedSamples.length < 40) debug.rejectedSamples.push(sample);
       return;
     }
     validated.push(outcome.row);
-    if (candidate.section) perSource[candidate.section.sectionId].validatedListings++;
+    if (candidate.section) perPage[candidate.section.sectionId].validatedListings++;
   });
 
-  const deduped = dedupeMarketRows(validated) as ValidatedRow[];
-  diagnostics.duplicatesRemoved = validated.length - deduped.length;
+  const deduped = dedupeMarketRows(validated);
+  debug.duplicatesRemoved = validated.length - deduped.length;
 
-  // 4) Gruppierung + Ausreißer ---------------------------------------------------------------
+  // 4) Gruppierung – bei gegradeten Karten zwei strikt getrennte Märkte -------------------------
   const rawBaseRows = deduped.filter(row => row.rawCardBase);
   const comparableRows = deduped.filter(row => !row.rawCardBase);
   const bucketRows: Record<ConditionKey, ValidatedRow[]> = { new: [], likeNew: [], used: [], defective: [] };
+  const dropOutliers = <T extends MarketListing>(rows: T[]) => {
+    const { kept, outliers } = cleanMarketRows(rows);
+    outliers.forEach(row => {
+      countBy(debug.rejectionReasons, 'price_outlier');
+      if (debug.rejectedSamples.length < 40) {
+        debug.rejectedSamples.push({ source: row.source, title: row.title.slice(0, 120), priceText: formatEuro(row.price), reason: 'price_outlier' });
+      }
+    });
+    debug.rejectedListings += outliers.length;
+    return kept;
+  };
   (Object.keys(bucketRows) as ConditionKey[]).forEach(key => {
-    const { kept, outliers } = cleanMarketRows(comparableRows.filter(row => row.conditionGroup === key));
-    bucketRows[key] = kept as ValidatedRow[];
-    outliers.forEach(() => countBy(diagnostics.rejectionReasons, 'price_outlier'));
-    diagnostics.rejectedListings += outliers.length;
+    bucketRows[key] = dropOutliers(comparableRows.filter(row => row.conditionGroup === key));
   });
-  const baseClean = cleanMarketRows(rawBaseRows);
-  baseClean.outliers.forEach(() => countBy(diagnostics.rejectionReasons, 'price_outlier'));
-  diagnostics.rejectedListings += baseClean.outliers.length;
+  const baseRows = dropOutliers(rawBaseRows);
 
-  const finalRows = [
-    ...bucketRows.new,
-    ...bucketRows.likeNew,
-    ...bucketRows.used,
-    ...bucketRows.defective,
-    ...(baseClean.kept as ValidatedRow[]),
-  ];
-  diagnostics.validatedListings = finalRows.length;
-  diagnostics.sourcesWithListings = perSource.filter(source => source.rawListings > 0).length;
+  const finalRows: ValidatedRow[] = [...bucketRows.new, ...bucketRows.likeNew, ...bucketRows.used, ...bucketRows.defective, ...baseRows];
+  debug.validatedListings = finalRows.length;
+  debug.rawCardListings = isCard ? finalRows.filter(row => row.gradingClass === 'raw').length : 0;
+  debug.exactGradingListings = finalRows.filter(row => row.gradingClass === 'exact').length;
+  debug.acceptedSamples = finalRows.slice(0, 40).map(row => ({
+    source: row.source,
+    title: row.title.slice(0, 120),
+    price: row.price,
+    class: row.gradingClass === 'exact' ? 'grading_exact' : row.gradingClass === 'raw' ? 'raw_card' : row.conditionGroup,
+  }));
 
   const conditionPrices: ConditionPriceSet = {
     new: conditionMarketPrice(bucketRows.new),
@@ -1449,52 +1871,50 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   };
 
   let cardBaseValue: ConditionMarketPrice | null = null;
-  if (isCard && grading && baseClean.kept.length) {
-    const base = conditionMarketPrice(baseClean.kept);
+  let exactGradingValue: ConditionMarketPrice | null = null;
+  if (isCard && grading) {
+    exactGradingValue = conditionPrices.likeNew;
+    const base = conditionMarketPrice(baseRows);
     cardBaseValue = {
       ...base,
-      basis:
-        base.basis +
-        '. Rohkarten-Basiswert derselben Karte (ungegradet) – kein identischer ' +
-        grading.company.toUpperCase() +
-        ' ' +
-        grading.grade +
-        ' Grading-Vergleich.',
+      basis: base.basis + '. Ungegradete Belege exakt derselben Karte – kein direkter ' + formatGrading(grading) + '-Vergleich',
     };
   }
+  debug.cardBaseValue = cardBaseValue;
+  debug.exactGradingValue = exactGradingValue;
 
-  // 5) Status ------------------------------------------------------------------------------
-  const sold = finalRows.filter(row => row.type === 'sold');
-  const offers = finalRows.filter(row => row.type === 'offer');
-  const readableLabels = Array.from(new Set(sections.map(section => SOURCE_META[section.sourceKey].display)));
-  if (providers.length) providers.forEach(provider => readableLabels.push(SOURCE_META[provider.sourceKey].display));
+  const headline = buildHeadline(targetKey, grading, isCard, conditionPrices, cardBaseValue, comparableRows);
+  debug.headline = headline;
 
-  let status: MarketSearchStatus;
+  // 5) Status ----------------------------------------------------------------------------------
   const providerRowCount = candidates.filter(candidate => !candidate.section).length;
+  let status: MarketSearchStatus;
   if (!sections.length && !providerRowCount) {
     status = 'sources_unreachable';
-  } else if (!diagnostics.rawListingsFound) {
+  } else if (!debug.rawListingsExtracted) {
     status = failedGroups > 0 ? 'extraction_failed' : 'no_exact_matches';
   } else if (!finalRows.length) {
-    const identityRejects = Object.entries(diagnostics.rejectionReasons)
+    const identityRejects = Object.entries(debug.rejectionReasons)
       .filter(([reason]) => IDENTITY_REASONS.has(reason))
       .reduce((sum, [, count]) => sum + count, 0);
-    status = identityRejects >= diagnostics.rejectedListings / 2 ? 'no_exact_matches' : 'filtered_all';
-  } else if (
-    conditionPrices[targetKey].price != null ||
-    (grading && !MAJOR_GRADERS.includes(grading.company) && cardBaseValue?.price != null)
-  ) {
+    status = identityRejects >= debug.rejectedListings / 2 ? 'no_exact_matches' : 'filtered_all';
+  } else if (headline.kind === 'condition' || headline.kind === 'exact_grading' || headline.kind === 'card_base' || headline.kind === 'pooled') {
     status = 'found';
   } else {
     status = 'low_sample';
   }
 
-  const partial = pages.length - sections.length;
-  const extra = partial > 0 && status !== 'sources_unreachable'
-    ? ' (' + partial + ' von ' + pages.length + ' Quellenabrufen waren technisch nicht lesbar.)'
-    : '';
+  const sold = finalRows.filter(row => row.type === 'sold');
+  const offers = finalRows.filter(row => row.type === 'offer');
+  const readableLabels = Array.from(new Set(sections.map(section => SOURCE_META[section.sourceKey].display)));
+  providers.forEach(provider => readableLabels.push(SOURCE_META[provider.sourceKey].display));
+  const unreadable = pages.length - sections.length;
+  const partial =
+    unreadable > 0 && status !== 'sources_unreachable'
+      ? ' (' + unreadable + ' von ' + pages.length + ' Quellenabrufen lieferten keine lesbaren Preise.)'
+      : '';
 
-  return finish(status, diagnostics, {
+  return finish(status, {
     connected: true,
     sourcesChecked: readableLabels,
     soldComparables: sold,
@@ -1503,76 +1923,55 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     offerMedian: marketMedian(offers.filter(row => !row.rawCardBase)),
     conditionPrices,
     cardBaseValue,
-    message: STATUS_MESSAGES[status] + extra,
+    exactGradingValue,
+    headline,
+    message: (headline.note ? headline.note + ' ' : '') + STATUS_MESSAGES[status] + partial,
   });
 }
 
 // ---------------------------------------------------------------------------
-// Bewertung
-// Fix: gegradete Karten nutzen likeNew; Fallback auf gemischte Gruppe gebraucht+neuwertig bzw. auf
-//      den Rohkarten-Basiswert ist klar gekennzeichnet und immer 'niedrig'. Nie ein erfundener Wert.
+// Bewertung – nutzt dieselbe Headline wie Status und Anzeige.
+// FIX: Bei gegradeten Karten wurde der Basiswert nur für "Drittanbieter-Grader" genutzt; jetzt
+//      gilt für jede Grading-Firma: exakter Vergleich, sonst Kartenbasiswert mit Hinweis.
 // ---------------------------------------------------------------------------
 
 function marketValuation(analysis: Analysis, market: MarketData): Valuation | null {
-  const key = targetConditionKey(analysis);
+  const headline = market.headline;
+  if (!headline || headline.price == null || headline.from == null || headline.to == null) return null;
+
   const allRows = [...market.soldComparables, ...market.currentOffers];
-  let summary = market.conditionPrices[key];
-  let rows = allRows.filter(row => row.conditionGroup === key && !row.rawCardBase);
-  let note = '';
-  let forceLow = false;
-
-  if (summary.price == null && isGradedCard(analysis)) {
-    const grading = targetGrading(analysis);
-    const thirdParty = grading && !MAJOR_GRADERS.includes(grading.company);
-    // Nur bei weniger verbreiteten Grading-Firmen (z. B. PCA) dient der Rohkartenwert als Hauptwert.
-    if (thirdParty && market.cardBaseValue?.price != null) {
-      summary = market.cardBaseValue;
-      rows = allRows.filter(row => row.rawCardBase);
-      note = ' Bewertung der zugrunde liegenden Karte, da für die Drittanbieter-Graduierung keine ausreichenden exakt vergleichbaren Marktdaten vorliegen.';
-      forceLow = true;
-    }
-  } else if (summary.price == null && (key === 'used' || key === 'likeNew')) {
-    const pooledRows = allRows.filter(
-      row => (row.conditionGroup === 'used' || row.conditionGroup === 'likeNew') && !row.rawCardBase
-    );
-    const pooled = conditionMarketPrice(pooledRows);
-    if (pooled.price != null) {
-      summary = pooled;
-      rows = pooledRows;
-      note = ' Zu wenige Belege im exakten Zustand – Wert aus gebrauchten und neuwertigen Vergleichen zusammen.';
-      forceLow = true;
-    }
-  }
-
-  if (summary.price == null || summary.from == null || summary.to == null) return null;
+  const key = targetConditionKey(analysis);
+  const rows =
+    headline.kind === 'card_base'
+      ? allRows.filter(row => row.rawCardBase)
+      : headline.kind === 'exact_grading'
+        ? allRows.filter(row => row.gradingClass === 'exact')
+        : headline.kind === 'pooled'
+          ? allRows.filter(row => (row.conditionGroup === 'used' || row.conditionGroup === 'likeNew') && !row.rawCardBase)
+          : allRows.filter(row => row.conditionGroup === key && !row.rawCardBase);
 
   const relevance = rows.length ? rows.reduce((sum, row) => sum + row.relevance, 0) / rows.length : 0;
-  const quality: 'niedrig' | 'mittel' | 'hoch' = forceLow
-    ? 'niedrig'
-    : summary.soldCount >= 4 && summary.sampleCount >= 5 && relevance >= 0.75
-      ? 'hoch'
-      : summary.sampleCount >= 3
-        ? 'mittel'
-        : 'niedrig';
+  let quality: 'niedrig' | 'mittel' | 'hoch' =
+    headline.soldCount >= 4 && headline.sampleCount >= 5 && relevance >= 0.75 ? 'hoch' : headline.sampleCount >= 3 ? 'mittel' : 'niedrig';
+  if (headline.kind === 'pooled') quality = 'niedrig';
+  if (headline.kind === 'card_base' && quality === 'hoch') quality = 'mittel';
 
-  const sensitive = ['uhren', 'schmuck', 'gemalde', 'drucke', 'munzen', 'antiquitaten', 'teppiche'].includes(
-    normalize(analysis.category)
-  );
+  const sensitive = ['uhren', 'schmuck', 'gemalde', 'drucke', 'munzen', 'antiquitaten', 'teppiche'].includes(normalize(analysis.category));
 
   return {
-    market: summary.price,
-    from: summary.from,
-    to: summary.to,
-    quick: summary.from,
-    privateSale: summary.price,
-    dealer: summary.from,
+    market: headline.price,
+    from: headline.from,
+    to: headline.to,
+    quick: headline.from,
+    privateSale: headline.price,
+    dealer: headline.from,
     dataQuality: quality,
-    professionalReview: sensitive && (summary.price >= 500 || analysis.confidence < 0.82),
+    professionalReview: sensitive && (headline.price >= 500 || analysis.confidence < 0.82),
     basis:
-      summary.basis.replace(/\.+$/, '') +
+      headline.basis.replace(/\.+$/, '') +
       '.' +
-      note +
-      ' Der Hauptwert entspricht dem erkannten Zustand ' +
+      (headline.note ? ' ' + headline.note : '') +
+      ' Erkannter Zustand: ' +
       analysis.condition +
       '. Keine Offline-Basispreise werden verwendet.',
     matchConfidence: relevance,
@@ -1583,6 +1982,7 @@ export {
   marketRowSchema,
   marketExtractSchema,
   marketSearchVariants,
+  buildQueryPlan,
   buildSearchPages,
   cleanMarketRows,
   emptyConditionMarketPrice,
@@ -1594,12 +1994,17 @@ export {
   marketMedian,
   liveMarketLookup,
   marketValuation,
-  // für Tests:
+  // für Tests/Diagnose:
   parseLocalePrice,
   priceGrounded,
   condenseListingText,
   conditionGroupFromText,
   identityRejection,
+  cardIdentityMatch,
+  canonicalCardNumber,
   buildIdentityProfile,
   gradingOf,
+  targetGrading,
+  readScrapeResult,
+  readExtractItems,
 };
