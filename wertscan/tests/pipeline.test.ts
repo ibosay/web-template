@@ -131,7 +131,7 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   const market = await liveMarketLookup(watch, silent);
   assert.equal(market.status, 'found');
   assert.equal(market.objectMatch?.mode, 'comparable_object');
-  assert.equal(market.objectMatch?.label, 'Sehr gut vergleichbar');
+  assert.equal(market.objectMatch?.label, 'Nur ähnliche Marktobjekte');
   assert.equal(market.objectMatch?.marketValueAllowed, false);
   assert.equal(marketValuation(watch, market), null, 'vergleichbare Objekte dürfen keinen exakten Marktwert erzeugen');
   assert.ok(market.soldComparables.length >= 3);
@@ -141,7 +141,7 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.equal(display.statusCategory, 'comparable');
   assert.equal(display.marketValue.state, 'no_value');
   assert.equal(display.comparisonRange.state, 'range');
-  assert.equal(display.comparisonRange.label, 'Sehr gut vergleichbar');
+  assert.equal(display.comparisonRange.label, 'Nur ähnliche Marktobjekte');
   assert.match(display.marketValue.noValueReason || '', /keine.*exakt|Exakte Modellreferenz/i);
 });
 
