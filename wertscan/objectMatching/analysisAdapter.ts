@@ -127,9 +127,9 @@ function categoryOf(analysis: WertScanAnalysisLike): FleaMarketCategory {
   if (/waschmaschine|trockner|geschirrspuler|kühlschrank|kuhlschrank|backofen|kochfeld|kaffeemaschine|haushaltsgerat/.test(value)) return 'household_appliances';
   if (/gemalde|gemälde|druck|antiquitat|antiquität|skulptur|kunst/.test(value)) return 'art_antiques';
   if (/mobel|möbel|stuhl|sessel|sofa|tisch|kommode|schrank|regal|lampe|leuchte|spiegel/.test(value)) return 'furniture_home';
+  if (/fahrrad|ski|snowboard|tennisschlager|tennisschläger|golfschlager|golfschläger|fitnessgerat|fitnessgerät|camping|zelt|wanderrucksack|trekkingrucksack|rucksack outdoor|outdoor rucksack|sportgerat|sportgerät/.test(value)) return 'sports_outdoor';
   if (/tasche|handtasche|rucksack|schuh|sneaker|jacke|mantel|kleid|mode|kleidung|gurtel|gürtel|brille|sonnenbrille/.test(value)) return 'fashion_accessories';
   if (/gitarre|bass|klavier|keyboard|synthesizer|saxophon|trompete|violine|geige|musikinstrument|verstarker|verstärker/.test(value)) return 'music_instruments';
-  if (/fahrrad|ski|snowboard|tennisschlager|tennisschläger|golfschlager|golfschläger|fitnessgerat|fitnessgerät|camping|zelt|rucksack outdoor|sportgerat|sportgerät/.test(value)) return 'sports_outdoor';
   if (/spielzeug|figur|puppe|lego|playmobil|hot wheels|matchbox|plüschtier|pluschtier/.test(value)) return 'toys';
   if (/technik|elektronik|computer|maus|tastatur|konsole|controller|kamera|objektiv|smartphone|smartwatch|smart watch|tablet|laptop|fernseher|kopfhörer|kopfhorer|lautsprecher/.test(value)) return 'electronics';
 
