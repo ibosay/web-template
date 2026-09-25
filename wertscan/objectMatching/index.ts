@@ -2,3 +2,4 @@ export * from './types';
 export * from './profiles';
 export * from './engine';
 export * from './analysisAdapter';
+export * from './scanGuidance';
