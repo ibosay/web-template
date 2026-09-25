@@ -1256,7 +1256,12 @@ function buildSearchPages(analysis: Analysis, plan: QueryPlanEntry[]): SearchPag
   const primaryEntries = plan.filter(entry => entry.role !== 'grading');
   const primaryEntry = primaryEntries[0];
 
-  plan.forEach(entry => {
+  // Karten behalten alle spezialisierten Query Varianten. Bei sonstigen Objekten mit neuer
+  // Flohmarkt Identität reichen für eBay höchstens zwei Suchvarianten, danach wird ohnehin
+  // streng gegen die sichtbaren Merkmale geprüft. Das spart doppelte Netzabrufe ohne die
+  // Haupt und Alternativsuche zu verlieren.
+  const ebayEntries = isCard || !hasObjectPolicy ? plan : plan.filter(entry => entry.role !== 'grading').slice(0, 2);
+  ebayEntries.forEach(entry => {
     const q = encodeURIComponent(entry.query);
     push('ebay_sold', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&LH_Sold=1&LH_Complete=1&rt=nc');
     push('ebay_offer', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&rt=nc');
