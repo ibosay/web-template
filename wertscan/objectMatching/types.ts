@@ -26,6 +26,10 @@ export type FleaMarketCategory =
   | 'tools'
   | 'household_appliances'
   | 'art_antiques'
+  | 'furniture_home'
+  | 'fashion_accessories'
+  | 'music_instruments'
+  | 'sports_outdoor'
   | 'generic';
 
 export type IdentityField =
@@ -61,6 +65,7 @@ export type IdentityField =
   | 'pattern'
   | 'movement'
   | 'country'
+  | 'style'
   | 'condition'
   | 'custom';
 
