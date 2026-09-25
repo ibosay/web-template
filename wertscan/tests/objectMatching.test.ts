@@ -7,6 +7,7 @@ import {
   IdentityFact,
   IdentityField,
   ObjectIdentityInput,
+  objectIdentityFromAnalysis,
 } from '../objectMatching';
 
 const fact = (
@@ -312,4 +313,91 @@ test('Porzellan kann über Hersteller plus Dekor exakt werden, Seriennummer alle
     facts: [fact('brand', 'Aristo'), fact('serial', '84721')],
   };
   assert.equal(decideIdentity(serialOnly).mode, 'comparable_object');
+});
+
+
+test('Adapter ordnet reale WertScan Daten für Uhr und Non TCG Karte korrekt ein', () => {
+  const watch = objectIdentityFromAnalysis({
+    category: 'Uhren',
+    objectType: 'Armbanduhr',
+    brand: 'Aristo',
+    model: 'Nicht erkannt',
+    title: 'Aristo Armbanduhr',
+    material: 'Metall',
+    brandConfidence: 0.96,
+    modelConfidence: 0.2,
+    visualText: ['Aristo', 'WALZGOLDDOUBLE 20 MIKRON', 'BODEN EDELSTAHL'],
+    identifiers: [],
+    universalDetails: {
+      manufacturer: 'Aristo',
+      modelName: '',
+      modelNumber: '',
+      visibleMarks: 'WALZGOLDDOUBLE 20 MIKRON · BODEN EDELSTAHL',
+      primaryColor: 'goldfarben',
+      detailConfidence: 0.9,
+    },
+  });
+
+  assert.equal(watch.category, 'watches');
+  assert.equal(decideIdentity(watch).mode, 'comparable_object');
+  assert.ok(watch.facts.some(row => row.field === 'marking' && /20 MIKRON/i.test(row.value)));
+
+  const zukan = objectIdentityFromAnalysis({
+    category: 'Sammelkarten',
+    objectType: 'Sammelkarte',
+    brand: 'Pokémon Zukan / Carddass',
+    title: 'Articuno 379',
+    visualText: ['2004 POKEMON ZUKAN', 'ARTICUNO', '#379', 'HOLO', 'PSA', 'GEM MT 10'],
+    cardDetails: {
+      franchise: 'Pokémon Zukan Carddass',
+      cardName: 'Articuno',
+      cardNumber: '379',
+      setName: 'Pokémon Zukan',
+      finish: 'Holo',
+      gradingCompany: 'PSA',
+      grade: '10',
+    },
+  });
+
+  assert.equal(zukan.category, 'trading_cards');
+  assert.equal(zukan.subtype, 'pokemon_zukan');
+  assert.equal(decideIdentity(zukan).mode, 'exact_collectible');
+});
+
+test('Adapter unterscheidet Hot Wheels und Modellauto Merkmale', () => {
+  const hotWheels = objectIdentityFromAnalysis({
+    category: 'Spielzeug',
+    objectType: 'Modellauto',
+    brand: 'Hot Wheels',
+    title: 'Hot Wheels 67 Camaro',
+    visualText: ['HOT WHEELS', 'MATTEL', '67 CAMARO', 'S23'],
+    hotWheelsDetails: {
+      manufacturer: 'Mattel',
+      castingName: '67 Camaro',
+      baseCode: 'S23',
+      color: 'Rot',
+      rarityClass: 'Mainline',
+    },
+  });
+
+  assert.equal(hotWheels.category, 'model_cars');
+
+  const diecast = objectIdentityFromAnalysis({
+    category: 'Modellautos',
+    objectType: 'Modellauto',
+    brand: 'Norev',
+    title: 'Citroën 2CV Modellauto',
+    visualText: ['NOREV', 'CITROEN 2CV', '1:18'],
+    modelCarDetails: {
+      miniatureMaker: 'Norev',
+      vehicleBrand: 'Citroën',
+      vehicleModel: '2CV',
+      scale: '1:18',
+      color: 'Grau',
+    },
+  });
+
+  assert.equal(diecast.category, 'model_cars');
+  assert.ok(diecast.facts.some(row => row.field === 'manufacturer' && row.value === 'Norev'));
+  assert.ok(diecast.facts.some(row => row.field === 'vehicleModel' && row.value === '2CV'));
 });
