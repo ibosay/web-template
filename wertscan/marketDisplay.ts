@@ -65,6 +65,15 @@ export type ComparableItem = {
   fetchedAt: string | null;
   url: string | null;
   grading: string | null;
+  /** Transparenz für Flohmarktvergleiche: warum wurde dieser Treffer akzeptiert? */
+  matchQuality: MarketListing['identityMatch'] extends infer M
+    ? M extends { quality: infer Q }
+      ? Q | null
+      : null
+    : null;
+  matchScore: number | null;
+  matchedFields: string[];
+  identityEvidence: string | null;
 };
 
 export type GuideItem = {
@@ -148,6 +157,10 @@ function comparable(row: MarketListing): ComparableItem {
     fetchedAt: row.fetchedAt || null,
     url: row.url || null,
     grading: row.grading && row.grading !== 'raw' ? row.grading.toUpperCase() : null,
+    matchQuality: row.identityMatch?.quality || null,
+    matchScore: row.identityMatch?.score ?? null,
+    matchedFields: row.identityMatch?.matchedFields || [],
+    identityEvidence: row.identityEvidence || null,
   };
 }
 
