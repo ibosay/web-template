@@ -136,6 +136,9 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.equal(marketValuation(watch, market), null, 'vergleichbare Objekte dürfen keinen exakten Marktwert erzeugen');
   assert.ok(market.soldComparables.length >= 3);
   assert.ok(market.soldComparables.every(row => row.price !== 563), 'unpassende moderne Aristo Diver Uhr wird verworfen');
+  assert.ok(!aiCalls.scrape.some(url => url.includes('chrono24')), 'ohne Referenz keine breite Chrono24 Suche');
+  assert.ok(!aiCalls.scrape.some(url => url.includes('mediamarkt')), 'Vintage Vergleichsobjekt braucht keinen Händler Neupreis');
+  assert.ok(!aiCalls.scrape.some(url => url.includes('geizhals')), 'Vintage Vergleichsobjekt braucht keinen Geizhals Lauf');
 
   const display = buildMarketDisplay(market);
   assert.equal(display.statusCategory, 'comparable');
@@ -376,6 +379,8 @@ test('Flohmarkt Technik mit sichtbarer Modellnummer bleibt exakter Marktwert', a
   const valuation = marketValuation(remote, market);
   assert.ok(valuation);
   assert.equal(valuation!.market, 44);
+  assert.ok(aiCalls.scrape.some(url => url.includes('geizhals')), 'exakt identifizierte Technik darf Händler Neupreise prüfen');
+  assert.ok(aiCalls.scrape.some(url => url.includes('mediamarkt')), 'exakt identifizierte Technik darf Retail Quellen prüfen');
 });
 
 test('Nicht-Karten-Produkt: nur Angebote → bisherige Logik bleibt, Wert aus Angeboten (klar gekennzeichnet)', async () => {
