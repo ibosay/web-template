@@ -10,6 +10,7 @@ import {
   objectIdentityFromAnalysis,
   buildScanGuidance,
   buildScanGuidanceFromAnalysis,
+  auditRecognition,
 } from '../objectMatching';
 
 const fact = (
@@ -951,4 +952,58 @@ test('Widersprüchliche Kartennummern in Fotos blockieren exakte Scan Guidance',
   assert.equal(decision.mode, 'comparable_object');
   const guidance = buildScanGuidance(input, decision);
   assert.equal(guidance.canShowExactMarketValue, false);
+});
+
+
+test('Recognition Audit markiert erfundene stabile Kennung als Blocker', () => {
+  const input: ObjectIdentityInput = {
+    category: 'electronics',
+    objectType: 'Kopfhörer',
+    facts: [
+      fact('brand', 'Sony', 0.99),
+      {
+        field: 'modelNumber',
+        value: 'WH-1000XM5',
+        confidence: 0.98,
+        observed: false,
+        source: 'derived',
+      },
+    ],
+  };
+
+  const audit = auditRecognition(input);
+  assert.equal(audit.safeForExactIdentity, false);
+  assert.ok(audit.unsupportedStableFields.includes('modelNumber'));
+  assert.ok(audit.issues.some(issue => issue.code === 'unsupported_stable_identifier'));
+});
+
+test('Recognition Audit akzeptiert sichtbar belegte stabile Kennung', () => {
+  const input: ObjectIdentityInput = {
+    category: 'electronics',
+    objectType: 'Kopfhörer',
+    facts: [
+      fact('brand', 'Sony', 0.99),
+      fact('modelNumber', 'WH-1000XM5', 0.99),
+    ],
+  };
+
+  const audit = auditRecognition(input);
+  assert.equal(audit.safeForExactIdentity, true);
+  assert.ok(!audit.unsupportedStableFields.includes('modelNumber'));
+});
+
+test('Scan Guidance zeigt widersprüchliche sichtbare Kennungen als Recognition Issue', () => {
+  const input: ObjectIdentityInput = {
+    category: 'electronics',
+    objectType: 'Kopfhörer',
+    facts: [
+      fact('brand', 'Sony', 0.99),
+      fact('modelNumber', 'WH-1000XM5', 0.99),
+      fact('modelNumber', 'WH-1000XM4', 0.98),
+    ],
+  };
+
+  const guidance = buildScanGuidance(input);
+  assert.equal(guidance.canShowExactMarketValue, false);
+  assert.ok(guidance.recognitionIssues.some(issue => issue.code === 'conflicting_visible_identifier'));
 });
