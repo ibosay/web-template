@@ -871,6 +871,11 @@ type IdentityProfile = {
   cardVariant: string | null;
   /** Zustand des Exemplars in der zentralen Karten-Taxonomie (nur Raw-Karten relevant). */
   cardCondition: CardCondition | null;
+  /**
+   * Bei Karten ohne bestätigten Katalogeintrag müssen Nummer UND Name oder Set im Markttreffer
+   * zusammenpassen. Das verhindert Treffer einer anderen Karte mit derselben lokalen Nummer.
+   */
+  cardRequireNameOrSet: boolean;
   /** Zustandsgruppe, in der gültige Kartenbelege landen. */
   targetKey: ConditionKey;
   /** Kategorieabhängige Flohmarkt Identität. Für Karten bleibt die bestehende Kartenlogik maßgeblich. */
@@ -922,8 +927,9 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     matchQueries: queries,
     grading: isCard ? targetGrading(analysis) : null,
     cardLanguage: isCard ? normalizeLanguage(cardDetailText(analysis, 'language')) : null,
-    cardVariant: isCard ? variantKey(cardDetailText(analysis, 'variant')) : null,
+    cardVariant: isCard ? variantKey(cardDetailText(analysis, 'variant') || cardDetailText(analysis, 'finish')) : null,
     cardCondition: isCard ? normalizeCardCondition(analysis.condition) : null,
+    cardRequireNameOrSet: isCard ? cardGameOf(analysis) === null : false,
     targetKey: targetConditionKey(analysis),
     objectIdentity,
     objectDecision,
@@ -960,7 +966,12 @@ function cardIdentityMatch(title: string, profile: IdentityProfile): 'exact' | '
   const tokens = looseTokens(title);
   const tokenSet = new Set(tokens.map(token => (/^\d+$/.test(token) ? String(Number(token)) : token)));
   if (profile.cardNumberConcat) {
-    if (hasExactCardNumber(tokens, profile)) return 'exact';
+    if (hasExactCardNumber(tokens, profile)) {
+      if (!profile.cardRequireNameOrSet) return 'exact';
+      const nameMatches = profile.cardNameTokens.length > 0 && profile.cardNameTokens.every(token => tokenSet.has(token));
+      const setMatches = profile.setTokens.length > 0 && profile.setTokens.some(token => tokenSet.has(token));
+      return nameMatches || setMatches ? 'exact' : null;
+    }
     if (!profile.cardNumberLead || !tokenSet.has(profile.cardNumberLead)) return null;
     const otherFullNumber = new RegExp('(^|[^\\d])0*' + profile.cardNumberLead + '\\s*/\\s*[a-z0-9]', 'i').test(foldText(title));
     if (otherFullNumber) return null;
@@ -1845,6 +1856,10 @@ const IDENTITY_REASONS = new Set([
   'card_condition_mismatch',
   'card_condition_not_stated',
   'card_condition_unknown_target',
+  'object_identity_conflict',
+  'object_required_features_missing',
+  'object_not_comparable',
+  'object_identity_mismatch',
 ]);
 
 function newDebug(isCard: boolean, grading: Grading | null, cardNumber: string, plan: QueryPlanEntry[]): MarketDebug {
@@ -1988,8 +2003,18 @@ export function formatMarketDebug(debug: MarketDebug): string {
 // ---------------------------------------------------------------------------
 
 function cardGameOf(analysis: Analysis): string | null {
-  const franchise = normalize(known(analysis.cardDetails?.franchise) || analysis.title);
-  if (franchise.includes('pokemon')) return 'pokemon';
+  const c = analysis.cardDetails;
+  const identity = normalize([
+    known(c?.franchise),
+    known(c?.setName),
+    cardDetailText(analysis, 'officialStatus'),
+    analysis.brand,
+    analysis.title,
+  ].join(' '));
+  const nonTcgPokemonMarkers = ['zukan', 'carddass', 'topsun', 'topps', 'lamincard', 'non tcg', 'non sport'];
+  if (nonTcgPokemonMarkers.some(marker => identity.includes(marker))) return null;
+  if (identity.includes('pokemon')) return 'pokemon';
+  const franchise = normalize(known(c?.franchise) || analysis.title);
   return franchise || null;
 }
 
@@ -2002,7 +2027,7 @@ function cardQueryFromAnalysis(analysis: Analysis, game: string): CardQuery {
     setName: known(c?.setName) || null,
     setId: cardDetailText(analysis, 'setId') || cardDetailText(analysis, 'expansionId') || null,
     language: normalizeLanguage(cardDetailText(analysis, 'language')),
-    variant: cardDetailText(analysis, 'variant') || null,
+    variant: cardDetailText(analysis, 'variant') || cardDetailText(analysis, 'finish') || null,
   };
 }
 
@@ -2265,8 +2290,20 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     };
     debug.headline = outcome.headline;
     debug.priceGuidesFound = outcome.priceGuides.length;
-    // Ergänzende Marktplatzsuche nur, wenn der Anbieter die Karte EINDEUTIG kennt und nur Preise fehlen.
-    const fallback = cardScrapeFallback && outcome.result.fallbackAllowed;
+    // Normalfall: ergänzende Marktplatzsuche erst nach eindeutiger Anbieterbestätigung.
+    // Ausnahme für kostenlose Kataloglücken: Wenn Name UND vollständige Nummer direkt aus dem Foto
+    // vorliegen, darf bei not_found oder einem rein unverifizierbaren Set Alias streng im Web
+    // weitergesucht werden. Dann verlangt cardIdentityMatch Nummer plus Name oder Set gemeinsam.
+    const exactPhotoIdentity = Boolean(
+      known(analysis.cardDetails?.cardName) &&
+      canonicalCardNumber(known(analysis.cardDetails?.cardNumber))
+    );
+    const catalogMissFallback =
+      exactPhotoIdentity &&
+      (outcome.result.status === 'not_found' ||
+        (outcome.result.status === 'not_unique' && outcome.result.debug.matchReason === 'set_unverifiable_no_alias'));
+    const fallback = cardScrapeFallback && (outcome.result.fallbackAllowed || catalogMissFallback);
+    if (catalogMissFallback) profile.cardRequireNameOrSet = true;
     if (!fallback) {
       return finish(outcome.status, {
         connected: outcome.status !== 'provider_error',
@@ -2280,7 +2317,11 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
         message: outcome.result.message,
       });
     }
-    providerMessage = outcome.result.message + ' Ergänzende Marktplatzsuche für genau diese Karte: ';
+    providerMessage =
+      (catalogMissFallback
+        ? 'Der Kartenkatalog konnte den Eintrag nicht sicher bestätigen. WertScan sucht deshalb nur nach Markttreffern, bei denen vollständige Kartennummer und Kartenname oder Set gemeinsam passen. '
+        : outcome.result.message + ' ') +
+      'Ergänzende Marktplatzsuche für genau diese Karte: ';
     providerGuides = outcome.priceGuides;
     providerFallbackStatus = outcome.status;
     // Vom Anbieter bestätigte Identität gilt nun auch für gescrapte Titel.
