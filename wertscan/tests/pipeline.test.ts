@@ -566,6 +566,102 @@ const sold = (price: number, overrides: Partial<PriceEvidence> = {}): PriceEvide
 
 const fx = new StaticFxRateProvider({ USD: 0.9 }, 'EZB-Referenzkurs (Test)', '2026-09-24');
 
+
+test('Non TCG Pokémon Zukan nutzt keinen TCG Katalog und verlangt Name plus Nummer', async () => {
+  const zukan = {
+    category: 'Sammelkarten',
+    objectType: 'Sammelkarte',
+    brand: 'Pokémon Zukan / Carddass',
+    model: 'Articuno',
+    title: 'Articuno 379',
+    condition: 'Gem Mint 10, graded',
+    confidence: 0.99,
+    categoryConfidence: 0.99,
+    cardDetails: {
+      franchise: 'Pokémon Zukan Carddass',
+      cardName: 'Articuno',
+      cardNumber: '379',
+      setName: 'Pokémon Zukan',
+      rarity: '',
+      finish: 'Holo',
+      gradingCompany: 'PSA',
+      grade: '10',
+      language: 'Japanese',
+    },
+  } as unknown as Analysis;
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? {
+            status: 200,
+            text: page([
+              { title: '2004 Pokemon Zukan Articuno #379 Holo PSA 10', condition: 'Neuwertig', price: '190,00 EUR' },
+              { title: 'Pokemon Zukan Articuno 379 PSA 10 Holo', condition: 'Neuwertig', price: '210,00 EUR' },
+              { title: 'Pokemon Zukan Mew #379 PSA 10 Holo', condition: 'Neuwertig', price: '900,00 EUR' },
+            ]),
+          }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+
+  const deliberatelyFailingProvider = new InMemoryCardDataProvider({
+    cards: [],
+    evidence: {},
+    failFind: true,
+  });
+  const market = await liveMarketLookup(zukan, { ...silent, cardProvider: deliberatelyFailingProvider });
+
+  assert.equal(market.cardMarket, null, 'Zukan darf den Pokémon TCG Provider gar nicht aufrufen');
+  assert.equal(market.status, 'found');
+  assert.equal(market.headline.kind, 'exact_grading');
+  assert.equal(market.headline.price, 200);
+  assert.equal(market.soldComparables.length, 2);
+  assert.ok(market.soldComparables.every(row => /Articuno/i.test(row.title)));
+  assert.ok(market.soldComparables.every(row => /379/.test(row.title)));
+  assert.ok(market.soldComparables.every(row => /PSA\s*10/i.test(row.title)));
+  assert.ok(market.soldComparables.every(row => !/Mew/i.test(row.title)));
+});
+
+test('Pokémon TCG Kataloglücke darf nur mit vollständiger Nummer plus Name oder Set ins Web fallen', async () => {
+  const promo = charizard({
+    cardName: 'Charizard',
+    cardNumber: '143/S-P',
+    setName: 'Illustration Grand Prix Promo',
+    gradingCompany: '',
+    grade: '',
+    language: 'Japanese',
+  });
+  (promo as unknown as { condition: string }).condition = 'Near Mint';
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? {
+            status: 200,
+            text: page([
+              { title: 'Charizard 143/S-P Japanese Promo', condition: 'Near Mint', price: '19,00 EUR' },
+              { title: 'Pokemon Charizard 143/S-P Promo Holo', condition: 'Near Mint', price: '21,00 EUR' },
+              { title: 'Pikachu 143/S-P Japanese Promo', condition: 'Near Mint', price: '500,00 EUR' },
+              { title: 'Charizard 143/SV-P Japanese Promo', condition: 'Near Mint', price: '700,00 EUR' },
+            ]),
+          }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+
+  const emptyCatalog = new InMemoryCardDataProvider({ cards: [], evidence: {} });
+  const market = await liveMarketLookup(promo, { ...silent, cardProvider: emptyCatalog });
+
+  assert.equal(market.cardMarket?.status, 'not_found');
+  assert.equal(market.status, 'found', 'strenge Websuche darf eine echte Kataloglücke auffangen');
+  assert.equal(market.headline.price, 20);
+  assert.equal(market.soldComparables.length, 2);
+  assert.ok(market.soldComparables.every(row => /Charizard/i.test(row.title)));
+  assert.ok(market.soldComparables.every(row => /143\/S-P/i.test(row.title)));
+  assert.ok(market.soldComparables.every(row => !/Pikachu|143\/SV-P/i.test(row.title)));
+});
+
 test('Karte mit Provider, PCA 9,5 ohne PCA-Verkäufe: kein Marktwert, PSA/Raw nicht verwendet, Preisführer separat', async () => {
   setAi(async () => ({ status: 403, text: '' }), async () => ({ data: { items: [] } }));
   const provider = new InMemoryCardDataProvider({
