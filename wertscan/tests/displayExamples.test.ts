@@ -7,7 +7,7 @@ import './setupGlobals';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setAi } from './setupGlobals';
-import { liveMarketLookup } from '../marketPricePipeline';
+import { liveMarketLookup, MarketData } from '../marketPricePipeline';
 import { MarketDisplay, buildMarketDisplay } from '../marketDisplay';
 import { CardCandidate, InMemoryCardDataProvider, PriceEvidence, StaticFxRateProvider } from '../cardData';
 
@@ -195,4 +195,91 @@ test('Teilweise geladene Verkäufe → Wert mit Kennzeichnung "eingeschränkte D
   assert.equal(result.marketValue.state, 'value');
   assert.equal(result.marketValue.limitedData, true);
   assert.match(result.message, /Eingeschränkte Datenbasis: nur 3 von 2500 Verkäufen/);
+});
+
+
+test('Vergleichsobjekt zeigt Vergleichsbereich statt exaktem Marktwert und reicht Foto Guidance weiter', () => {
+  const market = {
+    status: 'found',
+    message: 'Drei vergleichbare Verkäufe gefunden.',
+    headline: {
+      kind: 'condition',
+      price: 50,
+      from: 45,
+      to: 55,
+      referencePrice: null,
+      soldCount: 3,
+      offerCount: 1,
+      sampleCount: 4,
+      basis: '3 vergleichbare Verkäufe',
+      note: '',
+      original: null,
+      fxNote: '',
+      limitedData: false,
+    },
+    soldComparables: [
+      { source: 'eBay verkauft', title: 'Aristo Vintage Walzgolddouble 20 Mikron', price: 45, currency: 'EUR', condition: 'Gebraucht', date: '', type: 'sold', url: '', relevance: 0.9 },
+      { source: 'eBay verkauft', title: 'Aristo rechteckige Vintage Uhr 20 Mikron', price: 50, currency: 'EUR', condition: 'Gebraucht', date: '', type: 'sold', url: '', relevance: 0.9 },
+      { source: 'eBay verkauft', title: 'Aristo Walzgolddouble Vintage Armbanduhr', price: 55, currency: 'EUR', condition: 'Gebraucht', date: '', type: 'sold', url: '', relevance: 0.9 },
+    ],
+    currentOffers: [],
+    priceGuides: [],
+    objectMatch: {
+      mode: 'comparable_object',
+      quality: 'strong_comparable',
+      score: 0.74,
+      label: 'Sehr gut vergleichbar',
+      marketValueAllowed: false,
+      comparisonRangeAllowed: true,
+      minimumComparableCount: 3,
+      requiredSearchTerms: ['Aristo', 'Walzgolddouble 20 Mikron'],
+      missingExactFields: ['modelNumber'],
+      explanation: ['Exakte Modellreferenz unbekannt.'],
+    },
+    scanGuidance: {
+      category: 'watches',
+      identityMode: 'comparable_object',
+      canSearchNow: true,
+      canShowExactMarketValue: false,
+      missingExactFields: ['modelNumber'],
+      recognitionIssues: [],
+      nextViews: [
+        {
+          id: 'side',
+          title: 'Seite und Krone',
+          reason: 'Kann die Modellfamilie weiter eingrenzen.',
+          targetFields: ['shape', 'marking', 'model'],
+          priority: 2,
+        },
+      ],
+      message: 'Vergleichssuche ist möglich, aber für einen exakten Marktwert fehlt noch eine sichere Produktidentität.',
+    },
+    connected: true,
+    query: 'Aristo Walzgolddouble 20 Mikron',
+    searchedQueries: ['Aristo Walzgolddouble 20 Mikron'],
+    sourcesChecked: ['eBay verkauft'],
+    soldMedian: 50,
+    offerMedian: null,
+    conditionPrices: {
+      new: { price: null, from: null, to: null, soldCount: 0, offerCount: 0, sampleCount: 0, basis: '', status: 'none', referencePrice: null },
+      likeNew: { price: null, from: null, to: null, soldCount: 0, offerCount: 0, sampleCount: 0, basis: '', status: 'none', referencePrice: null },
+      used: { price: 50, from: 45, to: 55, soldCount: 3, offerCount: 0, sampleCount: 3, basis: '3 Verkäufe', status: 'ok', referencePrice: null },
+      defective: { price: null, from: null, to: null, soldCount: 0, offerCount: 0, sampleCount: 0, basis: '', status: 'none', referencePrice: null },
+    },
+    searchedAt: '2026-09-25T12:00:00.000Z',
+    cardBaseValue: null,
+    exactGradingValue: null,
+    cardMarket: null,
+    debug: {} as never,
+    diagnostics: {} as never,
+  } as unknown as MarketData;
+
+  const result = buildMarketDisplay(market);
+  assert.equal(result.marketValue.state, 'no_value');
+  assert.equal(result.comparisonRange.state, 'range');
+  assert.equal(result.comparisonRange.label, 'Sehr gut vergleichbar');
+  assert.equal(result.comparisonRange.from?.eur, '45,00 €');
+  assert.equal(result.comparisonRange.to?.eur, '55,00 €');
+  assert.equal(result.scanGuidance?.nextViews[0]?.id, 'side');
+  assert.equal(result.statusCategory, 'comparable');
 });
