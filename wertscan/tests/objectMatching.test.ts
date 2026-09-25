@@ -559,3 +559,161 @@ test('Generisches Flohmarktobjekt braucht mehrere sichtbare Merkmale für Vergle
   assert.equal(usefulDecision.mode, 'comparable_object');
   assert.ok(usefulDecision.requiredSearchTerms.length >= 3);
 });
+
+
+test('Vintage Möbel ohne Modellcode bleibt Vergleichsobjekt', () => {
+  const input: ObjectIdentityInput = {
+    category: 'furniture_home',
+    objectType: 'Sessel',
+    facts: [
+      fact('name', 'Sessel', 0.96),
+      fact('material', 'Teak', 0.95),
+      fact('size', '80 x 72 x 75 cm', 0.99),
+      fact('style', 'Mid Century', 0.92),
+      fact('marking', 'Made in Denmark', 0.9),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'comparable_object');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, false);
+
+  const similar = evaluateCandidate(input, {
+    title: 'Mid Century Teak Sessel Made in Denmark 80 x 72 x 75 cm',
+    fields: {},
+  });
+  assert.equal(similar.accepted, true);
+});
+
+test('Designermöbel mit Hersteller und Modellnummer darf exakt bewertet werden', () => {
+  const input: ObjectIdentityInput = {
+    category: 'furniture_home',
+    objectType: 'Stuhl',
+    facts: [
+      fact('manufacturer', 'Vitra', 0.99),
+      fact('modelNumber', '44002500', 0.99),
+      fact('name', 'Eames Plastic Chair', 0.95),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'exact_product');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, true);
+
+  const wrong = evaluateCandidate(input, {
+    title: 'Vitra Eames Chair 44002400',
+    fields: { manufacturer: 'Vitra', modelNumber: '44002400' },
+  });
+  assert.equal(wrong.accepted, false);
+});
+
+test('Modeartikel mit Stylecode wird exakt, reine Markenähnlichkeit nicht', () => {
+  const input: ObjectIdentityInput = {
+    category: 'fashion_accessories',
+    objectType: 'Handtasche',
+    facts: [
+      fact('brand', 'Coach', 0.99),
+      fact('modelNumber', 'C3766', 0.99),
+      fact('name', 'Tabby Shoulder Bag', 0.96),
+      fact('material', 'Leder', 0.9),
+    ],
+  };
+
+  assert.equal(decideIdentity(input).mode, 'exact_product');
+
+  const exact = evaluateCandidate(input, {
+    title: 'Coach Tabby Shoulder Bag C3766 Leder',
+    fields: { brand: 'Coach', modelNumber: 'C3766' },
+  });
+  assert.equal(exact.accepted, true);
+
+  const wrong = evaluateCandidate(input, {
+    title: 'Coach Tabby Shoulder Bag C0772 Leder',
+    fields: { brand: 'Coach', modelNumber: 'C0772' },
+  });
+  assert.equal(wrong.accepted, false);
+});
+
+test('Musikinstrument ohne Modellcode bleibt konservativer Vergleich', () => {
+  const input: ObjectIdentityInput = {
+    category: 'music_instruments',
+    objectType: 'Akustikgitarre',
+    facts: [
+      fact('brand', 'Yamaha', 0.99),
+      fact('name', 'Akustikgitarre', 0.95),
+      fact('material', 'Fichtendecke', 0.9),
+      fact('size', '4/4', 0.95),
+      fact('marking', 'Made in Taiwan', 0.88),
+      fact('serial', '8123456', 0.99),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'comparable_object');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, false);
+  assert.ok(!decision.requiredSearchTerms.includes('8123456'));
+
+  const similar = evaluateCandidate(input, {
+    title: 'Yamaha Akustikgitarre 4/4 Fichtendecke Made in Taiwan',
+    fields: {},
+  });
+  assert.equal(similar.accepted, true);
+});
+
+test('Outdoor Produkt mit Modellcode ist exakt und Wanderrucksack wird nicht als Mode eingeordnet', () => {
+  const identity = objectIdentityFromAnalysis({
+    category: 'Outdoor',
+    objectType: 'Wanderrucksack',
+    brand: 'Deuter',
+    model: 'Futura 27',
+    title: 'Deuter Futura 27 Wanderrucksack',
+    modelConfidence: 0.96,
+    brandConfidence: 0.99,
+    visualText: ['DEUTER', 'FUTURA 27'],
+    sportsDetails: {
+      name: 'Wanderrucksack',
+      model: 'Futura 27',
+      size: '27 L',
+    },
+  });
+
+  assert.equal(identity.category, 'sports_outdoor');
+  const decision = decideIdentity(identity);
+  assert.equal(decision.mode, 'exact_product');
+
+  const wrong = evaluateCandidate(identity, {
+    title: 'Deuter Futura 32 Wanderrucksack',
+    fields: { brand: 'Deuter', model: 'Futura 32' },
+  });
+  assert.equal(wrong.accepted, false);
+});
+
+test('Adapter erkennt Möbel, Mode und Musikinstrumente als eigene Flohmarkt Kategorien', () => {
+  const chair = objectIdentityFromAnalysis({
+    category: 'Möbel',
+    objectType: 'Sessel',
+    title: 'Vintage Teak Sessel',
+    furnitureDetails: { name: 'Sessel', material: 'Teak', style: 'Mid Century', dimensions: '80 x 70 cm' },
+  });
+  assert.equal(chair.category, 'furniture_home');
+
+  const bag = objectIdentityFromAnalysis({
+    category: 'Mode',
+    objectType: 'Handtasche',
+    brand: 'Coach',
+    title: 'Coach Handtasche',
+    visualText: ['COACH', 'C3766'],
+    fashionDetails: { name: 'Handtasche', styleCode: 'C3766', material: 'Leder' },
+  });
+  assert.equal(bag.category, 'fashion_accessories');
+
+  const guitar = objectIdentityFromAnalysis({
+    category: 'Musikinstrumente',
+    objectType: 'Gitarre',
+    brand: 'Yamaha',
+    title: 'Yamaha Gitarre',
+    visualText: ['YAMAHA', 'FG800'],
+    instrumentDetails: { name: 'Akustikgitarre', model: 'FG800' },
+  });
+  assert.equal(guitar.category, 'music_instruments');
+});
