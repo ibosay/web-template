@@ -37,7 +37,7 @@ export type DisplayMoney = {
  *  technical_error  – Quelle oder Anbieter technisch nicht erreichbar
  *  not_identified   – Gegenstand zu unsicher identifiziert
  */
-export type StatusCategory = 'value' | 'insufficient' | 'ambiguous' | 'incomplete' | 'not_found' | 'technical_error' | 'not_identified';
+export type StatusCategory = 'value' | 'comparable' | 'insufficient' | 'ambiguous' | 'incomplete' | 'not_found' | 'technical_error' | 'not_identified';
 
 export type MarketValueSection = {
   state: 'value' | 'no_value';
@@ -80,12 +80,26 @@ export type GuideItem = {
   expiresAt: string;
 };
 
+export type ComparisonRangeSection = {
+  state: 'range' | 'none';
+  label: 'Sehr gut vergleichbar' | 'Nur ähnliche Marktobjekte' | null;
+  from: DisplayMoney | null;
+  to: DisplayMoney | null;
+  sampleCount: number;
+  basis: string;
+  note: string | null;
+};
+
 export type MarketDisplay = {
   contractVersion: typeof MARKET_DISPLAY_CONTRACT_VERSION;
   status: MarketData['status'];
   statusCategory: StatusCategory;
   message: string;
+  /** Exakter Marktwert nur bei ausreichend sicherer Produktidentität. */
   marketValue: MarketValueSection;
+  /** Für Flohmarktobjekte ohne sichere Modellreferenz: eigene Vergleichsspanne, nie als Marktwert beschriften. */
+  comparisonRange: ComparisonRangeSection;
+  identity: MarketData['objectMatch'];
   soldComparables: { sold: ComparableItem[]; offers: ComparableItem[]; emptyText: string | null };
   priceGuides: { disclaimer: string; items: GuideItem[] };
 };
@@ -139,7 +153,20 @@ function comparable(row: MarketListing): ComparableItem {
 
 export function buildMarketDisplay(market: MarketData): MarketDisplay {
   const h = market.headline;
-  const hasValue = market.status === 'found' && h.kind !== 'none' && h.kind !== 'reference' && (h.price != null || h.original != null);
+  const exactValueAllowed = market.objectMatch?.marketValueAllowed !== false;
+  const hasValue =
+    exactValueAllowed &&
+    market.status === 'found' &&
+    h.kind !== 'none' &&
+    h.kind !== 'reference' &&
+    (h.price != null || h.original != null);
+  const comparisonAllowed =
+    market.objectMatch?.comparisonRangeAllowed === true &&
+    market.objectMatch.marketValueAllowed === false &&
+    h.kind !== 'none' &&
+    h.kind !== 'reference' &&
+    (h.from != null || h.original != null) &&
+    h.sampleCount >= market.objectMatch.minimumComparableCount;
   const fxNote = h.fxNote || null;
   const value: DisplayMoney | null = hasValue
     ? { eur: h.price != null ? eur(h.price) : null, original: h.original ? money(h.original.price, h.original.currency) : null, fxNote }
@@ -156,10 +183,41 @@ export function buildMarketDisplay(market: MarketData): MarketDisplay {
   const sold = market.soldComparables.filter(row => row.kind !== 'guide').map(comparable);
   const offers = market.currentOffers.filter(row => row.kind !== 'guide').map(comparable);
 
+  const comparisonRange: ComparisonRangeSection = comparisonAllowed
+    ? {
+        state: 'range',
+        label:
+          market.objectMatch?.label === 'Sehr gut vergleichbar'
+            ? 'Sehr gut vergleichbar'
+            : 'Nur ähnliche Marktobjekte',
+        from: {
+          eur: h.from != null ? eur(h.from) : null,
+          original: h.original ? money(h.original.from, h.original.currency) : null,
+          fxNote,
+        },
+        to: {
+          eur: h.to != null ? eur(h.to) : null,
+          original: h.original ? money(h.original.to, h.original.currency) : null,
+          fxNote,
+        },
+        sampleCount: h.sampleCount,
+        basis: h.basis,
+        note: 'Exakte Modellreferenz unbekannt. Diese Spanne stammt aus vergleichbaren Marktobjekten und ist kein exakter Marktwert.',
+      }
+    : {
+        state: 'none',
+        label: null,
+        from: null,
+        to: null,
+        sampleCount: 0,
+        basis: '',
+        note: null,
+      };
+
   return {
     contractVersion: MARKET_DISPLAY_CONTRACT_VERSION,
     status: market.status,
-    statusCategory: CATEGORY[market.status],
+    statusCategory: comparisonAllowed ? 'comparable' : CATEGORY[market.status],
     message: market.message,
     marketValue: {
       state: hasValue ? 'value' : 'no_value',
@@ -168,8 +226,14 @@ export function buildMarketDisplay(market: MarketData): MarketDisplay {
       basis: hasValue ? h.basis : '',
       notes: hasValue ? [h.note].filter(Boolean) : [],
       limitedData: hasValue && h.limitedData,
-      noValueReason: hasValue ? null : market.message || 'Keine zuverlässige Bewertung möglich.',
+      noValueReason: hasValue
+        ? null
+        : comparisonAllowed
+          ? 'Exakte Modellreferenz unbekannt. Deshalb wird kein exakter Marktwert ausgegeben.'
+          : market.message || 'Keine zuverlässige Bewertung möglich.',
     },
+    comparisonRange,
+    identity: market.objectMatch || null,
     soldComparables: {
       sold,
       offers,
