@@ -800,7 +800,7 @@ test('Scraping: Cardmarket ist Preisführer und fließt nicht in den Wert ein', 
   assert.match(result.message, /Preisführer werden separat angezeigt/);
 });
 
-test('Scraping: Reverse-Holo-Titel bei unbekannter Variante wird nicht übernommen', async () => {
+test('Scraping: Reverse-Holo-Titel bei erkannter Holo-Variante wird nicht übernommen', async () => {
   setAi(
     async url =>
       url.includes('LH_Sold')
@@ -816,7 +816,7 @@ test('Scraping: Reverse-Holo-Titel bei unbekannter Variante wird nicht übernomm
     async ({ content }) => extractAll(content)
   );
   const result = await liveMarketLookup(rawNearMint(), { ...silent, cardProvider: null });
-  assert.ok(result.debug.rejectionReasons.variant_unverified >= 1);
+  assert.ok(result.debug.rejectionReasons.variant_mismatch >= 1, 'finish=Holo ist jetzt eine belegte Variante, Reverse Holo widerspricht ihr');
   assert.equal(result.headline.price, 100);
 });
 
