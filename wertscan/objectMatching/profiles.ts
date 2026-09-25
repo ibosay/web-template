@@ -4,7 +4,9 @@ const genericComparable: CategoryProfile = {
   id: 'generic',
   exactMode: 'exact_product',
   exactAll: [],
-  exactAnyGroups: [{ fields: ['modelNumber', 'sku', 'gtin'], min: 1, observedRequired: true }],
+  // In der Auffangkategorie ist nur eine globale Kennung allein stark genug.
+  // Eine nackte Modellnummer wie "1234" ist über verschiedene Hersteller hinweg nicht eindeutig.
+  exactAnyGroups: [{ fields: ['gtin'], min: 1, observedRequired: true }],
   comparableAll: [],
   comparableAnyGroups: [
     { fields: ['brand', 'manufacturer', 'name', 'model'], min: 1, observedRequired: true },
@@ -15,7 +17,7 @@ const genericComparable: CategoryProfile = {
   neverUseAsIdentity: ['serial'],
   exactMinScore: 0.9,
   comparableMinScore: 0.58,
-  notes: ['Ohne stabile Produktkennung wird nur mit vergleichbaren Objekten gearbeitet.'],
+  notes: ['In der Auffangkategorie schaltet nur eine sichtbare GTIN die exakte Identität frei. Modellnummer oder SKU ohne bekannte Kategorie bleiben Vergleichsmerkmale.'],
 };
 
 const profiles: Record<FleaMarketCategory, CategoryProfile> = {
