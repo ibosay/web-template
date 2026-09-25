@@ -28,6 +28,13 @@ export type PerPhotoObservation = {
   logosOrMarks: string[];
   formFeatures: string[];
   confidence: number;
+  /** Optional direkt typisierte Fakten aus demselben ersten multimodalen KI Aufruf. */
+  facts?: {
+    field: IdentityField;
+    value: string;
+    confidence: number;
+    source: 'visible_text' | 'visible_feature';
+  }[];
 };
 
 const STABLE_PATTERNS: { field: IdentityField; test: (value: string) => boolean }[] = [
@@ -68,6 +75,11 @@ export function photoEvidenceFromPerPhotoObservation(rows: PerPhotoObservation[]
   return rows.map((row, index) => {
     const confidence = clamp(row.confidence);
     const facts: PhotoFact[] = [];
+
+    (row.facts || []).forEach(item => {
+      const fact = asFact(item.field, item.value, item.confidence, item.source);
+      if (fact) facts.push(fact);
+    });
 
     (row.readableText || []).forEach(value => {
       const fact = asFact('marking', value, confidence, 'visible_text');
@@ -134,6 +146,58 @@ export function perPhotoObservationSchema() {
         logosOrMarks: { type: 'array', items: { type: 'string' } },
         formFeatures: { type: 'array', items: { type: 'string' } },
         confidence: { type: 'number' },
+        facts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              field: {
+                type: 'string',
+                enum: [
+                  'brand',
+                  'manufacturer',
+                  'model',
+                  'modelNumber',
+                  'sku',
+                  'gtin',
+                  'isbn',
+                  'serial',
+                  'name',
+                  'number',
+                  'set',
+                  'language',
+                  'variant',
+                  'gradingCompany',
+                  'grade',
+                  'casting',
+                  'toyNumber',
+                  'baseCode',
+                  'scale',
+                  'vehicleBrand',
+                  'vehicleModel',
+                  'material',
+                  'shape',
+                  'color',
+                  'size',
+                  'marking',
+                  'hallmark',
+                  'year',
+                  'edition',
+                  'pattern',
+                  'movement',
+                  'country',
+                  'style',
+                  'condition',
+                  'custom',
+                ],
+              },
+              value: { type: 'string' },
+              confidence: { type: 'number' },
+              source: { type: 'string', enum: ['visible_text', 'visible_feature'] },
+            },
+            required: ['field', 'value', 'confidence', 'source'],
+          },
+        },
       },
       required: [
         'imageIndex',
@@ -143,6 +207,7 @@ export function perPhotoObservationSchema() {
         'logosOrMarks',
         'formFeatures',
         'confidence',
+        'facts',
       ],
     },
   } as const;
