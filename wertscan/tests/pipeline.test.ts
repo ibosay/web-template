@@ -133,6 +133,8 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.equal(market.objectMatch?.mode, 'comparable_object');
   assert.equal(market.objectMatch?.label, 'Nur ähnliche Marktobjekte');
   assert.equal(market.objectMatch?.marketValueAllowed, false);
+  assert.equal(market.scanGuidance?.canShowExactMarketValue, false);
+  assert.ok(market.scanGuidance?.nextViews.some(view => view.id === 'back' || view.id === 'side'));
   assert.equal(marketValuation(watch, market), null, 'vergleichbare Objekte dürfen keinen exakten Marktwert erzeugen');
   assert.ok(market.soldComparables.length >= 3);
   assert.ok(market.soldComparables.every(row => row.price !== 563), 'unpassende moderne Aristo Diver Uhr wird verworfen');
@@ -153,6 +155,8 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.equal(display.marketValue.state, 'no_value');
   assert.equal(display.comparisonRange.state, 'range');
   assert.equal(display.comparisonRange.label, 'Nur ähnliche Marktobjekte');
+  assert.equal(display.scanGuidance?.canShowExactMarketValue, false);
+  assert.ok(display.scanGuidance?.nextViews.some(view => view.id === 'back' || view.id === 'side'));
   assert.ok(display.soldComparables.sold.every(row => row.matchQuality === 'similar_only' || row.matchQuality === 'strong_comparable'));
   assert.ok(display.soldComparables.sold.every(row => row.matchedFields.includes('brand')));
   assert.match(display.marketValue.noValueReason || '', /keine.*exakt|Exakte Modellreferenz/i);
