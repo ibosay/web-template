@@ -56,6 +56,14 @@ import {
   variantKey,
 } from './cardData';
 import { createDefaultPokemonCardProvider } from './cardData/defaultCardProvider';
+import {
+  IdentityDecision,
+  ObjectIdentityInput,
+  buildSearchQueries as buildObjectSearchQueries,
+  decideIdentity as decideObjectIdentity,
+  evaluateCandidate as evaluateObjectCandidate,
+  objectIdentityFromAnalysis,
+} from './objectMatching';
 
 // ---------------------------------------------------------------------------
 // Quellen: EINE Quelle der Wahrheit für Typ, Schema, Prompt und Anzeige.
@@ -295,6 +303,17 @@ export type MarketData = {
   priceGuides: PriceGuideEntry[];
   /** Ergebnis des Kartendatenanbieters (nur Sammelkarten mit CardDataProvider). */
   cardMarket: CardMarketResult | null;
+  /** Flohmarkt Identität für Nicht Karten Produkte. Keine Preisberechnung, nur Matching Qualität. */
+  objectMatch?: {
+    mode: IdentityDecision['mode'];
+    quality: IdentityDecision['quality'];
+    score: number;
+    label: IdentityDecision['valuationPolicy']['label'];
+    marketValueAllowed: boolean;
+    comparisonRangeAllowed: boolean;
+    requiredSearchTerms: string[];
+    missingExactFields: string[];
+  } | null;
 };
 
 export type MarketProviderListing = {
@@ -791,6 +810,9 @@ type IdentityProfile = {
   cardCondition: CardCondition | null;
   /** Zustandsgruppe, in der gültige Kartenbelege landen. */
   targetKey: ConditionKey;
+  /** Kategorieabhängige Flohmarkt Identität. Für Karten bleibt die bestehende Kartenlogik maßgeblich. */
+  objectIdentity: ObjectIdentityInput | null;
+  objectDecision: IdentityDecision | null;
 };
 
 function generationOf(text: string): string | null {
@@ -821,6 +843,8 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     ...productAliasQueries(analysis),
   ].join(' ');
   const modelTokens = looseTokens(model).filter(token => !looseTokens(brand).includes(token));
+  const objectIdentity = !isCard ? objectIdentityFromAnalysis(analysis) : null;
+  const objectDecision = objectIdentity ? decideObjectIdentity(objectIdentity) : null;
   return {
     isCard,
     cardNumberTokens: numberTokens,
@@ -838,6 +862,8 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     cardVariant: isCard ? variantKey(cardDetailText(analysis, 'variant')) : null,
     cardCondition: isCard ? normalizeCardCondition(analysis.condition) : null,
     targetKey: targetConditionKey(analysis),
+    objectIdentity,
+    objectDecision,
   };
 }
 
@@ -910,6 +936,16 @@ function identityRejection(title: string, profile: IdentityProfile): string | nu
     return profile.cardNumberConcat ? 'card_number_mismatch' : 'card_name_mismatch';
   }
 
+  // Neue Flohmarkt Engine: nur aktiv, wenn aus dem Foto mindestens zwei belastbare Suchanker
+  // vorhanden sind. Alte Tests und schwach erkannte Objekte fallen sonst auf die bisherige Logik zurück.
+  if (profile.objectIdentity && profile.objectDecision && profile.objectDecision.requiredSearchTerms.length >= 2) {
+    const candidate = evaluateObjectCandidate(profile.objectIdentity, { title, fields: {} });
+    if (candidate.accepted) return null;
+    if (candidate.conflicts.length) return 'object_identity_conflict';
+    if (candidate.missingRequired.length) return 'object_required_features_missing';
+    return profile.objectDecision.mode === 'comparable_object' ? 'object_not_comparable' : 'object_identity_mismatch';
+  }
+
   if (VARIANT_WORDS.some(word => tokenSet.has(word) && !profile.identityTokens.has(word))) return 'variant_mismatch';
   const titleGeneration = generationOf(title);
   if (profile.generation && titleGeneration && titleGeneration !== profile.generation) return 'generation_mismatch';
@@ -973,6 +1009,9 @@ function mentionsIdentity(line: string, profile: IdentityProfile) {
       ? hasExactCardNumber(looseTokens(line), profile)
       : cardIdentityMatch(line, profile) !== null;
   }
+  if (profile.objectIdentity && profile.objectDecision && profile.objectDecision.requiredSearchTerms.length >= 2) {
+    return evaluateObjectCandidate(profile.objectIdentity, { title: line, fields: {} }).accepted;
+  }
   const tokens = looseTokens(line);
   const compact = tokens.join('');
   if (profile.boostTokens.some(token => compact.includes(token))) return true;
@@ -1032,6 +1071,12 @@ function buildQueryPlan(analysis: Analysis): QueryPlanEntry[] {
     }
     if (grading && grading.company && (name || number)) add('grading', name, number, grading.company.toUpperCase());
   } else {
+    const objectIdentity = objectIdentityFromAnalysis(analysis);
+    const objectDecision = decideObjectIdentity(objectIdentity);
+    if (objectDecision.requiredSearchTerms.length >= 2) {
+      buildObjectSearchQueries(objectIdentity).forEach(query => add('product', query));
+    }
+
     const d = analysis.universalDetails;
     const special =
       (analysis.casioDetails && isCasioWatch(analysis)) ||
@@ -2051,6 +2096,18 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       diagnostics: debug,
       priceGuides: [],
       cardMarket,
+      objectMatch: profile.objectDecision
+        ? {
+            mode: profile.objectDecision.mode,
+            quality: profile.objectDecision.quality,
+            score: profile.objectDecision.score,
+            label: profile.objectDecision.valuationPolicy.label,
+            marketValueAllowed: profile.objectDecision.valuationPolicy.marketValueAllowed,
+            comparisonRangeAllowed: profile.objectDecision.valuationPolicy.comparisonRangeAllowed,
+            requiredSearchTerms: profile.objectDecision.requiredSearchTerms,
+            missingExactFields: profile.objectDecision.missingExactFields,
+          }
+        : null,
       ...extra,
     };
   };
