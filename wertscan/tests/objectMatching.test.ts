@@ -12,6 +12,8 @@ import {
   buildScanGuidanceFromAnalysis,
   auditRecognition,
   fusePhotoEvidence,
+  photoEvidenceFromPerPhotoObservation,
+  perPhotoObservationSchema,
 } from '../objectMatching';
 
 const fact = (
@@ -1206,4 +1208,116 @@ test('Grading Firma und Note müssen auf dem Label sichtbar sein', () => {
   assert.equal(audit.safeForExactIdentity, false);
   assert.ok(audit.unsupportedStableFields.includes('gradingCompany'));
   assert.ok(audit.unsupportedStableFields.includes('grade'));
+});
+
+
+test('AppDeploy Bridge erzeugt typisierte Mehrfoto Evidenz ohne zusätzlichen KI Aufruf', () => {
+  const photoEvidence = photoEvidenceFromPerPhotoObservation([
+    {
+      imageIndex: 0,
+      view: 'front',
+      readableText: ['ARISTO'],
+      identifiers: [],
+      logosOrMarks: ['ARISTO'],
+      formFeatures: ['rechteckiges Gehäuse'],
+      confidence: 0.96,
+      facts: [
+        { field: 'brand', value: 'Aristo', confidence: 0.99, source: 'visible_text' },
+        { field: 'color', value: 'schwarzes Zifferblatt', confidence: 0.92, source: 'visible_feature' },
+      ],
+    },
+    {
+      imageIndex: 1,
+      view: 'back',
+      readableText: ['WALZGOLDDOUBLE 20 MIKRON', 'BODEN EDELSTAHL'],
+      identifiers: [],
+      logosOrMarks: [],
+      formFeatures: [],
+      confidence: 0.98,
+      facts: [
+        { field: 'marking', value: 'WALZGOLDDOUBLE 20 MIKRON', confidence: 0.99, source: 'visible_text' },
+        { field: 'material', value: 'Boden Edelstahl', confidence: 0.98, source: 'visible_text' },
+      ],
+    },
+  ]);
+
+  const identity = objectIdentityFromAnalysis({
+    category: 'Uhren',
+    objectType: 'Armbanduhr',
+    brand: 'Aristo',
+    title: 'Aristo Armbanduhr',
+    brandConfidence: 0.98,
+    visualText: ['ARISTO', 'WALZGOLDDOUBLE 20 MIKRON', 'BODEN EDELSTAHL'],
+    photoEvidence,
+  });
+
+  const decision = decideIdentity(identity);
+  assert.equal(decision.mode, 'comparable_object');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, false);
+  assert.ok(identity.facts.some(row => row.field === 'marking' && /20 MIKRON/.test(row.value)));
+});
+
+test('AppDeploy Bridge kann Kartennummer und Grading Label direkt typisieren', () => {
+  const photoEvidence = photoEvidenceFromPerPhotoObservation([
+    {
+      imageIndex: 0,
+      view: 'front',
+      readableText: ['ARTICUNO', '#379', '2004 POKEMON ZUKAN'],
+      identifiers: ['379'],
+      logosOrMarks: [],
+      formFeatures: [],
+      confidence: 0.98,
+      facts: [
+        { field: 'name', value: 'Articuno', confidence: 0.99, source: 'visible_text' },
+        { field: 'number', value: '379', confidence: 0.99, source: 'visible_text' },
+        { field: 'set', value: 'Pokemon Zukan', confidence: 0.96, source: 'visible_text' },
+      ],
+    },
+    {
+      imageIndex: 1,
+      view: 'grading_label',
+      readableText: ['PSA', 'GEM MT 10'],
+      identifiers: [],
+      logosOrMarks: ['PSA'],
+      formFeatures: [],
+      confidence: 0.99,
+      facts: [
+        { field: 'gradingCompany', value: 'PSA', confidence: 0.99, source: 'visible_text' },
+        { field: 'grade', value: '10', confidence: 0.99, source: 'visible_text' },
+      ],
+    },
+  ]);
+
+  const identity = objectIdentityFromAnalysis({
+    category: 'Sammelkarten',
+    objectType: 'Sammelkarte',
+    brand: 'Pokémon Zukan / Carddass',
+    title: 'Articuno 379',
+    visualText: ['ARTICUNO', '#379', '2004 POKEMON ZUKAN', 'PSA', 'GEM MT 10'],
+    cardDetails: {
+      franchise: 'Pokémon Zukan Carddass',
+      cardName: 'Articuno',
+      cardNumber: '379',
+      setName: 'Pokemon Zukan',
+      gradingCompany: 'PSA',
+      grade: '10',
+    },
+    photoEvidence,
+  });
+
+  const decision = decideIdentity(identity);
+  assert.equal(decision.mode, 'exact_collectible');
+  assert.equal(auditRecognition(identity).safeForExactIdentity, true);
+});
+
+test('Schema für ersten AppDeploy Aufruf enthält pro Bild Ansicht und typisierte Fakten', () => {
+  const schema = perPhotoObservationSchema() as {
+    items: {
+      properties: Record<string, unknown>;
+      required: string[];
+    };
+  };
+  assert.ok(schema.items.properties.view);
+  assert.ok(schema.items.properties.facts);
+  assert.ok(schema.items.required.includes('facts'));
 });
