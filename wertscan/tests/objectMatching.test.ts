@@ -11,6 +11,7 @@ import {
   buildScanGuidance,
   buildScanGuidanceFromAnalysis,
   auditRecognition,
+  fusePhotoEvidence,
 } from '../objectMatching';
 
 const fact = (
@@ -1006,4 +1007,126 @@ test('Scan Guidance zeigt widersprüchliche sichtbare Kennungen als Recognition 
   const guidance = buildScanGuidance(input);
   assert.equal(guidance.canShowExactMarketValue, false);
   assert.ok(guidance.recognitionIssues.some(issue => issue.code === 'conflicting_visible_identifier'));
+});
+
+
+test('Mehrfoto Fusion stärkt dieselbe sichtbare Modellnummer', () => {
+  const fused = fusePhotoEvidence([
+    {
+      photoId: 'front-1',
+      view: 'front',
+      facts: [{ field: 'modelNumber', value: 'A2540', confidence: 0.82, source: 'visible_text' }],
+    },
+    {
+      photoId: 'back-1',
+      view: 'back',
+      facts: [{ field: 'modelNumber', value: 'A2540', confidence: 0.9, source: 'visible_text' }],
+    },
+  ]);
+
+  assert.equal(fused.length, 1);
+  assert.equal(fused[0].field, 'modelNumber');
+  assert.equal(fused[0].observed, true);
+  assert.ok(fused[0].confidence > 0.9);
+  assert.equal(fused[0].evidence.occurrences, 2);
+  assert.deepEqual(new Set(fused[0].evidence.views), new Set(['front', 'back']));
+});
+
+test('Mehrfoto Fusion behält widersprüchliche Kennungen getrennt', () => {
+  const fused = fusePhotoEvidence([
+    {
+      photoId: 'label-1',
+      view: 'label',
+      facts: [{ field: 'modelNumber', value: 'WH-1000XM5', confidence: 0.96, source: 'visible_text' }],
+    },
+    {
+      photoId: 'label-2',
+      view: 'back',
+      facts: [{ field: 'modelNumber', value: 'WH-1000XM4', confidence: 0.9, source: 'visible_text' }],
+    },
+  ]);
+
+  assert.equal(fused.length, 2);
+  const input: ObjectIdentityInput = {
+    category: 'electronics',
+    objectType: 'Kopfhörer',
+    facts: [fact('brand', 'Sony', 0.99), ...fused],
+  };
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'comparable_object');
+  assert.equal(auditRecognition(input).safeForExactIdentity, false);
+});
+
+test('Direkte Mehrfoto Evidenz wertet eine vorher nur abgeleitete Modellnummer auf', () => {
+  const identity = objectIdentityFromAnalysis({
+    category: 'Elektronik',
+    objectType: 'Fernbedienung',
+    brand: 'Apple',
+    title: 'Apple Fernbedienung',
+    brandConfidence: 0.99,
+    visualText: ['APPLE'],
+    universalDetails: {
+      manufacturer: 'Apple',
+      modelNumber: 'A2540',
+    },
+    photoEvidence: [
+      {
+        photoId: 'back-1',
+        view: 'back',
+        facts: [{ field: 'modelNumber', value: 'A2540', confidence: 0.98, source: 'visible_text' }],
+      },
+    ],
+  });
+
+  const modelNumber = identity.facts.find(row => row.field === 'modelNumber' && row.value === 'A2540');
+  assert.equal(modelNumber?.observed, true);
+  assert.equal(modelNumber?.evidence?.occurrences, 1);
+  assert.equal(decideIdentity(identity).mode, 'exact_product');
+});
+
+test('Scan Guidance fordert bereits fotografierte Rückseite nicht erneut an', () => {
+  const guidance = buildScanGuidanceFromAnalysis({
+    category: 'Uhren',
+    objectType: 'Armbanduhr',
+    brand: 'Aristo',
+    title: 'Aristo Armbanduhr',
+    brandConfidence: 0.99,
+    visualText: ['ARISTO', 'WALZGOLDDOUBLE 20 MIKRON'],
+    universalDetails: {
+      manufacturer: 'Aristo',
+      visibleMarks: 'WALZGOLDDOUBLE 20 MIKRON',
+      material: 'Walzgolddouble',
+    },
+    photoEvidence: [
+      {
+        photoId: 'front-1',
+        view: 'front',
+        facts: [
+          { field: 'brand', value: 'Aristo', confidence: 0.99, source: 'visible_text' },
+          { field: 'color', value: 'schwarz', confidence: 0.9, source: 'visible_feature' },
+        ],
+      },
+      {
+        photoId: 'back-1',
+        view: 'back',
+        facts: [
+          { field: 'marking', value: 'Walzgolddouble 20 Mikron', confidence: 0.99, source: 'visible_text' },
+          { field: 'material', value: 'Walzgolddouble', confidence: 0.95, source: 'visible_text' },
+        ],
+      },
+    ],
+  });
+
+  assert.ok(!guidance.nextViews.some(view => view.id === 'back'));
+});
+
+test('Unsichere Mehrfoto Beobachtung unter Mindestvertrauen wird nicht als Beleg übernommen', () => {
+  const fused = fusePhotoEvidence([
+    {
+      photoId: 'blur-1',
+      view: 'label',
+      facts: [{ field: 'modelNumber', value: 'A2540', confidence: 0.4, source: 'visible_text' }],
+    },
+  ]);
+  assert.equal(fused.length, 0);
 });
