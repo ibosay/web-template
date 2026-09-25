@@ -83,6 +83,12 @@ export type IdentityFact = {
   source: FactSource;
   /** true bedeutet: direkt auf Foto oder vom Nutzer belegt, nicht nur aus Datenbankwissen ergänzt. */
   observed: boolean;
+  /** Optionale Herkunft bei Mehrfoto Erkennung. */
+  evidence?: {
+    photoIds?: string[];
+    views?: string[];
+    occurrences?: number;
+  };
 };
 
 export type ObjectIdentityInput = {
