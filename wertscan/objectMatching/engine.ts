@@ -152,13 +152,13 @@ function identityScore(
   const seen = new Set<IdentityField>();
   strongFields.forEach(field => {
     const fact = bestFact(input, field);
-    if (!fact || fact.confidence < 0.55 || seen.has(field)) return;
+    if (!fact || fact.confidence < 0.55 || !fact.observed || seen.has(field)) return;
     seen.add(field);
     score += scoreField(field) * Math.max(0.6, Math.min(1, fact.confidence));
   });
   supportingFields.forEach(field => {
     const fact = bestFact(input, field);
-    if (!fact || fact.confidence < 0.55 || seen.has(field)) return;
+    if (!fact || fact.confidence < 0.55 || !fact.observed || seen.has(field)) return;
     seen.add(field);
     score += 0.05 * Math.max(0.6, Math.min(1, fact.confidence));
   });
@@ -199,7 +199,8 @@ function missingExactFields(input: ObjectIdentityInput) {
 }
 
 function factValue(input: ObjectIdentityInput, field: IdentityField) {
-  return clean(bestFact(input, field)?.value || '');
+  const fact = factsFor(input, field).find(row => row.observed && row.confidence >= 0.55);
+  return clean(fact?.value || '');
 }
 
 function dedupe(values: string[]) {
