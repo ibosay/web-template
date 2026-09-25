@@ -6,10 +6,17 @@
  *   SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… node wertscan/scripts/verify-scrydex.mjs \
  *     --name "Charizard" --number 143 --printed "143/S-P" [--expansion <expansionId>]
  *
- * Laut Doku bestätigt (hier nur Plausibilitätsprüfung): Header, Endpunkte, q-Syntax,
- * Kartenfelder, Preisstruktur, Listing-Felder.
- * Offen und hier geprüft: Antwort-Wrapper, Paginierung, Anführungszeichen in q, Suchbarkeit von
- * number/printed_number, tatsächliche Sprach-/Grading-/Währungsabdeckung, condition-Filter.
+ * Laut Doku bestätigt (hier nur Formatprüfung der echten Antworten): Header X-Api-Key/X-Team-ID,
+ * Endpunkte, q-Syntax inkl. Anführungszeichen (name:"venusaur v", !name:"lost thunder"),
+ * Paginierung (page, page_size ≤ 100; Antwort page, pageSize, totalCount), Kartenfelder,
+ * Preisstruktur, Listing-Felder.
+ *
+ * Offen, abhängig von der tatsächlichen Datenabdeckung (hier gemessen):
+ *   - ob number und printed_number für die konkrete Karte zuverlässig durchsuchbar sind
+ *   - welche Varianten die Karte hat
+ *   - welche Grading-Firmen Daten haben, insbesondere PCA
+ *   - ob echte Listings zusätzlich ein condition-Feld enthalten
+ *   - ob condition=NM ausschließlich NM-Verkäufe liefert
  */
 
 const args = Object.fromEntries(
@@ -57,23 +64,19 @@ const auth = await get(CARDS, { q: 'name:' + lucene(name), page_size: '1' });
 const noAuth = await get(CARDS, { q: 'name:' + lucene(name), page_size: '1' }, {});
 add('Auth X-Api-Key / X-Team-ID', auth.status === 200 ? 'OK' : 'ABWEICHUNG', { mitHeadern: auth.status, ohneHeader: noAuth.status, fehler: auth.error });
 
-// 2) Wrapper + Paginierung (offen)
-add('Antwort-Wrapper { data: [...] }', Array.isArray(auth.body?.data) ? 'OK' : Array.isArray(auth.body) ? 'ABWEICHUNG (Array – Adapter kann das)' : 'ABWEICHUNG', {
-  topLevelKeys: auth.body && typeof auth.body === 'object' ? Object.keys(auth.body) : typeof auth.body,
-  metadaten: meta(auth.body),
-});
-const page1 = await get(CARDS, { q: 'name:' + lucene(name), page_size: '5', page: '1' });
-const page2 = await get(CARDS, { q: 'name:' + lucene(name), page_size: '5', page: '2' });
+// 2) Antwortformat wie dokumentiert: { data: [...], page, pageSize, totalCount }
+const page1 = await get(CARDS, { q: 'name:' + lucene(name), page: '1', page_size: '5' });
+const page2 = await get(CARDS, { q: 'name:' + lucene(name), page: '2', page_size: '5' });
 const ids1 = listOf(page1.body).map(c => c.id);
 const ids2 = listOf(page2.body).map(c => c.id);
-add('Paginierung page/page_size', ids1.length === 5 && ids2.length && !ids2.some(id => ids1.includes(id)) ? 'OK' : 'UNKLAR (Metadaten prüfen)', {
-  seite1: ids1.length,
-  seite2: ids2.length,
-  ueberschneidung: ids2.filter(id => ids1.includes(id)).length,
+const documented = ['page', 'pageSize', 'totalCount'].every(key => page1.body && key in page1.body) && Array.isArray(page1.body?.data);
+add('Antwortformat { data, page, pageSize, totalCount }', documented ? 'OK' : 'ABWEICHUNG vom dokumentierten Format', {
+  topLevelKeys: page1.body && typeof page1.body === 'object' ? Object.keys(page1.body) : typeof page1.body,
   metadaten: meta(page1.body),
+  seite2Ueberschneidung: ids2.filter(id => ids1.includes(id)).length,
 });
 
-// 3) q-Varianten des Adapters (offen: Anführungszeichen, Suchbarkeit von number/printed_number)
+// 3) Suchbarkeit für DIESE Karte (Syntax dokumentiert; offen ist die Datenabdeckung)
 const variants = {
   'name + number': 'name:' + lucene(name) + ' number:' + lucene(number),
   '!name + number (exakt)': '!name:' + lucene(name) + ' number:' + lucene(number),
@@ -89,7 +92,7 @@ for (const [label, q] of Object.entries(variants)) {
   allCards.push(...cards);
   if (!sample && cards.length) sample = cards[0];
   const numberOk = cards.filter(c => String(c.number) === String(number)).length;
-  add('q: ' + label, result.status !== 200 ? 'ABWEICHUNG' : !cards.length ? 'UNKLAR (0 Treffer)' : 'OK', {
+  add('Suche ' + label, result.status !== 200 ? 'ABWEICHUNG' : !cards.length ? 'KEINE TREFFER (Abdeckung prüfen)' : 'OK', {
     q,
     status: result.status,
     treffer: cards.length,
@@ -126,7 +129,7 @@ if (sample) {
   });
 
   // 6) Listings: sold_at, id, Paginierung, condition-Feld
-  const listings = await get(CARDS + '/' + encodeURIComponent(sample.id) + '/listings', { days: '90', page_size: '100' });
+  const listings = await get(CARDS + '/' + encodeURIComponent(sample.id) + '/listings', { days: '90', page: '1', page_size: '100' });
   const items = listOf(listings.body);
   add('Listings /cards/<id>/listings', listings.status === 200 ? 'OK' : 'ABWEICHUNG', {
     karte: sample.id,
@@ -144,7 +147,7 @@ if (sample) {
   });
 
   // 7) condition-Filter: nur verwendbar, wenn JEDES Listing condition=NM im Beleg trägt
-  const filtered = await get(CARDS + '/' + encodeURIComponent(sample.id) + '/listings', { days: '90', page_size: '100', condition: 'NM' });
+  const filtered = await get(CARDS + '/' + encodeURIComponent(sample.id) + '/listings', { days: '90', page: '1', page_size: '100', condition: 'NM' });
   const filteredItems = listOf(filtered.body);
   const withField = filteredItems.filter(item => item.condition != null);
   const allNm = filteredItems.length > 0 && withField.length === filteredItems.length && withField.every(item => String(item.condition).toUpperCase() === 'NM');

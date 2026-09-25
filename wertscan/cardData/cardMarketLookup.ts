@@ -111,6 +111,11 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
     candidates = await provider.findCards({ ...query, language });
   } catch (error) {
     result.debug.error = String(error instanceof Error ? error.message : error);
+    // Unvollständiges Suchergebnis: Die richtige Karte könnte fehlen → nie als eindeutig werten.
+    if (error && typeof error === 'object' && (error as { incompleteSearch?: boolean }).incompleteSearch) {
+      result.debug.matchReason = 'search_result_incomplete';
+      return done('not_unique', MESSAGES.not_unique + ' (Grund: Suchergebnis zu groß, nicht vollständig geladen)');
+    }
     return done('provider_error');
   }
   result.debug.candidatesFound = candidates.length;

@@ -69,7 +69,11 @@ const display = buildMarketDisplay(market); // für das Frontend
 
 - Header `X-Api-Key`, `X-Team-ID`; allgemeiner Endpunkt `/pokemon/v1/cards` (keine en/ja-Endpunkte),
   Einzelkarte `/pokemon/v1/cards/<id>`, Set `/pokemon/v1/expansions/<id>/cards`
-- `q` Lucene-ähnlich: `!name:…` (exakt), `name:…`, `number:…`, `expansion.id:…`
+- `q` Lucene-ähnlich: `!name:…` (exakt), `name:…`, `number:…`, `expansion.id:…`; mehrere Wörter in
+  Anführungszeichen (`name:"venusaur v"`, `!name:"lost thunder"`)
+- Paginierung: `page`, `page_size` (Standard und Maximum 100); Antwort `page`, `pageSize`, `totalCount`.
+  Der Adapter lädt alle Seiten. Ist eine Kartensuche nicht vollständig ladbar, gilt die Karte als
+  „nicht eindeutig“ (die richtige Karte könnte fehlen).
 - `number` (z. B. 87) und `printed_number` (z. B. 87/160, SWSH101) werden beide gespeichert
 - Preise nur mit `include=prices`; Raw NM/LP/MP/HP/DM; Graded mit company/grade (PCA nur, wenn im Datensatz)
 - `market/low/mid/high` = Scrydex-Marktindikatoren → **Preisführer**, nie Verkauf
@@ -77,14 +81,19 @@ const display = buildMarketDisplay(market); // für das Frontend
 - Währungen USD und JPY; EUR nur als gekennzeichneter Anzeigewert
 - Listing-Objekt ohne garantiertes `condition`-Feld → kein Zustandsfilter, `trustConditionFilter` aus
 
-### Noch mit echtem Zugang prüfen
+### Abhängig von der Datenabdeckung – mit echtem Zugang messen
 
 ```bash
 SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… node wertscan/scripts/verify-scrydex.mjs --name "Charizard" --number 143 --printed "143/S-P"
 ```
 
-Das Skript prüft Antwort-Wrapper, Paginierung, Anführungszeichen in `q`, Suchbarkeit von `number`/`printed_number`,
-tatsächliche Sprach-, Grading- (PCA?) und Währungsabdeckung sowie das Verhalten des `condition`-Filters.
+- ob `number` und `printed_number` für die relevanten Karten zuverlässig durchsuchbar sind
+- welche Varianten konkrete Karten haben
+- welche Grading-Firmen Daten haben, insbesondere PCA
+- ob echte Listings zusätzlich ein `condition`-Feld enthalten
+- ob `condition=NM` ausschließlich NM-Verkäufe liefert (bis dahin bleibt `trustConditionFilter` aus)
+
+Zusätzlich prüft das Skript, ob die echten Antworten dem dokumentierten Format entsprechen.
 
 ## Frontend
 
@@ -97,7 +106,7 @@ Nur `buildMarketDisplay(market)` rendern. Drei Bereiche:
 ## Freigabe-Checkliste (vor gemeinsamem Testlauf/Deployment)
 
 - [x] Scrydex-Doku geprüft und im Adapter fest eingetragen
-- [ ] `verify-scrydex.mjs` mit echtem Key ausgeführt (Paginierung, Wrapper, q-Quoting, Abdeckung, condition-Filter)
+- [ ] `verify-scrydex.mjs` mit echtem Key ausgeführt (Antwortformat, Datenabdeckung, condition-Filter)
 - [ ] EZB-Kurse im Serverbetrieb abrufbar (Netzwerkfreigabe für ecb.europa.eu)
 - [ ] Frontend auf `buildMarketDisplay` umgestellt (drei Bereiche)
 - [ ] `bash wertscan/run-tests.sh` grün

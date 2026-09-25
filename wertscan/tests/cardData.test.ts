@@ -583,3 +583,55 @@ test('Scrydex-Adapter: Einzelkarte nachladen, market/low/mid/high nur Preisführ
   assert.equal(result.status, 'insufficient_data', 'Verkäufe ohne Zustandsfeld ergeben keinen NM-Wert');
   assert.ok(result.valuation!.priceGuides.some(entry => entry.price === 76 && entry.priceType === 'market'));
 });
+
+test('Scrydex-Paginierung: alle Seiten laden (page/page_size, totalCount); unvollständige Suche → nicht eindeutig', async () => {
+  const makeCards = (from: number, count: number) =>
+    Array.from({ length: count }, (_, index) => ({ id: 'p' + (from + index), name: 'Pikachu', number: '25', printed_number: '25/' + (100 + from + index), language_code: 'en', variants: [] }));
+  const calls: Call[] = [];
+  const paged = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    fetch: mockFetch(url => {
+      const page = Number(new URL(url).searchParams.get('page'));
+      return page === 1
+        ? { data: makeCards(0, 100), page: 1, pageSize: 100, totalCount: 150 }
+        : { data: makeCards(100, 50), page: 2, pageSize: 100, totalCount: 150 };
+    }, calls),
+  });
+  const all = await paged.findCards(query({ name: 'Pikachu', number: '25', language: 'en' }));
+  assert.equal(all.length, 150);
+  assert.deepEqual(calls.map(call => new URL(call.url).searchParams.get('page')), ['1', '2']);
+  assert.ok(calls.every(call => new URL(call.url).searchParams.get('page_size') === '100'));
+
+  const capped = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    pageSize: 500, // wird auf das dokumentierte Maximum 100 begrenzt
+    maxSearchPages: 1,
+    fetch: mockFetch(() => ({ data: makeCards(0, 100), page: 1, pageSize: 100, totalCount: 150 }), []),
+  });
+  const result = await lookupCardMarket(query({ name: 'Pikachu', number: '25/102', language: 'en' }), rawNM, { provider: capped, fx, now: () => NOW });
+  assert.equal(result.status, 'not_unique');
+  assert.equal(result.debug.matchReason, 'search_result_incomplete');
+  assert.equal(result.fallbackAllowed, false);
+});
+
+test('Scrydex-Listings: mehrere Seiten werden zusammengeführt', async () => {
+  const calls: Call[] = [];
+  const provider = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    now: () => NOW,
+    fetch: mockFetch(url => {
+      const u = new URL(url);
+      if (!u.pathname.endsWith('/listings')) return { data: { id: 'sx-1', variants: [] } };
+      const page = Number(u.searchParams.get('page'));
+      const rows = (offset: number, count: number) =>
+        Array.from({ length: count }, (_, index) => ({ id: 'l' + (offset + index), source: 'ebay', card_id: 'sx-1', title: 'x', price: 20, currency: 'USD', sold_at: '2026-09-01' }));
+      return page === 1 ? { data: rows(0, 100), page: 1, pageSize: 100, totalCount: 130 } : { data: rows(100, 30), page: 2, pageSize: 100, totalCount: 130 };
+    }, calls),
+  });
+  const evidence = await provider.getPriceEvidence({ candidate: card({ cardId: 'sx-1', variants: [] }), variant: null, soldWithinDays: 90 });
+  assert.equal(evidence.filter(row => row.kind === 'sold').length, 130);
+  assert.deepEqual(calls.filter(call => call.url.includes('/listings')).map(call => new URL(call.url).searchParams.get('page')), ['1', '2']);
+});

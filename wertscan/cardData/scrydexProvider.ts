@@ -20,12 +20,15 @@
  *     price, currency, sold_at (= Verkaufsdatum) → echte Verkäufe.
  *   - Listings kennen einen condition-FILTER, das Listing-Objekt aber kein garantiertes
  *     condition-Feld → Zustand wird nur übernommen, wenn er im einzelnen Listing steht.
+ *   - Werte mit mehreren Wörtern in Anführungszeichen: name:"venusaur v", !name:"lost thunder"
+ *   - Paginierung: Parameter page, page_size (Standard und Maximum 100 für Pokémon-Karten);
+ *     Antwort enthält page, pageSize, totalCount. Listings ebenfalls mit page/page_size.
  *
- * Noch mit echtem Zugang zu bestätigen (scripts/verify-scrydex.mjs):
- *   - Antwort-Wrapper { data: [...] } und Paginierung (Parameter- und Feldnamen)
- *   - Anführungszeichen für Werte mit Leer-/Sonderzeichen in q (Lucene-Standard angenommen)
- *   - ob number/printed_number in q suchbar sind (Adapter fällt sonst auf Namens-/Setsuche zurück)
- *   - Verhalten des condition-Filters
+ * Abhängig von der tatsächlichen Datenabdeckung (scripts/verify-scrydex.mjs):
+ *   - ob number/printed_number in allen relevanten Fällen zuverlässig durchsuchbar sind
+ *   - welche Varianten und Grading-Firmen (insbesondere PCA) konkrete Karten haben
+ *   - ob echte Listings zusätzlich ein condition-Feld enthalten
+ *   - wie zuverlässig condition=NM nur NM-Verkäufe liefert (bis dahin: kein Filter)
  *
  * API-Key und Team-ID nur aus Server-Umgebungsvariablen. Niemals im Client oder im Repository.
  */
@@ -37,6 +40,17 @@ export const SCRYDEX_API_KEY_HEADER = 'X-Api-Key';
 export const SCRYDEX_TEAM_ID_HEADER = 'X-Team-ID';
 export const SCRYDEX_BASE_URL = 'https://api.scrydex.com';
 const CARDS_PATH = '/pokemon/v1/cards';
+/** Laut Doku Standard und Maximum für Pokémon-Karten. */
+export const SCRYDEX_MAX_PAGE_SIZE = 100;
+
+/** Kartensuche nicht vollständig geladen → WertScan darf keine Karte als eindeutig werten. */
+export class IncompleteSearchError extends Error {
+  readonly incompleteSearch = true;
+  constructor(message: string) {
+    super(message);
+    this.name = 'IncompleteSearchError';
+  }
+}
 const expansionCardsPath = (expansionId: string) => '/pokemon/v1/expansions/' + encodeURIComponent(expansionId) + '/cards';
 
 type FetchLike = (url: string, init: { method: string; headers: Record<string, string> }) => Promise<{
@@ -55,8 +69,12 @@ export type ScrydexConfig = {
   guideTtlMs?: number;
   /** Gültigkeit der Verkäufe (expiresAt). Standard 24 h. */
   listingTtlMs?: number;
-  /** Seitengröße für Kartensuche/Listings. Paginierung mit echtem Zugang bestätigen. */
+  /** Seitengröße (max. 100 laut Doku). Standard 100. */
   pageSize?: number;
+  /** Maximal geladene Seiten der Kartensuche. Mehr Treffer → "nicht eindeutig". Standard 5. */
+  maxSearchPages?: number;
+  /** Maximal geladene Listing-Seiten (neueste zuerst angenommen). Standard 5. */
+  maxListingPages?: number;
 };
 
 type Json = Record<string, unknown>;
@@ -110,7 +128,9 @@ export class ScrydexProvider implements CardDataProvider {
       now: config.now || (() => new Date()),
       guideTtlMs: config.guideTtlMs ?? 24 * 3600 * 1000,
       listingTtlMs: config.listingTtlMs ?? 24 * 3600 * 1000,
-      pageSize: config.pageSize ?? 100,
+      pageSize: Math.max(1, Math.min(SCRYDEX_MAX_PAGE_SIZE, config.pageSize ?? SCRYDEX_MAX_PAGE_SIZE)),
+      maxSearchPages: config.maxSearchPages ?? 5,
+      maxListingPages: config.maxListingPages ?? 5,
     };
   }
 
@@ -176,11 +196,35 @@ export class ScrydexProvider implements CardDataProvider {
     return Array.from(new Set(searches)).map(q => ({ path, q }));
   }
 
+  /**
+   * Lädt alle Seiten (page/page_size; Antwort page, pageSize, totalCount).
+   * complete = false, wenn totalCount mehr Einträge nennt als geladen wurden.
+   */
+  private async getAllPages(path: string, params: Record<string, string>, maxPages: number): Promise<{ items: Json[]; complete: boolean; totalCount: number | null }> {
+    const items: Json[] = [];
+    let totalCount: number | null = null;
+    for (let page = 1; page <= maxPages; page++) {
+      const payload = await this.get(path, { ...params, page: String(page), page_size: String(this.config.pageSize) });
+      const batch = dataList(payload);
+      items.push(...batch);
+      const meta = obj(payload);
+      totalCount = num(meta.totalCount) ?? num(meta.total_count) ?? totalCount;
+      if (!batch.length || batch.length < this.config.pageSize) return { items, complete: true, totalCount };
+      if (totalCount != null && items.length >= totalCount) return { items, complete: true, totalCount };
+    }
+    return { items, complete: totalCount != null && items.length >= totalCount, totalCount };
+  }
+
   async findCards(query: CardQuery): Promise<CardCandidate[]> {
     const found = new Map<string, CardCandidate>();
     for (const search of this.buildSearches(query)) {
-      const payload = await this.get(search.path, { q: search.q, include: 'prices', page_size: String(this.config.pageSize) });
-      dataList(payload).forEach(raw => {
+      const result = await this.getAllPages(search.path, { q: search.q, include: 'prices' }, this.config.maxSearchPages);
+      if (!result.complete) {
+        throw new IncompleteSearchError(
+          'Scrydex-Suche "' + search.q + '" hat ' + (result.totalCount ?? 'mehr als ' + result.items.length) + ' Treffer; nur ' + result.items.length + ' geladen.'
+        );
+      }
+      result.items.forEach(raw => {
         const candidate = this.toCandidate(raw);
         if (!candidate) return;
         this.rawCards.set(candidate.cardId, raw);
@@ -254,13 +298,15 @@ export class ScrydexProvider implements CardDataProvider {
     const evidence = raw ? this.guideEvidence(raw, cardId, fetchedAt) : [];
 
     // Bewusst KEIN condition-Filter: Zustand nur, wenn er im einzelnen Listing steht.
-    const params: Record<string, string> = { days: String(request.soldWithinDays), page_size: String(this.config.pageSize) };
+    const params: Record<string, string> = { days: String(request.soldWithinDays) };
     if (request.variant) params.variant = request.variant;
-    const payload = await this.get(CARDS_PATH + '/' + encodeURIComponent(cardId) + '/listings', params);
+    // Unvollständig geladene Listings (mehr als maxListingPages Seiten) sind unkritisch: weniger
+    // Belege führen höchstens zu "keine zuverlässige Bewertung", nie zu einem falschen Treffer.
+    const { items } = await this.getAllPages(CARDS_PATH + '/' + encodeURIComponent(cardId) + '/listings', params, this.config.maxListingPages);
     const expiresAt = new Date(fetchedAt.getTime() + this.config.listingTtlMs).toISOString();
     const seen = new Set<string>();
 
-    dataList(payload).forEach(item => {
+    items.forEach(item => {
       const soldAt = str(item.sold_at);
       // Nur Datensätze mit Verkaufsdatum sind belegte Verkäufe. Ohne sold_at: nicht verwenden.
       if (!soldAt) return;
