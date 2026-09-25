@@ -12,7 +12,7 @@ const genericComparable: CategoryProfile = {
     { fields: ['brand', 'manufacturer', 'name', 'model'], min: 1, observedRequired: true },
     { fields: ['material', 'shape', 'color', 'size', 'marking', 'year'], min: 2, observedRequired: true },
   ],
-  strongFields: ['brand', 'manufacturer', 'model', 'modelNumber', 'name', 'marking', 'material', 'shape', 'size'],
+  strongFields: ['gtin', 'brand', 'manufacturer', 'model', 'modelNumber', 'name', 'marking', 'material', 'shape', 'size'],
   supportingFields: ['color', 'year', 'condition', 'country'],
   neverUseAsIdentity: ['serial'],
   exactMinScore: 0.9,
