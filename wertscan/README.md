@@ -13,6 +13,7 @@
 | `cardData/cardValuation.ts` | Bewertung aus Belegen. |
 | `cardData/cardMarketLookup.ts` | Ablauf Provider → Zuordnung → Belege → Bewertung; entscheidet, ob ein Fallback erlaubt ist. |
 | `cardData/fx.ts` | `EcbFxRateProvider` (EZB-Referenzkurse), austauschbar. |
+| `cardData/tcgdexProvider.ts` | Kostenloser TCGdex-Adapter ohne API-Key. Identität + Preisführer, keine Verkäufe. |
 | `cardData/scrydexProvider.ts` | Scrydex-Adapter. **Nur serverseitig.** Nicht über `cardData/index.ts` exportiert. |
 | `cardData/testProvider.ts` | Test-Provider und fester Test-Wechselkurs. |
 | `scripts/verify-scrydex.mjs` | Prüft Antwortformat und Datenabdeckung gegen die echte Scrydex-API. |
