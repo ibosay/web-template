@@ -143,6 +143,10 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.ok(!aiCalls.scrape.some(url => url.includes('chrono24')), 'ohne Referenz keine breite Chrono24 Suche');
   assert.ok(!aiCalls.scrape.some(url => url.includes('mediamarkt')), 'Vintage Vergleichsobjekt braucht keinen Händler Neupreis');
   assert.ok(!aiCalls.scrape.some(url => url.includes('geizhals')), 'Vintage Vergleichsobjekt braucht keinen Geizhals Lauf');
+  assert.ok(
+    aiCalls.scrape.filter(url => url.includes('ebay.de') && url.includes('LH_Sold=1')).length <= 2,
+    'Kategorie Matching soll höchstens zwei eBay Verkaufsqueries für Nicht Karten verwenden'
+  );
 
   const display = buildMarketDisplay(market);
   assert.equal(display.statusCategory, 'comparable');
@@ -393,6 +397,10 @@ test('Flohmarkt Technik mit sichtbarer Modellnummer bleibt exakter Marktwert', a
   assert.equal(valuation!.market, 44);
   assert.ok(aiCalls.scrape.some(url => url.includes('geizhals')), 'exakt identifizierte Technik darf Händler Neupreise prüfen');
   assert.ok(aiCalls.scrape.some(url => url.includes('mediamarkt')), 'exakt identifizierte Technik darf Retail Quellen prüfen');
+  assert.ok(
+    aiCalls.scrape.filter(url => url.includes('ebay.de') && url.includes('LH_Sold=1')).length <= 2,
+    'auch exakte Nicht Karten Produkte brauchen höchstens zwei eBay Verkaufsqueries'
+  );
 });
 
 
