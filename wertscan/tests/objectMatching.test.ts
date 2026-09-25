@@ -796,3 +796,26 @@ test('Hot Wheels Base Code muss sichtbar belegt sein, damit er als exakter Anker
   assert.equal(visible?.observed, true);
   assert.equal(decideIdentity(visibleCode).mode, 'exact_collectible');
 });
+
+
+test('Generische Modellnummer allein darf keinen exakten Marktwert freischalten', () => {
+  const unknownWithModel: ObjectIdentityInput = {
+    category: 'generic',
+    objectType: 'Unbekanntes Gerät',
+    facts: [
+      fact('modelNumber', '1234', 0.99),
+      fact('material', 'Metall', 0.9),
+      fact('shape', 'rechteckig', 0.9),
+    ],
+  };
+  const decision = decideIdentity(unknownWithModel);
+  assert.equal(decision.mode, 'comparable_object');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, false);
+
+  const barcodeProduct: ObjectIdentityInput = {
+    category: 'generic',
+    objectType: 'Unbekanntes Produkt',
+    facts: [fact('gtin', '4006381333931', 0.99)],
+  };
+  assert.equal(decideIdentity(barcodeProduct).mode, 'exact_product');
+});
