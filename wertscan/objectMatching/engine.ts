@@ -136,7 +136,7 @@ function requirementsSatisfied(
 }
 
 function scoreField(field: IdentityField) {
-  if (HIGH_VALUE_FIELDS.has(field)) return 0.25;
+  if (HIGH_VALUE_FIELDS.has(field)) return 0.35;
   if (['brand', 'manufacturer', 'model', 'name', 'casting', 'vehicleModel', 'hallmark'].includes(field)) return 0.15;
   return 0.1;
 }
@@ -255,7 +255,7 @@ function labelFor(mode: IdentityMode, score: number) {
       minimumComparableCount: 2,
     };
   }
-  if (score >= 0.72) {
+  if (score >= 0.68) {
     return {
       quality: 'strong_comparable' as const,
       label: 'Sehr gut vergleichbar' as const,
