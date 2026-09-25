@@ -3,7 +3,8 @@
  *
  * Das Frontend rendert ausschließlich das Ergebnis von buildMarketDisplay() in drei Bereichen:
  *
- *   marketValue     – Hauptwert oder ausdrücklich "keine Bewertung" (noValueReason)
+ *   marketValue     – Hauptwert, Vergleichsspanne (state 'comparable_range', nur Spanne, kein
+ *                     Einzelwert) oder ausdrücklich "keine Bewertung" (noValueReason)
  *   soldComparables – tatsächlich verkaufte Artikel (sold); aktive Angebote getrennt (offers)
  *   priceGuides     – Preisführer/Marktindikatoren, eigene Optik, nie als Verkauf
  *
@@ -30,6 +31,7 @@ export type DisplayMoney = {
 /**
  * Grobe Kategorie des Status für Frontend-Logik und Logs:
  *  value            – Marktwert vorhanden
+ *  comparable       – nur Vergleichsspanne ähnlicher Objekte (kein exakter Modell-Marktwert)
  *  insufficient     – Karte/Produkt erkannt, zu wenige Marktbelege
  *  ambiguous        – Karte nicht eindeutig zuordenbar
  *  incomplete       – Anbietersuche unvollständig (nie positive Zuordnung)
@@ -37,10 +39,16 @@ export type DisplayMoney = {
  *  technical_error  – Quelle oder Anbieter technisch nicht erreichbar
  *  not_identified   – Gegenstand zu unsicher identifiziert
  */
-export type StatusCategory = 'value' | 'insufficient' | 'ambiguous' | 'incomplete' | 'not_found' | 'technical_error' | 'not_identified';
+export type StatusCategory = 'value' | 'comparable' | 'insufficient' | 'ambiguous' | 'incomplete' | 'not_found' | 'technical_error' | 'not_identified';
 
 export type MarketValueSection = {
-  state: 'value' | 'no_value';
+  /**
+   * value            – Marktwert (value + range)
+   * comparable_range – Flohmarktware ohne Modellnummer: NUR range anzeigen (value ist null),
+   *                    zusammen mit comparableLabel und dem Hinweis "kein exakter Modell-Marktwert"
+   * no_value         – keine Bewertung, noValueReason anzeigen
+   */
+  state: 'value' | 'comparable_range' | 'no_value';
   value: DisplayMoney | null;
   range: { from: DisplayMoney; to: DisplayMoney } | null;
   /** Woraus der Wert stammt (z. B. "Median aus … (tatsächlich verkauft)"). */
@@ -51,6 +59,8 @@ export type MarketValueSection = {
   limitedData: boolean;
   /** Bei state 'no_value' immer anzeigen – nie durch einen Preis ersetzen. */
   noValueReason: string | null;
+  /** Nur bei state 'comparable_range': "Sehr gut vergleichbar" oder "Nur ähnliche Objekte". */
+  comparableLabel: string | null;
 };
 
 export type ComparableItem = {
@@ -65,6 +75,8 @@ export type ComparableItem = {
   fetchedAt: string | null;
   url: string | null;
   grading: string | null;
+  /** Nur Vergleichsobjekte: "Sehr gut vergleichbar" / "Ähnlich" – nie "exakt". */
+  similarity: string | null;
 };
 
 export type GuideItem = {
@@ -134,18 +146,22 @@ function comparable(row: MarketListing): ComparableItem {
     fetchedAt: row.fetchedAt || null,
     url: row.url || null,
     grading: row.grading && row.grading !== 'raw' ? row.grading.toUpperCase() : null,
+    similarity: row.matchQuality === 'strong_comparable' ? 'Sehr gut vergleichbar' : row.matchQuality === 'similar_only' ? 'Ähnlich' : null,
   };
 }
 
 export function buildMarketDisplay(market: MarketData): MarketDisplay {
   const h = market.headline;
-  const hasValue = market.status === 'found' && h.kind !== 'none' && h.kind !== 'reference' && (h.price != null || h.original != null);
+  const hasPrice = market.status === 'found' && h.kind !== 'none' && h.kind !== 'reference' && (h.price != null || h.original != null);
+  // Vergleichsobjekte: nur Spanne, nie ein Einzelwert, der wie ein exakter Marktwert wirkt.
+  const isComparable = hasPrice && h.kind === 'comparable';
+  const hasValue = hasPrice && !isComparable;
   const fxNote = h.fxNote || null;
   const value: DisplayMoney | null = hasValue
     ? { eur: h.price != null ? eur(h.price) : null, original: h.original ? money(h.original.price, h.original.currency) : null, fxNote }
     : null;
   const range =
-    hasValue && (h.from != null || h.original)
+    hasPrice && (h.from != null || h.original)
       ? {
           from: { eur: h.from != null ? eur(h.from) : null, original: h.original ? money(h.original.from, h.original.currency) : null, fxNote },
           to: { eur: h.to != null ? eur(h.to) : null, original: h.original ? money(h.original.to, h.original.currency) : null, fxNote },
@@ -159,16 +175,17 @@ export function buildMarketDisplay(market: MarketData): MarketDisplay {
   return {
     contractVersion: MARKET_DISPLAY_CONTRACT_VERSION,
     status: market.status,
-    statusCategory: CATEGORY[market.status],
+    statusCategory: isComparable ? 'comparable' : CATEGORY[market.status],
     message: market.message,
     marketValue: {
-      state: hasValue ? 'value' : 'no_value',
+      state: hasValue ? 'value' : isComparable ? 'comparable_range' : 'no_value',
       value,
       range,
-      basis: hasValue ? h.basis : '',
-      notes: hasValue ? [h.note].filter(Boolean) : [],
-      limitedData: hasValue && h.limitedData,
-      noValueReason: hasValue ? null : market.message || 'Keine zuverlässige Bewertung möglich.',
+      basis: hasPrice ? h.basis : '',
+      notes: hasPrice ? [h.note].filter(Boolean) : [],
+      limitedData: hasPrice && h.limitedData,
+      noValueReason: hasPrice ? null : market.message || 'Keine zuverlässige Bewertung möglich.',
+      comparableLabel: isComparable ? (h.comparableQuality === 'strong_comparable' ? 'Sehr gut vergleichbar' : 'Nur ähnliche Objekte') : null,
     },
     soldComparables: {
       sold,

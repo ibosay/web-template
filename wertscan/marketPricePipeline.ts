@@ -56,6 +56,7 @@ import {
   variantKey,
 } from './cardData';
 import { createDefaultPokemonCardProvider } from './cardData/defaultCardProvider';
+import { pokemonNameForms, titleMentionsName } from './cardData/pokemonNameAliases';
 
 // ---------------------------------------------------------------------------
 // Quellen: EINE Quelle der Wahrheit für Typ, Schema, Prompt und Anzeige.
@@ -136,6 +137,28 @@ export type MarketListing = {
   expiresAt?: string;
   /** Nur bei umgerechneten Beträgen: Kurs, Kursquelle, Stand. */
   eurConversion?: EurConversion | null;
+  /**
+   * Nur Vergleichsobjekte (ohne Modellnummer): wie ähnlich der Treffer ist. Nie "exakt dasselbe".
+   * strong_comparable = Marke + mindestens 3 Merkmale; similar_only = Marke + 1–2 Merkmale.
+   */
+  matchQuality?: ComparableQuality;
+};
+
+export type ComparableQuality = 'strong_comparable' | 'similar_only';
+
+/** Strukturierte Merkmale eines Markttreffers, vom Extractor nur aus dem Treffertext gelesen. */
+export type MarketIdentityFields = {
+  brand?: string;
+  manufacturer?: string;
+  model?: string;
+  modelNumber?: string;
+  material?: string;
+  shape?: string;
+  color?: string;
+  size?: string;
+  marking?: string;
+  year?: string;
+  edition?: string;
 };
 
 type ConditionMarketPrice = {
@@ -177,7 +200,8 @@ export type MarketSearchStatus =
 
 /** Was die Oberfläche als Hauptwert anzeigen soll – statt pauschal "Preisreferenzen fehlen". */
 export type MarketHeadline = {
-  kind: 'condition' | 'exact_grading' | 'reference' | 'none';
+  /** 'comparable' = Spanne aus Vergleichsobjekten (Marke + Merkmale), kein exakter Modell-Marktwert. */
+  kind: 'condition' | 'exact_grading' | 'comparable' | 'reference' | 'none';
   price: number | null;
   from: number | null;
   to: number | null;
@@ -194,6 +218,8 @@ export type MarketHeadline = {
   fxNote: string;
   /** true = nicht alle Verkäufe beim Anbieter geladen → eingeschränkte Datenbasis. */
   limitedData: boolean;
+  /** Nur bei kind 'comparable': Ähnlichkeit der verwendeten Belege. */
+  comparableQuality?: ComparableQuality;
 };
 
 type QueryRole = 'base' | 'grading' | 'product';
@@ -364,6 +390,22 @@ const marketRowSchema = {
     grading: { type: 'string' },
     date: { type: 'string' },
     relevance: { type: 'number', minimum: 0, maximum: 1 },
+    // Optional: strukturierte Merkmale, nur wenn sie im Treffertext stehen (siehe EXTRACT_SYSTEM).
+    identity: {
+      type: 'object',
+      properties: {
+        brand: { type: 'string' },
+        manufacturer: { type: 'string' },
+        model: { type: 'string' },
+        modelNumber: { type: 'string' },
+        material: { type: 'string' },
+        shape: { type: 'string' },
+        color: { type: 'string' },
+        size: { type: 'string' },
+        marking: { type: 'string' },
+        year: { type: 'string' },
+      },
+    },
   },
   required: [
     'sectionId',
@@ -398,6 +440,7 @@ type ExtractedMarketRow = {
   grading: string;
   date: string;
   relevance: number;
+  identity?: MarketIdentityFields;
 };
 
 // ---------------------------------------------------------------------------
@@ -777,6 +820,12 @@ type IdentityProfile = {
   cardNumberConcat: string;
   cardNumberLead: string;
   cardNameTokens: string[];
+  /** Erkannter Kartenname plus kontrollierte Aliase (Glurak, リザードン, Freezer …). */
+  cardNameForms: string[];
+  /** true = Nummer mit Nenner/Buchstaben (223/197, 143/S-P): allein eindeutig genug. */
+  cardNumberIsStrong: boolean;
+  /** Nicht-TCG-Produktlinie der gescannten Karte (Zukan, Carddass …) oder null. */
+  cardProductLine: string | null;
   setTokens: string[];
   primaryHardTokens: string[];
   boostTokens: string[];
@@ -791,6 +840,21 @@ type IdentityProfile = {
   cardCondition: CardCondition | null;
   /** Zustandsgruppe, in der gültige Kartenbelege landen. */
   targetKey: ConditionKey;
+  /**
+   * Vergleichsobjekt (Flohmarktware ohne Modell/Modellnummer, Marke bekannt): Marke ist Anker,
+   * Merkmale erhöhen die Ähnlichkeit, fehlende Beschreibung im Titel vernichtet den Treffer nicht.
+   */
+  comparable: ComparableProfile | null;
+};
+
+type ComparableProfile = {
+  /** Marken-/Hersteller-Tokens – mindestens einer muss im Treffer stehen. */
+  anchorTokens: string[];
+  /** Objekttyp: akzeptierte Wörter (inkl. kontrollierter Synonyme) und ausgeschlossene Typen. */
+  typeWords: string[];
+  typeConflicts: string[];
+  /** Beschreibende Merkmale je Feld (Material, Form, Punze, Farbe …) als Tokens. */
+  features: { field: string; tokens: string[] }[];
 };
 
 function generationOf(text: string): string | null {
@@ -827,6 +891,9 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     cardNumberConcat: normalizeIdChunk(numberTokens.join('')),
     cardNumberLead: numberTokens.find(token => /^\d+$/.test(token)) || '',
     cardNameTokens: looseTokens(known(c?.cardName)),
+    cardNameForms: isCard && known(c?.cardName) ? pokemonNameForms(known(c?.cardName)) : [],
+    cardNumberIsStrong: numberTokens.length >= 2 || (numberTokens.length === 1 && hasLettersAndDigits(numberTokens[0])),
+    cardProductLine: isCard ? productLineOf([known(c?.setName), known(c?.rarity), known(c?.cardName), analysis.title].join(' ')) : null,
     setTokens: looseTokens(known(c?.setName)).filter(token => token.length >= 3 && !GENERIC_SET_WORDS.has(token)),
     primaryHardTokens: modelTokens.filter(token => token.length >= 3 && hasLettersAndDigits(token)),
     boostTokens: [known(d?.modelNumber), known(d?.skuOrPartNumber)].map(compactId).filter(token => token.length >= 4),
@@ -838,7 +905,125 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     cardVariant: isCard ? variantKey(cardDetailText(analysis, 'variant')) : null,
     cardCondition: isCard ? normalizeCardCondition(analysis.condition) : null,
     targetKey: targetConditionKey(analysis),
+    comparable: isCard ? null : buildComparableProfile(analysis, brand, model),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Vergleichsobjekte (Flohmarktware ohne Modellnummer)
+// FIX: Ohne Modell prüfte die Pipeline Treffer nur über die Wortabdeckung der Suchanfrage
+//      (≥ 60 %). "Aristo Vintage Damenuhr Art Deco vergoldet" deckt "Aristo Armbanduhr
+//      Walzgolddouble rechteckig" nie ab → jeder brauchbare Vergleich wurde verworfen
+//      ("Angebote gefunden, aber keines hat die Prüfung bestanden"). Jetzt: Marke ist Pflicht-
+//      anker, mindestens ein Merkmal (Objekttyp, Material, Form, Punze …) muss passen, harte
+//      Widersprüche (anderer Objekttyp, Zubehör, Konvolut, andere Generation) lehnen ab.
+//      Ergebnis ist ausdrücklich eine Vergleichsspanne, kein exakter Modell-Marktwert.
+// ---------------------------------------------------------------------------
+
+/** Kontrollierte Objekttyp-Gruppen: Wörter derselben Gruppe gelten als gleicher Typ. */
+const OBJECT_TYPE_GROUPS: { words: string[]; conflicts: string[] }[] = [
+  {
+    words: ['armbanduhr', 'armbanduhren', 'damenuhr', 'herrenuhr', 'damenarmbanduhr', 'herrenarmbanduhr', 'uhr', 'watch', 'wristwatch'],
+    conflicts: ['wanduhr', 'standuhr', 'tischuhr', 'kuckucksuhr', 'pendeluhr', 'taschenuhr', 'wecker', 'kaminuhr', 'uhrenbeweger', 'armband', 'uhrenarmband', 'lederband', 'ersatzband', 'metallband', 'uhrenbox'],
+  },
+  { words: ['taschenuhr', 'pocketwatch'], conflicts: ['armbanduhr', 'damenuhr', 'herrenuhr', 'wanduhr', 'wecker'] },
+  { words: ['vase', 'bodenvase', 'tischvase', 'blumenvase'], conflicts: [] },
+  { words: ['lampe', 'tischlampe', 'stehlampe', 'leuchte', 'tischleuchte', 'stehleuchte'], conflicts: [] },
+  { words: ['teppich', 'orientteppich', 'perserteppich', 'bruecke', 'brucke', 'rug'], conflicts: [] },
+];
+
+/** Beschreibende Felder, die ein Vergleichsobjekt ähnlicher machen (nie Pflicht). */
+const DESCRIPTIVE_FIELDS = ['material', 'shape', 'marking', 'movement', 'year', 'color', 'size', 'pattern', 'style', 'productFamily', 'editionOrVariant'];
+
+/** Allerweltswörter, die keine Ähnlichkeit belegen. */
+const GENERIC_FEATURE_WORDS = new Set(['vintage', 'antik', 'retro', 'original', 'selten', 'schone', 'schoen', 'alt', 'alte', 'alter', 'altes', 'gehause', 'gehaeuse', 'boden', 'damen', 'herren', 'unisex', 'marke']);
+
+/** Optionales Textfeld aus analysis bzw. analysis.universalDetails lesen (ohne den Typ zu ändern). */
+function analysisText(analysis: Analysis, key: string): string {
+  const top = (analysis as unknown as Record<string, unknown>)[key];
+  const details = ((analysis.universalDetails || {}) as unknown as Record<string, unknown>)[key];
+  const value = typeof details === 'string' && known(details) ? details : typeof top === 'string' ? top : '';
+  return known(value);
+}
+
+function buildComparableProfile(analysis: Analysis, brand: string, model: string): ComparableProfile | null {
+  const d = analysis.universalDetails;
+  const hasHardModel = Boolean(model || known(d?.modelNumber) || known(d?.skuOrPartNumber) || known(d?.barcodeOrEan));
+  const anchorTokens = looseTokens(brand).filter(token => token.length >= 3);
+  if (hasHardModel || !anchorTokens.length) return null;
+
+  const typeTokens = looseTokens(known(analysis.objectType));
+  const group = OBJECT_TYPE_GROUPS.find(entry => typeTokens.some(token => entry.words.includes(token)));
+  const typeWords = Array.from(new Set([...typeTokens.filter(token => token.length >= 3), ...(group ? group.words : [])]));
+  const excluded = new Set([...anchorTokens, ...typeWords]);
+  const features = DESCRIPTIVE_FIELDS.map(field => ({
+    field,
+    tokens: Array.from(
+      new Set(
+        looseTokens(analysisText(analysis, field)).filter(
+          token => (token.length >= 4 || /^\d{4}$/.test(token)) && !excluded.has(token) && !GENERIC_FEATURE_WORDS.has(token) && !COVERAGE_STOPWORDS.has(token)
+        )
+      )
+    ),
+  })).filter(entry => entry.tokens.length);
+  return { anchorTokens, typeWords, typeConflicts: group ? group.conflicts : [], features };
+}
+
+/** Gleiches Wort oder gemeinsamer Wortstamm ab 5 Zeichen ("rechteck" ~ "rechteckiges"). */
+function featureTokenMatches(wanted: string, candidates: Set<string>) {
+  if (candidates.has(wanted)) return true;
+  if (/^\d+$/.test(wanted) || wanted.length < 5) return false;
+  for (const token of candidates) {
+    if (token.length >= 5 && (token.startsWith(wanted) || wanted.startsWith(token))) return true;
+  }
+  return false;
+}
+
+/**
+ * Merkmalswerte des Treffers nur verwenden, wenn sie im Quelltext direkt beim Treffer stehen
+ * (Titel + folgende ~200 Zeichen), nicht irgendwo auf der Seite.
+ */
+function groundedIdentityTokens(title: string, identity: MarketIdentityFields | undefined, section: ReadableSection | null): string[] {
+  if (!identity) return [];
+  let nearby: Set<string> | null = null;
+  if (section) {
+    const text = foldText(section.text);
+    const at = text.indexOf(foldText(title));
+    if (at < 0) return [];
+    nearby = new Set(looseTokens(text.slice(at, at + title.length + 200)));
+  }
+  const tokens: string[] = [];
+  Object.values(identity).forEach(value => {
+    if (typeof value !== 'string' || !known(value)) return;
+    const valueTokens = looseTokens(value);
+    if (!valueTokens.length) return;
+    if (nearby && !valueTokens.every(token => (nearby as Set<string>).has(token))) return;
+    tokens.push(...valueTokens);
+  });
+  return tokens;
+}
+
+/**
+ * Prüft einen Treffer gegen ein Vergleichsobjekt.
+ * Pflicht: kein harter Widerspruch, Marke als Anker und passender Objekttyp oder – wenn der
+ * Titel keinen Typ nennt – mindestens zwei passende Merkmale (eine Farbe allein reicht nie).
+ * Qualität: ab 3 passenden Merkmalen (Objekttyp zählt mit) strong_comparable.
+ */
+function comparableMatch(
+  title: string,
+  identity: MarketIdentityFields | undefined,
+  section: ReadableSection | null,
+  comparable: ComparableProfile
+): { quality: ComparableQuality; matchedFields: string[] } | { reason: string } {
+  const titleTokens = looseTokens(title);
+  const tokens = new Set([...titleTokens, ...groundedIdentityTokens(title, identity, section)]);
+  const typeMatched = comparable.typeWords.some(word => tokens.has(word));
+  if (!typeMatched && comparable.typeConflicts.some(word => tokens.has(word))) return { reason: 'object_type_mismatch' };
+  if (!comparable.anchorTokens.some(token => tokens.has(token))) return { reason: 'comparable_brand_missing' };
+  const matchedFields = comparable.features.filter(feature => feature.tokens.some(token => featureTokenMatches(token, tokens))).map(feature => feature.field);
+  if (!typeMatched && matchedFields.length < (comparable.typeWords.length ? 2 : 1)) return { reason: 'comparable_no_feature' };
+  if (typeMatched) matchedFields.unshift('objectType');
+  return { quality: matchedFields.length >= 3 ? 'strong_comparable' : 'similar_only', matchedFields };
 }
 
 /**
@@ -862,24 +1047,47 @@ function hasExactCardNumber(tokens: string[], profile: IdentityProfile) {
   return false;
 }
 
+/** Nicht-TCG-Produktlinien, die eigene Nummernkreise haben (Nummer allein beweist nichts). */
+const NON_TCG_CARD_LINES = ['zukan', 'carddass', 'topsun'];
+
+function productLineOf(text: string): string | null {
+  const tokens = new Set(looseTokens(text));
+  return NON_TCG_CARD_LINES.find(line => tokens.has(line)) || null;
+}
+
+/** Name bestätigt: alle Namens-Tokens im Titel oder ein kontrollierter Alias (auch japanisch). */
+function cardNameConfirmed(title: string, tokenSet: Set<string>, profile: IdentityProfile) {
+  if (profile.cardNameTokens.length && profile.cardNameTokens.every(token => tokenSet.has(token))) return true;
+  return profile.cardNameForms.length > 0 && titleMentionsName(title, profile.cardNameForms);
+}
+
 /**
  * 'exact' = Kartennummer exakt; 'lead' = nur Hauptnummer + Name/Set; 'name' = keine Nummer bekannt.
  * FIX: "Charizard Promo 143/SV-P" (andere Karte!) wurde über "143" + "promo" akzeptiert.
  *      Steht im Titel eine andere vollständige Nummer mit derselben Hauptnummer, wird abgelehnt.
+ * FIX: Der Kartenname ist bei exakter Nummer eine zusätzliche Bestätigung, kein Blocker:
+ *  - Nummer mit Nenner/Buchstaben (223/197, 143/S-P) → exakt, auch bei anderssprachigem Namen.
+ *  - Reine Zahl (z. B. 379) → zusätzlich Set oder Name/kontrollierter Alias nötig.
+ *  - Nicht-TCG-Linien (Zukan, Carddass): Nummer + Name/Alias + Produktlinie im Titel.
  */
 function cardIdentityMatch(title: string, profile: IdentityProfile): 'exact' | 'lead' | 'name' | null {
   const tokens = looseTokens(title);
   const tokenSet = new Set(tokens.map(token => (/^\d+$/.test(token) ? String(Number(token)) : token)));
+  const nameOk = cardNameConfirmed(title, tokenSet, profile);
+  const setOk = profile.setTokens.some(token => tokenSet.has(token));
   if (profile.cardNumberConcat) {
-    if (hasExactCardNumber(tokens, profile)) return 'exact';
+    if (hasExactCardNumber(tokens, profile)) {
+      if (profile.cardProductLine) return tokenSet.has(profile.cardProductLine) && nameOk ? 'exact' : null;
+      if (profile.cardNumberIsStrong) return 'exact';
+      return nameOk || setOk ? 'exact' : null;
+    }
+    if (profile.cardProductLine) return null;
     if (!profile.cardNumberLead || !tokenSet.has(profile.cardNumberLead)) return null;
     const otherFullNumber = new RegExp('(^|[^\\d])0*' + profile.cardNumberLead + '\\s*/\\s*[a-z0-9]', 'i').test(foldText(title));
     if (otherFullNumber) return null;
-    const nameMatches = profile.cardNameTokens.length > 0 && profile.cardNameTokens.every(token => tokenSet.has(token));
-    const setMatches = profile.setTokens.some(token => tokenSet.has(token));
-    return nameMatches || setMatches ? 'lead' : null;
+    return nameOk || setOk ? 'lead' : null;
   }
-  return profile.cardNameTokens.length && profile.cardNameTokens.every(token => tokenSet.has(token)) ? 'name' : null;
+  return nameOk ? 'name' : null;
 }
 
 function queryCoverage(query: string, titleTokens: Set<string>) {
@@ -904,6 +1112,9 @@ function identityRejection(title: string, profile: IdentityProfile): string | nu
 
   if (profile.isCard) {
     if (foreign(FAKE_CARD_WORDS)) return 'fake_or_proxy';
+    // Zukan/Carddass & Co. haben eigene Nummernkreise: nie mit TCG-Karten vermischen.
+    const titleLine = NON_TCG_CARD_LINES.find(line => tokenSet.has(line)) || null;
+    if (titleLine !== profile.cardProductLine) return 'product_line_mismatch';
     const languageOrVariant = cardLanguageVariantRejection(tokens, profile);
     if (languageOrVariant) return languageOrVariant;
     if (cardIdentityMatch(title, profile)) return null;
@@ -913,6 +1124,8 @@ function identityRejection(title: string, profile: IdentityProfile): string | nu
   if (VARIANT_WORDS.some(word => tokenSet.has(word) && !profile.identityTokens.has(word))) return 'variant_mismatch';
   const titleGeneration = generationOf(title);
   if (profile.generation && titleGeneration && titleGeneration !== profile.generation) return 'generation_mismatch';
+  // Vergleichsobjekte: keine Wortabdeckung der Suchanfrage verlangen – comparableMatch entscheidet.
+  if (profile.comparable) return null;
   if (profile.boostTokens.some(token => compact.includes(token))) return null;
   if (profile.primaryHardTokens.length && !profile.primaryHardTokens.some(token => compact.includes(token))) {
     return 'model_mismatch';
@@ -1355,6 +1568,7 @@ const EXTRACT_SYSTEM = [
   'grading: nur was im Treffertext steht (z. B. "PSA 10", "PCA 9.5"); steht dort kein Grading, "raw". Nie aus der Suchanfrage übernehmen.',
   'relevance: nur ob es DASSELBE Produkt bzw. dieselbe Karte ist (1 = sicher, 0.7 = wahrscheinlich, < 0.5 = zweifelhaft) – unabhängig von Zustand, Grading und Preis.',
   'currency: Währung des Preises (EUR, USD, GBP, CHF oder OTHER). date: Datum, falls sichtbar, sonst leer.',
+  'identity: nur Merkmale, die wörtlich im Text dieses Treffers stehen (brand, manufacturer, model, modelNumber, material, shape, color, size, marking, year). Nichts ergänzen, nichts übersetzen, fehlende Felder weglassen.',
 ].join(' ');
 
 function readExtractItems(extracted: unknown): { items: ExtractedMarketRow[] | null; shape: string } {
@@ -1461,6 +1675,7 @@ type CandidateRow = {
   relevance: number;
   section: ReadableSection | null;
   fetchedAt: string;
+  identity?: MarketIdentityFields;
 };
 
 type ValidatedRow = MarketListing & { conditionGroup: ConditionKey };
@@ -1500,6 +1715,12 @@ function validateRow(
 
   const identityReason = identityRejection(title, profile);
   if (identityReason) return { reason: identityReason };
+  let matchQuality: ComparableQuality | undefined;
+  if (profile.comparable) {
+    const comparable = comparableMatch(title, row.identity, row.section, profile.comparable);
+    if ('reason' in comparable) return { reason: comparable.reason };
+    matchQuality = comparable.quality;
+  }
 
   const relevance = clamp01(row.relevance, 0);
   const meta = SOURCE_META[row.sourceKey];
@@ -1535,7 +1756,9 @@ function validateRow(
     } else {
       grading = 'raw';
     }
-  } else if (relevance < 0.5) {
+  } else if (relevance < (profile.comparable ? 0.3 : 0.5)) {
+    // Vergleichsobjekte: Das Modell bewertet Ähnlichkeit; die Marken-/Merkmalsprüfung oben ist
+    // deterministisch. Nur klar unpassende Treffer (< 0.3) werden hier noch verworfen.
     return { reason: 'low_relevance' };
   }
 
@@ -1582,6 +1805,7 @@ function validateRow(
       fetchedAt: row.fetchedAt,
       expiresAt: new Date(new Date(row.fetchedAt).getTime() + ttlMs).toISOString(),
       eurConversion: null,
+      ...(matchQuality ? { matchQuality } : {}),
     },
   };
 }
@@ -2196,7 +2420,13 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
           'Extrahiere ALLE sichtbaren Treffer dieser Karte – ungegradet (raw) UND gegradet mit beliebiger Firma und Note. Filtere NICHT nach Grading oder Zustand.',
           'Treffer mit anderer Kartennummer nicht aufnehmen.',
         ]
-      : ['Gesuchtes Produkt: ' + baseQueries.join(' | ') + '.', 'Ähnliche, aber andere Produkte (andere Generation, Variante, Modellnummer) erhalten relevance unter 0.4.'];
+      : profile.comparable
+        ? [
+            'Gesuchtes Vergleichsobjekt (ohne Modellnummer): ' + baseQueries.join(' | ') + '.',
+            'Extrahiere ALLE Treffer dieser Marke und dieses Objekttyps, auch wenn Material, Form oder andere Merkmale im Titel fehlen.',
+            'relevance: Ähnlichkeit zum beschriebenen Objekt (1 = sehr ähnlich, 0.5 = gleiche Marke und gleicher Objekttyp, < 0.3 = anderer Objekttyp).',
+          ]
+        : ['Gesuchtes Produkt: ' + baseQueries.join(' | ') + '.', 'Ähnliche, aber andere Produkte (andere Generation, Variante, Modellnummer) erhalten relevance unter 0.4.'];
 
   const candidates: CandidateRow[] = [];
   const groups = new Map<SourceKey, ReadableSection[]>();
@@ -2351,7 +2581,21 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   debug.cardBaseValue = cardBaseValue;
   debug.exactGradingValue = exactGradingValue;
 
-  const headline = buildHeadline(targetKey, grading, isCard, conditionPrices);
+  let headline = buildHeadline(targetKey, grading, isCard, conditionPrices);
+  // Vergleichsobjekte: Spanne aus ähnlichen Objekten – ausdrücklich kein exakter Modell-Marktwert.
+  if (profile.comparable && headline.kind === 'condition') {
+    const valueRows = bucketRows[targetKey].filter(row => (headline.soldCount >= 2 ? row.type === 'sold' : row.type === 'offer'));
+    const strong = valueRows.filter(row => row.matchQuality === 'strong_comparable').length;
+    const comparableQuality: ComparableQuality = strong * 2 >= valueRows.length && strong > 0 ? 'strong_comparable' : 'similar_only';
+    headline = {
+      ...headline,
+      kind: 'comparable',
+      comparableQuality,
+      note:
+        (comparableQuality === 'strong_comparable' ? 'Sehr gut vergleichbar' : 'Nur ähnliche Objekte') +
+        ': Spanne aus vergleichbaren Objekten derselben Marke – kein exakter Modell-Marktwert.',
+    };
+  }
   debug.headline = headline;
 
   // 5) Status ----------------------------------------------------------------------------------
@@ -2366,7 +2610,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       .filter(([reason]) => IDENTITY_REASONS.has(reason))
       .reduce((sum, [, count]) => sum + count, 0);
     status = identityRejects >= debug.rejectedListings / 2 ? 'no_exact_matches' : 'filtered_all';
-  } else if (headline.kind === 'condition' || headline.kind === 'exact_grading') {
+  } else if (headline.kind === 'condition' || headline.kind === 'exact_grading' || headline.kind === 'comparable') {
     status = 'found';
   } else {
     status = 'low_sample';
@@ -2425,8 +2669,15 @@ function marketValuation(analysis: Analysis, market: MarketData): Valuation | nu
         : allRows.filter(row => row.conditionGroup === key && !row.rawCardBase);
 
   const relevance = rows.length ? rows.reduce((sum, row) => sum + row.relevance, 0) / rows.length : 0;
-  const quality: 'niedrig' | 'mittel' | 'hoch' =
+  const measured: 'niedrig' | 'mittel' | 'hoch' =
     headline.soldCount >= 4 && headline.sampleCount >= 5 && relevance >= 0.75 ? 'hoch' : headline.sampleCount >= 3 ? 'mittel' : 'niedrig';
+  // Vergleichsobjekte sind nie "hoch": es ist eine Vergleichsspanne, kein exakter Modellwert.
+  const quality: 'niedrig' | 'mittel' | 'hoch' =
+    headline.kind !== 'comparable'
+      ? measured
+      : headline.comparableQuality === 'strong_comparable' && measured !== 'niedrig'
+        ? 'mittel'
+        : 'niedrig';
 
   const sensitive = ['uhren', 'schmuck', 'gemalde', 'drucke', 'munzen', 'antiquitaten', 'teppiche'].includes(normalize(analysis.category));
 

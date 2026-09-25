@@ -10,6 +10,7 @@
 | `cardData/types.ts` | Schnittstelle `CardDataProvider`, `PriceEvidence` (`sold` / `listing` / `guide`), `FxRateProvider`. |
 | `cardData/conditions.ts` | **Zentrale Zustands-Taxonomie** (Mint, NM, EX, LP, MP, HP, DM). Keine Umwandlung zwischen Begriffen. |
 | `cardData/expansionAliases.ts` | Kontrolliert gepflegte Set-Zuordnungen (z. B. deutsche Setnamen). |
+| `cardData/pokemonNameAliases.ts` | Kontrolliert gepflegte Pokémon-Namen anderer Sprachen (Glurak, リザードン, Freezer …). |
 | `cardData/cardIdentity.ts` | Exakte Zuordnung: Kartennummer, Set, Sprache, Variante. |
 | `cardData/cardValuation.ts` | Bewertung aus Belegen. |
 | `cardData/cardMarketLookup.ts` | Ablauf Provider → Zuordnung → Belege → Bewertung; entscheidet, ob ein Fallback erlaubt ist. |
@@ -69,6 +70,34 @@
 | `insufficient_identity` | not_identified | Gegenstand zu unsicher identifiziert (z. B. Kartennummer fehlt) | nein |
 
 Details zum Kartenanbieter stehen in `market.cardMarket` (`status`, `fallbackAllowed`, `fallbackReason`, `debug`).
+
+## Vergleichsobjekte (Flohmarktware ohne Modellnummer)
+
+Gilt nur für Nicht-Karten **ohne** Modell, Modellnummer, SKU oder EAN, aber mit bekannter Marke
+(z. B. eine Aristo-Armbanduhr). Exakte Produkte bleiben unverändert streng.
+
+- Marke/Hersteller ist Pflichtanker.
+- Objekttyp passt (kontrollierte Gruppen, z. B. Armbanduhr = Damenuhr = Herrenuhr) **oder**, wenn der
+  Titel keinen Typ nennt, mindestens zwei Merkmale (Material, Form, Punze, Werk, Jahr, Farbe …).
+  Eine Farbe allein reicht nie.
+- Harte Widersprüche lehnen ab: anderer Objekttyp (Wanduhr, Wecker, Uhrenarmband …), Zubehör,
+  Konvolut, Suchgesuch, andere Generation.
+- Fehlende Merkmale im Titel vernichten den Treffer nicht; passende Merkmale erhöhen die Ähnlichkeit:
+  ab 3 passenden Merkmalen `strong_comparable`, sonst `similar_only` (`MarketListing.matchQuality`).
+- Strukturierte Merkmale des Extractors (`identity`) zählen nur, wenn sie im Quelltext direkt beim
+  Treffer stehen.
+- Ergebnis: `headline.kind = 'comparable'`, Anzeige `marketValue.state = 'comparable_range'` –
+  nur Spanne plus `comparableLabel` („Sehr gut vergleichbar“ / „Nur ähnliche Objekte“), **kein**
+  Einzelwert und ausdrücklich kein exakter Modell-Marktwert. `dataQuality` ist nie „hoch“.
+
+## Kartennummer und Name bei Marktplatztiteln
+
+- Nummer mit Nenner oder Buchstaben (223/197, 143/S-P): exakte Nummer genügt; der Name ist nur
+  zusätzliche Bestätigung (japanische/deutsche Namen blockieren nicht).
+- Reine Zahl (z. B. 379): zusätzlich Set oder Name bzw. kontrollierter Alias nötig.
+- Nicht-TCG-Linien (Zukan, Carddass, Topsun): Nummer + Name/Alias + Produktlinie im Titel; nie mit
+  TCG-Karten gemischt (`product_line_mismatch`).
+- Grading unverändert exakt: PSA 10 ≠ PSA 9 ≠ CGC 10 ≠ Raw.
 
 ## Scrydex-Suche
 
