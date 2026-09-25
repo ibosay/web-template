@@ -60,6 +60,47 @@ const airpods = {
   universalDetails: { manufacturer: '', modelName: '', modelNumber: '', skuOrPartNumber: '', barcodeOrEan: '', productFamily: '', generation: '2. Generation', editionOrVariant: '', capacityOrStorage: '' },
 } as unknown as Analysis;
 
+test('Zu wenig Fotoidentität startet keine breite Marktsuche', async () => {
+  const weak = {
+    category: 'Sonstiges',
+    objectType: 'Unbekannter Gegenstand',
+    brand: '',
+    model: '',
+    title: 'Roter Gegenstand',
+    condition: 'gebraucht',
+    confidence: 0.9,
+    categoryConfidence: 0.6,
+    visualText: ['rot'],
+    identifiers: [],
+    universalDetails: {
+      manufacturer: '',
+      modelName: '',
+      modelNumber: '',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: '',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      material: '',
+      visibleMarks: '',
+      primaryColor: 'rot',
+      detailConfidence: 0.7,
+    },
+  } as unknown as Analysis;
+
+  setAi(
+    async () => ({ status: 200, text: page([{ title: 'Irgendein roter Gegenstand', condition: 'Gebraucht', price: '999,00 EUR' }]) }),
+    async ({ content }) => extractAll(content)
+  );
+
+  const market = await liveMarketLookup(weak, silent);
+  assert.equal(market.status, 'insufficient_identity');
+  assert.equal(market.scanGuidance?.canSearchNow, false);
+  assert.equal(aiCalls.scrape.length, 0, 'bei zu schwacher Fotoidentität darf keine Marktsuche gestartet werden');
+  assert.equal(marketValuation(weak, market), null);
+});
+
 test('Nicht-Karten-Produkt: unverändert über Scraping, nur Verkäufe im Wert, Zeitstempel je Beleg', async () => {
   setAi(
     async url =>
