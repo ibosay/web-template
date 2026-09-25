@@ -222,11 +222,11 @@ test('TCGdex identifiziert Karten kostenlos, fehlende echte Verkäufe erlauben d
 // Die exakte Nummernprüfung macht ausschließlich WertScan (matchCardNumber).
 // ---------------------------------------------------------------------------
 
-const card = (id: string, localId: string, name: string, setId: string, setName: string) => ({
+const card = (id: string, localId: string, name: string, setId: string, setName: string, official = 200) => ({
   id,
   localId,
   name,
-  set: { id: setId, name: setName, cardCount: { official: 200, total: 200 } },
+  set: { id: setId, name: setName, cardCount: { official, total: official } },
   variants: { normal: false, holo: true, reverse: false, firstEdition: false, wPromo: false },
 });
 
@@ -283,33 +283,70 @@ test('TCGdex localId=136 (ohne eq:) liefert auch ähnliche Nummern – akzeptier
   assert.equal(result.valuation?.headline.value ?? null, null, 'TCGdex liefert keinen Marktwert');
 });
 
-test('TCGdex 223/197 sucht localId=223; Nenner bzw. Set muss danach durch die WertScan-Prüfung bestätigt werden', async () => {
+test('TCGdex 223/197 sucht localId=223; der Nenner wird über set.cardCount.official bestätigt', async () => {
   const cards = [
-    card('sv03-223', '223', 'Charizard ex', 'sv03', 'Obsidian Flames'),
-    card('sv04-223', '223', 'Gouging Fire ex', 'sv04', 'Paradox Rift'),
+    card('sv03-223', '223', 'Charizard ex', 'sv03', 'Obsidian Flames', 197),
+    card('sv04-223', '223', 'Gouging Fire ex', 'sv04', 'Paradox Rift', 182),
   ];
   const calls: string[] = [];
   const provider = new TcgDexProvider({ now: () => NOW, fetchFn: mockFetch(routesFor('en', '223', cards), calls) });
 
-  // Ohne Set: TCGdex-localId trägt keinen Nenner → nur Hauptnummer passt → keine Zuordnung.
-  const withoutSet = en({ name: 'Charizard ex', number: '223/197' });
-  const candidates = await provider.findCards(withoutSet);
+  const query = en({ name: 'Charizard ex', number: '223/197' });
+  const candidates = await provider.findCards(query);
   assert.ok(calls[0].endsWith('/v2/en/cards?localId=223'), '223/197 → localId=223');
   assert.equal(candidates.length, 2);
-  const unconfirmed = matchCandidates(withoutSet, candidates);
-  assert.notEqual(unconfirmed.status, 'unique', 'ohne bestätigtes Set keine Zuordnung');
-  assert.ok(unconfirmed.rejected.every(entry => entry.reason === 'number_not_exact_without_set'));
-  const noSetResult = await lookupCardMarket(withoutSet, { type: 'raw', condition: 'NM' }, { provider, now: () => NOW });
-  assert.equal(noSetResult.card, null);
-  assert.equal(noSetResult.fallbackAllowed, false);
+  assert.deepEqual(candidates.map(c => [c.cardId, c.printedNumber, c.setOfficialCount]), [
+    ['sv03-223', null, 197],
+    ['sv04-223', null, 182],
+  ], 'official nur als Beleg gespeichert, keine erfundene gedruckte Nummer');
 
-  // Mit exakt passendem Setnamen: genau diese Karte.
+  const match = matchCandidates(query, candidates);
+  assert.equal(match.status, 'unique', 'localId 223 + official 197 belegen die vollständige Nummer');
+  if (match.status === 'unique') assert.equal(match.candidate.cardId, 'sv03-223');
+  assert.ok(match.rejected.some(entry => entry.cardId === 'sv04-223' && entry.reason === 'number_mismatch'), 'official 182 ≠ 197 → abgelehnt');
+
+  // Zusätzlich mit exakt passendem Setnamen: gleiches Ergebnis.
   const withSet = en({ name: 'Charizard ex', number: '223/197', setName: 'Obsidian Flames' });
   const confirmed = matchCandidates(withSet, await provider.findCards(withSet));
   assert.equal(confirmed.status, 'unique');
   if (confirmed.status === 'unique') assert.equal(confirmed.candidate.cardId, 'sv03-223');
-  // Anderes Set wird von der bestehenden Set-Prüfung abgelehnt (ohne Alias: set_unverifiable_no_alias).
-  assert.ok(confirmed.rejected.some(entry => entry.cardId === 'sv04-223' && entry.reason.startsWith('set_')));
+});
+
+test('Nennerprüfung: 223/197 mit official 197 akzeptabel, mit official 182 abgelehnt', async () => {
+  const provider = (official: number) =>
+    new TcgDexProvider({ now: () => NOW, fetchFn: mockFetch(routesFor('en', '223', [card('sv03-223', '223', 'Charizard ex', 'sv03', 'Obsidian Flames', official)]), []) });
+  const query = en({ name: 'Charizard ex', number: '223/197' });
+
+  const ok = matchCandidates(query, await provider(197).findCards(query));
+  assert.equal(ok.status, 'unique');
+
+  // Auch mit bestätigtem Setnamen: falscher Nenner bleibt abgelehnt.
+  const wrongQuery = en({ name: 'Charizard ex', number: '223/197', setName: 'Obsidian Flames' });
+  const wrong = matchCandidates(wrongQuery, await provider(182).findCards(wrongQuery));
+  assert.equal(wrong.status, 'not_found');
+  assert.deepEqual(wrong.rejected, [{ cardId: 'sv03-223', reason: 'number_mismatch' }]);
+});
+
+test('Nennerprüfung: "223" ohne Nenner prüft nicht gegen official', async () => {
+  const provider = new TcgDexProvider({
+    now: () => NOW,
+    fetchFn: mockFetch(routesFor('en', '223', [card('sv03-223', '223', 'Charizard ex', 'sv03', 'Obsidian Flames', 182)]), []),
+  });
+  const query = en({ name: 'Charizard ex', number: '223' });
+  const match = matchCandidates(query, await provider.findCards(query));
+  assert.equal(match.status, 'unique', 'ohne erkannten Nenner kein Abgleich mit official');
+});
+
+test('Nennerprüfung gilt nicht für Sondernummern: 143/S-P bleibt bei der Promo-Normalisierung', async () => {
+  const provider = new TcgDexProvider({
+    now: () => NOW,
+    fetchFn: mockFetch(routesFor('ja', '143/S-P', [card('jp-promo-143', '143/S-P', 'リザードン', 'promo-ja', 'プロモ', 200)]), []),
+  });
+  const query: CardQuery = { game: 'pokemon', name: 'リザードン', number: '143/S P', setName: null, setId: null, language: 'ja', variant: null };
+  const candidates = await provider.findCards(query);
+  assert.equal(candidates[0].printedNumber, '143/S-P');
+  const match = matchCandidates({ ...query, number: '143/S-P' }, candidates);
+  assert.equal(match.status, 'unique', 'official 200 spielt bei 143/S-P keine Rolle');
 });
 
 test('TCGdex 143/S P wird zu localId=143/S-P (normaler Filter)', async () => {
@@ -329,7 +366,7 @@ test('TCGdex 143/S P wird zu localId=143/S-P (normaler Filter)', async () => {
 test('TCGdex localId=136 liefert viele Karten: nur passendes Set/Name/Sprache/Nummer wird akzeptiert, sonst card_not_unique', async () => {
   // Obermenge wie im echten Browser-Test: viele Karten mit localId 136 aus verschiedenen Sets.
   const many = [
-    card('swsh3-136', '136', 'Furret', 'swsh3', 'Darkness Ablaze'),
+    card('swsh3-136', '136', 'Furret', 'swsh3', 'Darkness Ablaze', 189),
     card('sm1-136', '136', 'Ultra Ball', 'sm1', 'Sun & Moon'),
     card('xy1-136', '136', 'Furret', 'xy1', 'XY'),
     card('sv01-136', '136', 'Lokix', 'sv01', 'Scarlet & Violet'),

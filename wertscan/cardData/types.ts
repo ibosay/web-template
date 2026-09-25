@@ -36,6 +36,12 @@ export type CardCandidate = {
   language: string | null;
   languageCode: string | null;
   variants: { name: string }[];
+  /**
+   * Offizielle Kartenzahl des Sets laut Anbieter (z. B. TCGdex set.cardCount.official).
+   * Nur zusätzlicher Verifikationsbeleg für einen erkannten numerischen Nenner ("223/197"),
+   * nie Grundlage für eine erfundene gedruckte Nummer. Fehlt der Wert: undefined/null.
+   */
+  setOfficialCount?: number | null;
 };
 
 /**

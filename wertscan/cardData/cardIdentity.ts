@@ -53,6 +53,15 @@ export function cardNumberKey(raw: string | null | undefined): CardNumberKey {
 
 export type NumberMatch = 'exact' | 'lead' | null;
 
+/** Numerischer Nenner einer erkannten Nummer ("223/197" → 197), sonst null ("143/S-P", "223"). */
+export function numericDenominator(raw: string | null | undefined): number | null {
+  const value = String(raw || '');
+  const slash = value.indexOf('/');
+  if (slash < 0) return null;
+  const right = value.slice(slash + 1).trim();
+  return /^\d+$/.test(right) ? Number(right) : null;
+}
+
 /**
  * 'exact': vollständige Nummer identisch (printed_number oder number).
  * 'lead' : nur die Kartennummer vor dem "/" passt, weil eine Seite keinen Nenner führt.
@@ -65,7 +74,17 @@ export function matchCardNumber(queryNumber: string | null, candidate: CardCandi
   const printed = candidate.printedNumber ? cardNumberKey(candidate.printedNumber) : null;
   const plain = candidate.number ? cardNumberKey(candidate.number) : null;
   if ((printed && printed.full === q.full) || (plain && plain.full === q.full)) return 'exact';
-  if (q.hasDenominator && !printed && plain && !plain.hasDenominator && plain.full === q.lead) return 'lead';
+  if (q.hasDenominator && !printed && plain && !plain.hasDenominator && plain.full === q.lead) {
+    // Erkannter numerischer Nenner (z. B. 223/197) und offizielle Set-Kartenzahl vom Anbieter:
+    // Beides muss passen. Passt es, ist die vollständige Nummer belegt; sonst Ablehnung.
+    // Ohne Kartenzahl oder bei Sondernummern (143/S-P) bleibt es bei 'lead' (Set muss bestätigen).
+    const denominator = numericDenominator(queryNumber);
+    const official = candidate.setOfficialCount;
+    if (denominator != null && typeof official === 'number' && Number.isFinite(official)) {
+      return official === denominator ? 'exact' : null;
+    }
+    return 'lead';
+  }
   if (!q.hasDenominator && printed && printed.lead === q.full) return 'lead';
   return null;
 }

@@ -185,6 +185,8 @@ function candidateFromCard(card: TcgDexCard, language: string): CardCandidate | 
     language,
     languageCode: language,
     variants: variantNames(card).map(name => ({ name })),
+    // Nur als Beleg für einen erkannten numerischen Nenner, keine erfundene gedruckte Nummer.
+    setOfficialCount: asPositiveNumber(card.set?.cardCount?.official),
   };
 }
 
