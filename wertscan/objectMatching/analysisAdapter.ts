@@ -261,13 +261,13 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     const gradingCompany = valueOf(c, 'gradingCompany');
     const grade = valueOf(c, 'grade');
 
-    if (name) pushFact(facts, 'name', name, 0.97, true, 'visible_text');
-    if (number) pushFact(facts, 'number', number, 0.99, true, 'visible_text');
-    if (set) pushFact(facts, 'set', set, 0.9, true, 'visible_text');
+    if (name) pushFact(facts, 'name', name, 0.97, supportedByVisible(name, pool), 'visible_text');
+    if (number) pushFact(facts, 'number', number, 0.99, supportedByVisible(number, pool), 'visible_text');
+    if (set) pushFact(facts, 'set', set, 0.9, supportedByVisible(set, pool), 'visible_text');
     if (language) pushFact(facts, 'language', language, 0.9, true, 'visible_feature');
     if (variant) pushFact(facts, 'variant', variant, 0.88, true, 'visible_feature');
-    if (gradingCompany) pushFact(facts, 'gradingCompany', gradingCompany, 0.99, true, 'visible_text');
-    if (grade) pushFact(facts, 'grade', grade, 0.99, true, 'visible_text');
+    if (gradingCompany) pushFact(facts, 'gradingCompany', gradingCompany, 0.99, supportedByVisible(gradingCompany, pool), 'visible_text');
+    if (grade) pushFact(facts, 'grade', grade, 0.99, supportedByVisible(grade, pool), 'visible_text');
   }
 
   if (category === 'toys') {
