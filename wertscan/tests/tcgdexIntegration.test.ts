@@ -271,6 +271,29 @@ test('Sammelkarte (Marktplatz): Verkäufe 19 € und 21 € plus Angebote um 70 
   assert.equal(display.soldComparables.offers.length, 5);
 });
 
+test('Sammelkarte (Marktplatz): Angebote 5/65/70/500 € bleiben alle sichtbar, Verkäufe 19/21 € → Marktwert 20 €', async () => {
+  marketplace(
+    [
+      { title: 'Charizard ex 223/197 Obsidian Flames', condition: 'Near Mint', price: '19,00 EUR' },
+      { title: 'Charizard ex 223/197 SIR', condition: 'Near Mint', price: '21,00 EUR' },
+    ],
+    [5, 65, 70, 500].map(price => ({ title: 'Charizard ex 223/197 Angebot ' + price, condition: 'Near Mint', price: price + ',00 EUR' }))
+  );
+  const analysis = pokemon({}, 'Near Mint');
+  const result = await withTcgdex(tcgdexRoutes, () => liveMarketLookup(analysis, silent));
+  assert.deepEqual(result.soldComparables.map(row => row.price).sort((a, b) => a - b), [19, 21]);
+  assert.deepEqual(result.currentOffers.map(row => row.price).sort((a, b) => a - b), [5, 65, 70, 500], 'kein Angebot per Preisfilter entfernt');
+  assert.equal(result.debug.rejectionReasons.price_outlier || 0, 0);
+  assert.equal(result.status, 'found');
+  assert.equal(result.headline.price, 20);
+  assert.equal(result.headline.soldCount, 2);
+  assert.equal(marketValuation(analysis, result)!.market, 20);
+  const display = buildMarketDisplay(result);
+  assert.equal(display.marketValue.value!.eur, '20,00 €');
+  assert.equal(display.soldComparables.sold.length, 2);
+  assert.equal(display.soldComparables.offers.length, 4);
+});
+
 test('Sammelkarte (Marktplatz): PCA 9,5 – PCA-9,5-Angebote, PSA, Raw und Preisführer ersetzen fehlende PCA-Verkäufe nicht', async () => {
   marketplace(
     [
