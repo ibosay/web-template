@@ -2471,13 +2471,15 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     debug.rejectedListings += outliers.length;
     return kept;
   };
-  // Sammelkarten: Verkäufe nur gegen Verkäufe desselben exakten Segments prüfen. Exakt passende
-  // Angebote bleiben vollständig sichtbar (kein Preisfilter) und fließen nie in einen Wert ein.
-  // Nicht-Karten: unverändert.
-  const dropSegmentOutliers = (rows: ValidatedRow[]) =>
-    isCard
-      ? [...dropOutliers(rows.filter(row => row.type === 'sold')), ...rows.filter(row => row.type !== 'sold')]
-      : dropOutliers(rows);
+  // Verkäufe und aktive Angebote werden grundsätzlich getrennt auf Preis Ausreißer geprüft.
+  // Ein Wunschpreis darf niemals einen echten Verkauf als Ausreißer entfernen.
+  // Sammelkarten behalten zusätzlich ihre strengere Regel: exakt passende Angebote bleiben
+  // vollständig sichtbar und werden gar nicht über den Preis gefiltert.
+  const dropSegmentOutliers = (rows: ValidatedRow[]) => {
+    const soldRows = dropOutliers(rows.filter(row => row.type === 'sold'));
+    const offerRows = rows.filter(row => row.type !== 'sold');
+    return isCard ? [...soldRows, ...offerRows] : [...soldRows, ...dropOutliers(offerRows)];
+  };
   (Object.keys(bucketRows) as ConditionKey[]).forEach(key => {
     bucketRows[key] = dropSegmentOutliers(comparableRows.filter(row => row.conditionGroup === key));
   });
