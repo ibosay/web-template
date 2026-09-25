@@ -271,9 +271,13 @@ export class TcgDexProvider implements CardDataProvider {
       return candidate ? [candidate] : [];
     }
 
+    // Normaler TCGdex-Filter (localId=<nummer>): Der eq:-Filter lieferte im Browser-Test für
+    // localId 136 eine leere Liste, obwohl swsh3-136 existiert. Der normale Filter ist breiter und
+    // liefert nur Kandidaten – ob eine Nummer exakt passt, entscheidet danach ausschließlich
+    // matchCardNumber() in der WertScan-Identitätsprüfung.
     const listUrl =
       this.baseUrl + '/v2/' + encodeURIComponent(language) + '/cards?localId=' +
-      encodeURIComponent('eq:' + localId);
+      encodeURIComponent(localId);
     const raw = await this.json(listUrl);
     if (!Array.isArray(raw)) return [];
 
