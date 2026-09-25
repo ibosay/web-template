@@ -2098,8 +2098,9 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       diagnostics: debug,
       priceGuides: [],
       cardMarket,
-      objectMatch: profile.objectDecision
-        ? {
+      objectMatch:
+        profile.objectDecision && profile.objectDecision.requiredSearchTerms.length >= 2
+          ? {
             mode: profile.objectDecision.mode,
             quality: profile.objectDecision.quality,
             score: profile.objectDecision.score,
@@ -2110,8 +2111,8 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
             requiredSearchTerms: profile.objectDecision.requiredSearchTerms,
             missingExactFields: profile.objectDecision.missingExactFields,
             explanation: profile.objectDecision.explanation,
-          }
-        : null,
+            }
+          : null,
       ...extra,
     };
   };
