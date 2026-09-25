@@ -915,3 +915,40 @@ test('Scan Guidance für Hot Wheels ohne Base Code empfiehlt Unterseite oder Ver
 
   assert.ok(guidance.nextViews.some(view => view.id === 'bottom' || view.id === 'packaging'));
 });
+
+
+test('Widersprüchliche sichtbare Modellnummern blockieren exakte Identität', () => {
+  const input: ObjectIdentityInput = {
+    category: 'electronics',
+    objectType: 'Kopfhörer',
+    facts: [
+      fact('brand', 'Sony', 0.99),
+      fact('modelNumber', 'WH-1000XM5', 0.99),
+      fact('modelNumber', 'WH-1000XM4', 0.98),
+      fact('name', 'Kopfhörer', 0.9),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'comparable_object');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, false);
+  assert.ok(decision.explanation.some(line => /Widersprüchliche sichtbare Kennungen/i.test(line)));
+});
+
+test('Widersprüchliche Kartennummern in Fotos blockieren exakte Scan Guidance', () => {
+  const input: ObjectIdentityInput = {
+    category: 'trading_cards',
+    objectType: 'Sammelkarte',
+    facts: [
+      fact('name', 'Charizard', 0.99),
+      fact('number', '143/S-P', 0.99),
+      fact('number', '143/SV-P', 0.9),
+      fact('language', 'Japanese', 0.95),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'comparable_object');
+  const guidance = buildScanGuidance(input, decision);
+  assert.equal(guidance.canShowExactMarketValue, false);
+});
