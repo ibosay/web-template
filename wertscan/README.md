@@ -105,6 +105,41 @@ Neue Einträge in `cardData/expansionAliases.ts` nur für bestätigte Zuordnunge
 `confirmedAt`. Verglichen wird exakt (ohne Groß/Klein und Satzzeichen), nie unscharf. Wenn bekannt,
 zusätzlich `expansionId` eintragen (per `verify-scrydex.mjs` ermittelbar).
 
+## Kostenlose Übergangslösung: TCGdex + bestehende Marktplatzsuche
+
+Für die Entwicklung ist **kein Scrydex-Abo nötig**. `TcgDexProvider` nutzt die kostenlose,
+offene TCGdex-API ohne API-Key.
+
+TCGdex übernimmt in diesem Modus:
+
+1. Kartenidentität in DE/EN/JA (weitere Sprachen können ergänzt werden)
+2. Set und Kartennummer
+3. Varianten wie normal, Holo, Reverse und 1st Edition, soweit TCGdex sie für die Karte führt
+4. Cardmarket- und TCGplayer-Werte ausschließlich als `priceGuides`
+
+TCGdex-Preiswerte werden **nie als Verkauf und nie als Marktwert** behandelt. Für einen Marktwert
+greift nach eindeutiger Kartenidentität der bestehende `cardScrapeFallback` und sucht echte
+Vergleichsverkäufe. Bei Grading gilt weiterhin: nur exakt gleiche Firma und Note zählen.
+
+```ts
+import { EcbFxRateProvider, TcgDexProvider } from './cardData';
+
+const cardProvider = new TcgDexProvider();
+const fxRateProvider = new EcbFxRateProvider();
+
+const market = await liveMarketLookup(analysis, {
+  cardProvider,
+  fxRateProvider,
+  cardScrapeFallback: true,
+});
+
+const display = buildMarketDisplay(market);
+```
+
+Wichtig: TCGdex braucht keinen Key. Wenn TCGdex eine Karte nicht eindeutig identifizieren kann,
+wird nicht geraten. Scrydex kann später über dieselbe `CardDataProvider`-Schnittstelle wieder
+eingeschaltet werden, ohne die Bewertungsregeln zu ändern.
+
 ## Scrydex einrichten (serverseitig)
 
 ```ts
