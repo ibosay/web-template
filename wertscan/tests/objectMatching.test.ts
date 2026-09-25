@@ -1311,12 +1311,8 @@ test('AppDeploy Bridge kann Kartennummer und Grading Label direkt typisieren', (
 });
 
 test('Schema für ersten AppDeploy Aufruf enthält pro Bild Ansicht und typisierte Fakten', () => {
-  const schema = perPhotoObservationSchema() as {
-    items: {
-      properties: Record<string, unknown>;
-      required: string[];
-    };
-  };
+  const schema = perPhotoObservationSchema();
+
   assert.ok(schema.items.properties.view);
   assert.ok(schema.items.properties.facts);
   assert.ok(schema.items.required.includes('facts'));
