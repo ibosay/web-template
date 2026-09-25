@@ -136,6 +136,10 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.equal(marketValuation(watch, market), null, 'vergleichbare Objekte dürfen keinen exakten Marktwert erzeugen');
   assert.ok(market.soldComparables.length >= 3);
   assert.ok(market.soldComparables.every(row => row.price !== 563), 'unpassende moderne Aristo Diver Uhr wird verworfen');
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.mode === 'comparable_object'));
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.matchedFields.includes('brand')));
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.matchedFields.includes('material')));
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.matchedFields.includes('marking')));
   assert.ok(!aiCalls.scrape.some(url => url.includes('chrono24')), 'ohne Referenz keine breite Chrono24 Suche');
   assert.ok(!aiCalls.scrape.some(url => url.includes('mediamarkt')), 'Vintage Vergleichsobjekt braucht keinen Händler Neupreis');
   assert.ok(!aiCalls.scrape.some(url => url.includes('geizhals')), 'Vintage Vergleichsobjekt braucht keinen Geizhals Lauf');
@@ -145,6 +149,8 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.equal(display.marketValue.state, 'no_value');
   assert.equal(display.comparisonRange.state, 'range');
   assert.equal(display.comparisonRange.label, 'Nur ähnliche Marktobjekte');
+  assert.ok(display.soldComparables.sold.every(row => row.matchQuality === 'similar_only' || row.matchQuality === 'strong_comparable'));
+  assert.ok(display.soldComparables.sold.every(row => row.matchedFields.includes('brand')));
   assert.match(display.marketValue.noValueReason || '', /keine.*exakt|Exakte Modellreferenz/i);
 });
 
@@ -256,11 +262,14 @@ test('Flohmarkt Vergleich darf wörtliche Identitätsmerkmale aus demselben List
   assert.equal(market.objectMatch?.mode, 'comparable_object');
   assert.equal(market.soldComparables.length, 3);
   assert.ok(market.soldComparables.every(row => /20 MIKRON/.test(row.identityEvidence || '')));
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.matchedFields.includes('marking')));
   assert.equal(marketValuation(watch, market), null);
 
   const display = buildMarketDisplay(market);
   assert.equal(display.marketValue.state, 'no_value');
   assert.equal(display.comparisonRange.state, 'range');
+  assert.ok(display.soldComparables.sold.every(row => /20 MIKRON/.test(row.identityEvidence || '')));
+  assert.ok(display.soldComparables.sold.every(row => row.matchedFields.includes('marking')));
 });
 
 test('Erfundener Identitätsbeleg aus Extraktion wird verworfen', async () => {
@@ -376,6 +385,9 @@ test('Flohmarkt Technik mit sichtbarer Modellnummer bleibt exakter Marktwert', a
   assert.equal(market.objectMatch?.mode, 'exact_product');
   assert.equal(market.objectMatch?.marketValueAllowed, true);
   assert.ok(market.soldComparables.every(row => !/A1513/.test(row.title)));
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.mode === 'exact_product'));
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.quality === 'exact'));
+  assert.ok(market.soldComparables.every(row => row.identityMatch?.matchedFields.includes('modelNumber')));
   const valuation = marketValuation(remote, market);
   assert.ok(valuation);
   assert.equal(valuation!.market, 44);
