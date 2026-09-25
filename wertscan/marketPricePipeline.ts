@@ -2281,9 +2281,13 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   // und verhindert Fantasietreffer bei "irgendeiner Uhr", "rotem Spielzeug" usw.
   // Alte Integrationen ohne visualText/identifiers behalten aus Kompatibilitätsgründen
   // die bisherige Pipeline, bis sie auf den neuen Scanvertrag umgestellt sind.
+  const observedAnalysis = analysis as Analysis & {
+    visualText?: unknown[];
+    identifiers?: unknown[];
+  };
   const hasDirectPhotoEvidence = Boolean(
-    (analysis.visualText || []).some(value => String(value || '').trim()) ||
-    (analysis.identifiers || []).some(value => String(value || '').trim())
+    (observedAnalysis.visualText || []).some((value: unknown) => String(value || '').trim()) ||
+    (observedAnalysis.identifiers || []).some((value: unknown) => String(value || '').trim())
   );
   if (!isCard && hasDirectPhotoEvidence && !scanGuidance.canSearchNow) {
     return finish('insufficient_identity');
