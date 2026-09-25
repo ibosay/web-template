@@ -85,6 +85,7 @@ const profiles: Record<FleaMarketCategory, CategoryProfile> = {
       { fields: ['manufacturer', 'brand'], min: 1, observedRequired: true },
       { fields: ['toyNumber', 'modelNumber', 'baseCode', 'casting', 'name'], min: 1, observedRequired: true },
     ],
+    exactGroupMode: 'all',
     comparableAnyGroups: [
       { fields: ['manufacturer', 'brand', 'name', 'casting'], min: 2, observedRequired: true },
       { fields: ['color', 'marking', 'year', 'edition'], min: 1, observedRequired: true },
