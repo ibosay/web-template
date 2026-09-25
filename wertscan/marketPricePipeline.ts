@@ -23,7 +23,38 @@
  *
  * Diagnose: MarketData.debug zeigt für jeden Schritt, wo Belege verloren gehen
  * (formatMarketDebug(debug) liefert eine lesbare Textfassung).
+ *
+ * Sammelkarten mit konfiguriertem CardDataProvider (z. B. Scrydex) laufen NICHT über Scraping,
+ * sondern über ./cardData (exakte Zuordnung, strukturierte Belege). Nicht-Karten-Produkte
+ * sind davon unberührt.
+ *
+ * Feste Regeln (für alle Produkte):
+ *   - Verkäufe haben Vorrang; Verkäufe und Angebote werden nie zu einem Wert gemischt.
+ *   - Preisführer (BrickLink, PriceCharting, Cardmarket) sind nie Teil des Marktwerts,
+ *     sondern werden separat in MarketData.priceGuides ausgewiesen.
+ *   - Keine Zusammenlegung verschiedener Zustände, keine abgeleiteten Zustandspreise.
+ *   - Jeder Beleg trägt Quelle, observedAt, fetchedAt und expiresAt.
  */
+
+import {
+  CardDataProvider,
+  CardMarketResult,
+  CardQuery,
+  CardSegment,
+  EurConversion,
+  FxCache,
+  FxRateProvider,
+  MatchOptions,
+  PriceEvidence,
+  PriceGuideEntry,
+  ValueSummary,
+  lookupCardMarket,
+  normalizeGrading,
+  normalizeLanguage,
+  normalizeRawCondition,
+  toEur,
+  variantKey,
+} from './cardData';
 
 // ---------------------------------------------------------------------------
 // Quellen: EINE Quelle der Wahrheit für Typ, Schema, Prompt und Anzeige.
@@ -62,7 +93,7 @@ const SOURCE_META: Record<SourceKey, SourceMeta> = {
   geizhals_offer: { display: 'Geizhals Angebot', kind: 'offer', retailNew: true },
   mediamarkt_offer: { display: 'MediaMarkt Angebot', kind: 'offer', retailNew: true },
   bricklink_guide: { display: 'BrickLink Marktindikator', kind: 'guide', retailNew: false },
-  cardmarket_offer: { display: 'Cardmarket', kind: 'offer', retailNew: false },
+  cardmarket_offer: { display: 'Cardmarket Preisführer', kind: 'guide', retailNew: false },
   pricecharting_guide: { display: 'PriceCharting Marktindikator', kind: 'guide', retailNew: false },
   chrono24_offer: { display: 'Chrono24', kind: 'offer', retailNew: false },
   abebooks_offer: { display: 'AbeBooks', kind: 'offer', retailNew: false },
@@ -96,6 +127,14 @@ type MarketListing = {
   rawCardBase?: boolean;
   originalPrice?: number;
   originalCurrency?: string;
+  /** Zeitpunkt laut Quelle (Verkaufs-/Angebotsdatum); null, wenn die Quelle keinen liefert. */
+  observedAt?: string | null;
+  /** WertScan: Abrufzeitpunkt. */
+  fetchedAt?: string;
+  /** WertScan: Ablauf des Belegs (Cache). */
+  expiresAt?: string;
+  /** Nur bei umgerechneten Beträgen: Kurs, Kursquelle, Stand. */
+  eurConversion?: EurConversion | null;
 };
 
 type ConditionMarketPrice = {
@@ -126,11 +165,15 @@ export type MarketSearchStatus =
   | 'no_exact_matches'
   | 'extraction_failed'
   | 'filtered_all'
-  | 'insufficient_identity';
+  | 'insufficient_identity'
+  | 'card_not_unique'
+  | 'card_not_found'
+  | 'unsupported_language'
+  | 'provider_error';
 
 /** Was die Oberfläche als Hauptwert anzeigen soll – statt pauschal "Preisreferenzen fehlen". */
 export type MarketHeadline = {
-  kind: 'condition' | 'exact_grading' | 'card_base' | 'pooled' | 'reference' | 'none';
+  kind: 'condition' | 'exact_grading' | 'card_base' | 'reference' | 'none';
   price: number | null;
   from: number | null;
   to: number | null;
@@ -141,6 +184,10 @@ export type MarketHeadline = {
   sampleCount: number;
   basis: string;
   note: string;
+  /** Originalwerte der Quelle, wenn nicht in EUR (z. B. USD/JPY bei Scrydex). */
+  original: { price: number; from: number; to: number; currency: string } | null;
+  /** Hinweis zur Umrechnung: EUR ist ein Anzeigewert, kein Marktpreis der Quelle. */
+  fxNote: string;
 };
 
 type QueryRole = 'base' | 'grading' | 'product';
@@ -180,7 +227,8 @@ export type LossStage =
   | 'condense'
   | 'extraction'
   | 'validation'
-  | 'aggregation';
+  | 'aggregation'
+  | 'card_provider';
 
 export type MarketDebug = {
   marketSearchStatus: MarketSearchStatus;
@@ -208,6 +256,10 @@ export type MarketDebug = {
   cardBaseValue: ConditionMarketPrice | null;
   exactGradingValue: ConditionMarketPrice | null;
   headline: MarketHeadline;
+  priceGuidesFound: number;
+  cardProvider:
+    | (CardMarketResult['debug'] & { providerId: string; status: string; message: string; cardId: string | null; variant: string | null })
+    | null;
 };
 
 type MarketData = {
@@ -233,6 +285,10 @@ type MarketData = {
   debug: MarketDebug;
   /** @deprecated gleiche Referenz wie debug (Kompatibilität zur vorherigen Fassung). */
   diagnostics: MarketDebug;
+  /** Preisführer – separat, nie Teil des Marktwerts. */
+  priceGuides: PriceGuideEntry[];
+  /** Ergebnis des Kartendatenanbieters (nur Sammelkarten mit CardDataProvider). */
+  cardMarket: CardMarketResult | null;
 };
 
 export type MarketProviderListing = {
@@ -259,6 +315,23 @@ export type MarketLookupOptions = {
   extractConcurrency?: number;
   /** Wird immer mit ('debug', MarketDebug) aufgerufen. Standard: formatierte Ausgabe per console.info. */
   log?: (event: string, data: unknown) => void;
+  /** Kartendatenanbieter (z. B. ScrydexProvider, serverseitig). Ohne Provider: Scraping wie bisher. */
+  cardProvider?: CardDataProvider;
+  /** Spiele, für die der Provider genutzt wird. Standard: ['pokemon']. */
+  cardProviderGames?: string[];
+  /** Echte Wechselkurse für die EUR-Anzeige von Provider-Preisen. */
+  fxRateProvider?: FxRateProvider;
+  /** Explizit gepflegte Setnamen-Zuordnung (z. B. deutsche Setnamen → expansion.id). */
+  expansionAliases?: MatchOptions['expansionAliases'];
+  /** Zeitraum für Verkäufe beim Provider. Standard 90 Tage. */
+  soldWithinDays?: number;
+  /**
+   * Scraping als Rückfall, wenn der Provider die Karte nicht führt (not_found / Sprache nicht
+   * unterstützt). Nie bei "nicht eindeutig". Standard: true.
+   */
+  cardScrapeFallback?: boolean;
+  /** Gültigkeit gescrapter Belege (expiresAt). Standard 24 h. */
+  scrapeEvidenceTtlMs?: number;
 };
 
 // ---------------------------------------------------------------------------
@@ -700,6 +773,9 @@ type IdentityProfile = {
   generation: string | null;
   matchQueries: string[];
   grading: Grading | null;
+  /** Sprache/Variante der gescannten Karte, nur wenn die Erkennung sie liefert. */
+  cardLanguage: string | null;
+  cardVariant: string | null;
 };
 
 function generationOf(text: string): string | null {
@@ -743,6 +819,8 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     generation: generationOf([model, known(d?.generation), analysis.title].join(' ')),
     matchQueries: queries,
     grading: isCard ? targetGrading(analysis) : null,
+    cardLanguage: isCard ? normalizeLanguage(cardDetailText(analysis, 'language')) : null,
+    cardVariant: isCard ? variantKey(cardDetailText(analysis, 'variant')) : null,
   };
 }
 
@@ -809,6 +887,8 @@ function identityRejection(title: string, profile: IdentityProfile): string | nu
 
   if (profile.isCard) {
     if (foreign(FAKE_CARD_WORDS)) return 'fake_or_proxy';
+    const languageOrVariant = cardLanguageVariantRejection(tokens, profile);
+    if (languageOrVariant) return languageOrVariant;
     if (cardIdentityMatch(title, profile)) return null;
     return profile.cardNumberConcat ? 'card_number_mismatch' : 'card_name_mismatch';
   }
@@ -822,6 +902,51 @@ function identityRejection(title: string, profile: IdentityProfile): string | nu
   }
   const bestCoverage = Math.max(0, ...profile.matchQueries.map(query => queryCoverage(query, tokenSet)));
   return bestCoverage >= 0.6 ? null : 'model_mismatch';
+}
+
+/** Optionales Feld aus cardDetails lesen (z. B. language, variant), ohne den Analysis-Typ zu ändern. */
+function cardDetailText(analysis: Analysis, key: string): string {
+  const value = ((analysis.cardDetails || {}) as unknown as Record<string, unknown>)[key];
+  return typeof value === 'string' ? known(value) : '';
+}
+
+// Explizite Schlüsselwörter in Angebotstiteln. Nur für gescrapte Titel (Provider-Daten sind strukturiert).
+const TITLE_LANGUAGE_WORDS: Record<string, string[]> = {
+  de: ['deutsch', 'german'],
+  en: ['englisch', 'english'],
+  ja: ['japanisch', 'japanese', 'japan', 'jpn'],
+  fr: ['franzosisch', 'french', 'francais'],
+  it: ['italienisch', 'italian', 'italiano'],
+  es: ['spanisch', 'spanish', 'espanol'],
+  ko: ['koreanisch', 'korean'],
+  zh: ['chinesisch', 'chinese'],
+};
+
+/**
+ * Gescrapte Titel: Sprache und Variante dürfen der erkannten Karte nicht widersprechen.
+ * - Titel nennt eine andere Sprache → language_mismatch
+ * - Reverse Holo / 1st Edition muss bei entsprechender Variante im Titel stehen und darf
+ *   bei anderer oder unbekannter Variante nicht im Titel stehen.
+ */
+function cardLanguageVariantRejection(tokens: string[], profile: IdentityProfile): string | null {
+  const text = ' ' + tokens.join(' ') + ' ';
+  if (profile.cardLanguage) {
+    const mentioned = Object.entries(TITLE_LANGUAGE_WORDS)
+      .filter(([, words]) => words.some(word => text.includes(' ' + word + ' ')))
+      .map(([code]) => code);
+    if (mentioned.length && !mentioned.includes(profile.cardLanguage)) return 'language_mismatch';
+  }
+  const titleReverse = / reverse /.test(text);
+  const titleFirstEdition = / (1st|first|erste|1) (edition|ed) /.test(text);
+  const variant = profile.cardVariant || '';
+  const wantsReverse = variant === 'reverseholofoil';
+  const wantsFirstEdition = variant.startsWith('firstedition');
+  if (wantsReverse && !titleReverse) return 'variant_not_confirmed';
+  if (wantsFirstEdition && !titleFirstEdition) return 'variant_not_confirmed';
+  if ((titleReverse && !wantsReverse) || (titleFirstEdition && !wantsFirstEdition)) {
+    return profile.cardVariant ? 'variant_mismatch' : 'variant_unverified';
+  }
+  return null;
 }
 
 /** Für die Diagnose: nennt diese Zeile eindeutig die gesuchte Identität? */
@@ -1103,20 +1228,28 @@ function conditionMarketPrice(rows: MarketListing[]): ConditionMarketPrice {
     };
   }
 
+  // Verkäufe haben Vorrang. Verkäufe und Angebote werden nie zu einem Wert gemischt.
   let evidence: number[];
   let basis: string;
   if (sold.length >= 2) {
     evidence = sold.map(row => row.price);
     basis = 'Median aus tatsächlich verkauften Vergleichsartikeln';
-  } else if (sold.length === 1) {
-    evidence = rows.map(row => row.price);
-    basis = 'Ein verkaufter Vergleich plus aktuelle Marktangebote';
-  } else {
+  } else if (offers.length >= 2) {
     evidence = offers.map(row => row.price);
     basis =
-      offers.length >= 3
+      (offers.length >= 3
         ? 'Median aus aktuellen Marktangeboten, keine ausreichenden Verkaufsdaten'
-        : 'Median aus zwei passenden aktuellen Marktangeboten, geringe Datenbasis';
+        : 'Median aus zwei passenden aktuellen Marktangeboten, geringe Datenbasis') +
+      (sold.length === 1 ? ' (ein einzelner Verkauf liegt bei ' + formatEuro(sold[0].price) + ', wird nicht eingemischt)' : '');
+  } else {
+    const reference = sold[0] || offers[0];
+    return {
+      ...emptyConditionMarketPrice(),
+      ...counts,
+      status: 'low_sample',
+      referencePrice: roundPrice(reference.price),
+      basis: 'Nur ein Verkauf und ein Angebot – zu wenig gleichartige Belege für einen verlässlichen Marktpreis',
+    };
   }
 
   const clean = evidence.length >= 4 ? iqrFilter(evidence) : evidence;
@@ -1166,7 +1299,7 @@ function cleanMarketRows<T extends MarketListing>(rows: T[]) {
 // FIX 3: Antwortformat robust gelesen (data.items, items, Array, JSON-String, Alt-Schema).
 // ---------------------------------------------------------------------------
 
-type ReadableSection = SearchPage & { sectionId: number; text: string; haystack: string; tokens: Set<string> };
+type ReadableSection = SearchPage & { sectionId: number; text: string; haystack: string; tokens: Set<string>; fetchedAt: string };
 
 const EXTRACT_SYSTEM = [
   'Du extrahierst ausschließlich reale Marktangebote, Verkäufe und Preisführer-Werte aus den bereitgestellten Abschnitten.',
@@ -1289,6 +1422,7 @@ type CandidateRow = {
   date: string;
   relevance: number;
   section: ReadableSection | null;
+  fetchedAt: string;
 };
 
 type ValidatedRow = MarketListing & { conditionGroup: ConditionKey };
@@ -1296,7 +1430,8 @@ type ValidatedRow = MarketListing & { conditionGroup: ConditionKey };
 function validateRow(
   row: CandidateRow,
   profile: IdentityProfile,
-  fxRatesToEur: Record<string, number>
+  fxRatesToEur: Record<string, number>,
+  ttlMs = 24 * 3600 * 1000
 ): { row: ValidatedRow } | { reason: string } {
   const title = String(row.title || '').trim();
   if (!title) return { reason: 'missing_title' };
@@ -1386,6 +1521,10 @@ function validateRow(
       rawCardBase: gradingClass === 'raw' && Boolean(profile.grading),
       originalPrice,
       originalCurrency,
+      observedAt: row.date || null,
+      fetchedAt: row.fetchedAt,
+      expiresAt: new Date(new Date(row.fetchedAt).getTime() + ttlMs).toISOString(),
+      eurConversion: null,
     },
   };
 }
@@ -1409,6 +1548,8 @@ function toHeadline(kind: MarketHeadline['kind'], value: ConditionMarketPrice, n
     sampleCount: value.sampleCount,
     basis: value.basis,
     note,
+    original: null,
+    fxNote: '',
   };
 }
 
@@ -1423,6 +1564,8 @@ const NO_HEADLINE: MarketHeadline = {
   sampleCount: 0,
   basis: '',
   note: '',
+  original: null,
+  fxNote: '',
 };
 
 function buildHeadline(
@@ -1430,8 +1573,7 @@ function buildHeadline(
   grading: Grading | null,
   isCard: boolean,
   conditionPrices: ConditionPriceSet,
-  cardBaseValue: ConditionMarketPrice | null,
-  comparableRows: MarketListing[]
+  cardBaseValue: ConditionMarketPrice | null
 ): MarketHeadline {
   if (isCard && grading) {
     const label = formatGrading(grading);
@@ -1455,14 +1597,7 @@ function buildHeadline(
 
   const exact = conditionPrices[targetKey];
   if (exact.price != null) return toHeadline('condition', exact, '');
-  if (targetKey === 'used' || targetKey === 'likeNew') {
-    const pooled = conditionMarketPrice(
-      comparableRows.filter(row => row.conditionGroup === 'used' || row.conditionGroup === 'likeNew')
-    );
-    if (pooled.price != null) {
-      return toHeadline('pooled', pooled, 'Zu wenige Belege im exakten Zustand – Wert aus gebrauchten und neuwertigen Vergleichen zusammen.');
-    }
-  }
+  // Kein Zusammenlegen verschiedener Zustände: fehlen Belege im erkannten Zustand, gibt es keinen Wert.
   if (exact.referencePrice != null) return toHeadline('reference', exact, 'Nur ein passender Beleg – kein verlässlicher Marktpreis.');
   return NO_HEADLINE;
 }
@@ -1480,6 +1615,10 @@ const STATUS_MESSAGES: Record<MarketSearchStatus, string> = {
   extraction_failed: 'Die Marktseiten wurden gelesen, die Auswertung der Angebote ist jedoch technisch fehlgeschlagen.',
   filtered_all: 'Es wurden Angebote gefunden, aber keines hat die Prüfung auf Identität, Beleg und Plausibilität bestanden.',
   insufficient_identity: 'Keine Live-Marktsuche gestartet, weil der Gegenstand noch nicht sicher genug identifiziert ist.',
+  card_not_unique: 'Karte nicht eindeutig zuordenbar. Es wird keine Karte automatisch ausgewählt und kein Preis angezeigt.',
+  card_not_found: 'Diese exakte Karte wurde beim Kartendatenanbieter nicht gefunden. Es wird kein Preis einer anderen Karte übernommen.',
+  unsupported_language: 'Der Kartendatenanbieter führt diese Sprachfassung nicht. Preise anderer Sprachfassungen werden nicht übernommen.',
+  provider_error: 'Der Kartendatenanbieter war technisch nicht erreichbar. Das bedeutet nicht, dass es keinen Marktpreis gibt.',
 };
 
 const IDENTITY_REASONS = new Set([
@@ -1489,6 +1628,9 @@ const IDENTITY_REASONS = new Set([
   'variant_mismatch',
   'generation_mismatch',
   'low_relevance',
+  'language_mismatch',
+  'variant_not_confirmed',
+  'variant_unverified',
 ]);
 
 function newDebug(isCard: boolean, grading: Grading | null, cardNumber: string, plan: QueryPlanEntry[]): MarketDebug {
@@ -1518,6 +1660,8 @@ function newDebug(isCard: boolean, grading: Grading | null, cardNumber: string, 
     cardBaseValue: null,
     exactGradingValue: null,
     headline: NO_HEADLINE,
+    priceGuidesFound: 0,
+    cardProvider: null,
   };
 }
 
@@ -1527,6 +1671,11 @@ function diagnoseLoss(debug: MarketDebug, status: MarketSearchStatus): { stage: 
     .slice(0, 3)
     .map(([reason, count]) => reason + ' ×' + count)
     .join(', ');
+  if (debug.cardProvider && !debug.pagesRequested.length) {
+    return status === 'found'
+      ? { stage: 'none', explanation: 'Kein Verlust: Hauptwert aus Belegen des Kartendatenanbieters ermittelt.' }
+      : { stage: 'card_provider', explanation: 'KARTENANBIETER (' + debug.cardProvider.providerId + '): ' + debug.cardProvider.status + ' – ' + debug.cardProvider.message };
+  }
   if (status === 'found') return { stage: 'none', explanation: 'Kein Verlust: Hauptwert aus belegten Marktdaten ermittelt.' };
   if (status === 'insufficient_identity') return { stage: 'identity_gate', explanation: 'Suche nicht gestartet: Identität zu unsicher.' };
   if (!debug.pagesReadable) {
@@ -1603,8 +1752,179 @@ export function formatMarketDebug(debug: MarketDebug): string {
   lines.push('cardBaseValue: ' + price(debug.cardBaseValue));
   lines.push('exactGradingValue: ' + price(debug.exactGradingValue));
   lines.push('headline: ' + debug.headline.kind + ' ' + (debug.headline.price != null ? formatEuro(debug.headline.price) : '') +
-    (debug.headline.note ? ' – ' + debug.headline.note : ''));
+    (debug.headline.original ? ' [Original ' + debug.headline.original.price + ' ' + debug.headline.original.currency + ']' : '') +
+    (debug.headline.note ? ' – ' + debug.headline.note : '') + (debug.headline.fxNote ? ' | ' + debug.headline.fxNote : ''));
+  lines.push('priceGuidesFound: ' + debug.priceGuidesFound + ' (separat, nicht im Marktwert)');
+  if (debug.cardProvider) {
+    const cp = debug.cardProvider;
+    lines.push('cardProvider: ' + cp.providerId + ' | status: ' + cp.status + ' | card: ' + (cp.cardId || '–') + ' | variant: ' + (cp.variant || '–'));
+    lines.push('  candidatesFound: ' + cp.candidatesFound + ' | remaining: ' + JSON.stringify(cp.remainingCandidates) + ' | match: ' + (cp.matchReason || '–'));
+    lines.push('  rejectedCandidates: ' + JSON.stringify(cp.rejectedCandidates));
+    lines.push('  evidence: ' + cp.evidenceLoaded + ' ' + JSON.stringify(cp.evidenceByKind) + ' | excluded: ' + JSON.stringify(cp.excluded));
+    if (cp.error) lines.push('  error: ' + cp.error);
+    lines.push('  → ' + cp.message);
+  }
   return lines.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Brücke zum Kartendatenanbieter (./cardData)
+// Die Bilderkennung bleibt unverändert: Es werden nur vorhandene cardDetails-Felder gelesen.
+// language, variant, setId werden genutzt, sobald die Erkennung sie liefert – sonst null (nie geraten).
+// ---------------------------------------------------------------------------
+
+function cardGameOf(analysis: Analysis): string | null {
+  const franchise = normalize(known(analysis.cardDetails?.franchise) || analysis.title);
+  if (franchise.includes('pokemon')) return 'pokemon';
+  return franchise || null;
+}
+
+function cardQueryFromAnalysis(analysis: Analysis, game: string): CardQuery {
+  const c = analysis.cardDetails;
+  return {
+    game,
+    name: known(c?.cardName) || null,
+    number: canonicalCardNumber(known(c?.cardNumber)) || null,
+    setName: known(c?.setName) || null,
+    setId: cardDetailText(analysis, 'setId') || cardDetailText(analysis, 'expansionId') || null,
+    language: normalizeLanguage(cardDetailText(analysis, 'language')),
+    variant: cardDetailText(analysis, 'variant') || null,
+  };
+}
+
+function valueToHeadline(kind: MarketHeadline['kind'], value: ValueSummary, note: string): MarketHeadline {
+  const inEur = value.currency === 'EUR' ? { median: value.median, low: value.low, high: value.high } : value.eur;
+  const fxNote =
+    value.currency !== 'EUR'
+      ? value.eur
+        ? value.eur.note
+        : 'Kein Wechselkurs verfügbar – Wert nur in Originalwährung (' + value.currency + ').'
+      : value.convertedFromMixedCurrencies && value.eur
+        ? value.eur.note
+        : '';
+  return {
+    kind,
+    price: inEur ? inEur.median : null,
+    from: inEur ? inEur.low : null,
+    to: inEur ? inEur.high : null,
+    referencePrice: null,
+    soldCount: value.basis === 'sold' ? value.count : 0,
+    offerCount: value.basis === 'listing' ? value.count : 0,
+    sampleCount: value.count,
+    basis: value.description,
+    note,
+    original: value.currency === 'EUR' ? null : { price: value.median, from: value.low, to: value.high, currency: value.currency },
+    fxNote,
+  };
+}
+
+async function evidenceToListing(
+  evidence: PriceEvidence,
+  role: 'exact' | 'raw' | 'condition',
+  targetKey: ConditionKey,
+  fx: FxRateProvider | undefined,
+  cache: FxCache
+): Promise<MarketListing | null> {
+  const conversion = evidence.currency === 'EUR' ? null : await toEur(evidence.price, evidence.currency, fx, cache);
+  // Ohne echten Kurs kein EUR-Betrag: Der Beleg bleibt in cardMarket, erscheint aber nicht in EUR-Listen.
+  if (evidence.currency !== 'EUR' && !conversion) return null;
+  return {
+    source: evidence.source + ' (' + evidence.providerId + ')',
+    title: evidence.title || '',
+    price: conversion ? conversion.amount : evidence.price,
+    currency: 'EUR',
+    condition: evidence.condition || '',
+    date: evidence.observedAt || '',
+    type: evidence.kind === 'sold' ? 'sold' : 'offer',
+    url: evidence.url || '',
+    relevance: 1,
+    kind: 'listing',
+    conditionGroup: role === 'exact' ? 'likeNew' : role === 'condition' ? targetKey : undefined,
+    grading: evidence.grading ? evidence.grading.company + ' ' + evidence.grading.grade : 'raw',
+    gradingClass: role === 'exact' ? 'exact' : role === 'raw' ? 'raw' : undefined,
+    rawCardBase: role === 'raw',
+    originalPrice: conversion ? evidence.price : undefined,
+    originalCurrency: conversion ? evidence.currency : undefined,
+    observedAt: evidence.observedAt,
+    fetchedAt: evidence.fetchedAt,
+    expiresAt: evidence.expiresAt,
+    eurConversion: conversion,
+  };
+}
+
+type CardProviderOutcome = {
+  result: CardMarketResult;
+  status: MarketSearchStatus;
+  headline: MarketHeadline;
+  rows: MarketListing[];
+  priceGuides: PriceGuideEntry[];
+};
+
+async function runCardProvider(
+  analysis: Analysis,
+  game: string,
+  provider: CardDataProvider,
+  opts: { fx?: FxRateProvider; expansionAliases?: MatchOptions['expansionAliases']; soldWithinDays: number; targetKey: ConditionKey }
+): Promise<CardProviderOutcome> {
+  const query = cardQueryFromAnalysis(analysis, game);
+  const grading = targetGrading(analysis);
+  const normalized = grading ? normalizeGrading(grading.company, grading.grade) : null;
+  const segment: CardSegment = normalized
+    ? { type: 'graded', grading: normalized }
+    : { type: 'raw', condition: normalizeRawCondition(analysis.condition) };
+
+  let result: CardMarketResult;
+  if (grading && !normalized) {
+    result = {
+      status: 'insufficient_identity',
+      message: 'Grading-Firma erkannt, aber keine Note. Ohne exakte Note ist kein Grading-Vergleich möglich.',
+      providerId: provider.id,
+      query,
+      segment,
+      card: null,
+      variant: null,
+      valuation: null,
+      debug: { candidatesFound: 0, rejectedCandidates: [], remainingCandidates: [], matchReason: null, evidenceLoaded: 0, evidenceByKind: {}, excluded: {}, error: null },
+    };
+  } else {
+    result = await lookupCardMarket(query, segment, {
+      provider,
+      fx: opts.fx,
+      soldWithinDays: opts.soldWithinDays,
+      matchOptions: { expansionAliases: opts.expansionAliases },
+    });
+  }
+
+  const statusMap: Record<CardMarketResult['status'], MarketSearchStatus> = {
+    priced: 'found',
+    insufficient_data: 'low_sample',
+    not_unique: 'card_not_unique',
+    not_found: 'card_not_found',
+    unsupported_language: 'unsupported_language',
+    insufficient_identity: 'insufficient_identity',
+    provider_error: 'provider_error',
+  };
+  let status = statusMap[result.status];
+  if (result.status === 'insufficient_data' && !result.debug.evidenceLoaded) status = 'no_exact_matches';
+
+  let headline: MarketHeadline = NO_HEADLINE;
+  const rows: MarketListing[] = [];
+  const valuation = result.valuation;
+  if (valuation) {
+    const h = valuation.headline;
+    if (h.value && h.kind !== 'none') headline = valueToHeadline(h.kind === 'raw_condition' ? 'condition' : h.kind, h.value, h.note);
+    const cache: FxCache = new Map();
+    const add = async (value: ValueSummary | null, role: 'exact' | 'raw' | 'condition') => {
+      if (!value) return;
+      for (const evidence of value.evidence) {
+        const row = await evidenceToListing(evidence, role, opts.targetKey, opts.fx, cache);
+        if (row) rows.push(row);
+      }
+    };
+    await add(valuation.exactValue, segment.type === 'graded' ? 'exact' : 'condition');
+    if (segment.type === 'graded') await add(valuation.cardBaseValue, 'raw');
+  }
+  return { result, status, headline, rows, priceGuides: valuation ? valuation.priceGuides : [] };
 }
 
 // ---------------------------------------------------------------------------
@@ -1621,7 +1941,15 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     extractConcurrency = 4,
     log = (event: string, data: unknown) =>
       console.info(event === 'debug' ? formatMarketDebug(data as MarketDebug) : '[wertscan:market] ' + event + ' ' + JSON.stringify(data)),
+    cardProvider,
+    cardProviderGames = ['pokemon'],
+    fxRateProvider,
+    expansionAliases,
+    soldWithinDays = 90,
+    cardScrapeFallback = true,
+    scrapeEvidenceTtlMs = 24 * 3600 * 1000,
   } = options;
+  let cardMarket: CardMarketResult | null = null;
 
   const searchedAt = new Date().toISOString();
   const plan = buildQueryPlan(analysis);
@@ -1662,6 +1990,8 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       exactGradingValue: null,
       debug,
       diagnostics: debug,
+      priceGuides: [],
+      cardMarket,
       ...extra,
     };
   };
@@ -1670,6 +2000,44 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     ? Boolean(profile.cardNumberConcat || profile.cardNameTokens.length)
     : profile.primaryHardTokens.length > 0 || profile.boostTokens.length > 0;
   if (!queries.length || (analysis.confidence < 0.55 && !hasHardIdentity)) return finish('insufficient_identity');
+
+  // Sammelkarten mit Kartendatenanbieter: strukturierte, exakte Zuordnung statt Scraping.
+  const game = isCard ? cardGameOf(analysis) : null;
+  let providerMessage = '';
+  if (isCard && cardProvider && game && cardProviderGames.includes(game)) {
+    const outcome = await runCardProvider(analysis, game, cardProvider, {
+      fx: fxRateProvider,
+      expansionAliases,
+      soldWithinDays,
+      targetKey,
+    });
+    cardMarket = outcome.result;
+    debug.cardProvider = {
+      ...outcome.result.debug,
+      providerId: outcome.result.providerId,
+      status: outcome.result.status,
+      message: outcome.result.message,
+      cardId: outcome.result.card?.cardId || null,
+      variant: outcome.result.variant,
+    };
+    debug.headline = outcome.headline;
+    debug.priceGuidesFound = outcome.priceGuides.length;
+    const fallback = cardScrapeFallback && (outcome.result.status === 'not_found' || outcome.result.status === 'unsupported_language');
+    if (!fallback) {
+      return finish(outcome.status, {
+        connected: outcome.status !== 'provider_error',
+        sourcesChecked: [cardProvider.displayName],
+        soldComparables: outcome.rows.filter(row => row.type === 'sold'),
+        currentOffers: outcome.rows.filter(row => row.type === 'offer'),
+        soldMedian: null,
+        offerMedian: null,
+        headline: outcome.headline,
+        priceGuides: outcome.priceGuides,
+        message: outcome.result.message,
+      });
+    }
+    providerMessage = outcome.result.message + ' Rückfall auf Marktplatzsuche: ';
+  }
 
   const pages = buildSearchPages(analysis, plan);
   const perPage: PageDebug[] = pages.map(page => ({
@@ -1728,6 +2096,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
         text: condensed,
         haystack: collapse(condensed),
         tokens: new Set(looseTokens(condensed)),
+        fetchedAt: new Date().toISOString(),
       });
     } catch (error) {
       diag.unreadableReason = String(error).includes('timeout:') ? 'timeout' : 'scrape_failed';
@@ -1776,7 +2145,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       debug.rawListingsExtracted++;
       const section = resolveSection(row, groupSections);
       perPage[section.sectionId].rawListings++;
-      candidates.push({ ...row, sourceKey, url: section.url, section });
+      candidates.push({ ...row, sourceKey, url: section.url, section, fetchedAt: section.fetchedAt });
     });
   });
 
@@ -1802,6 +2171,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
         date: listing.date,
         relevance: 0.8,
         section: null,
+        fetchedAt: new Date().toISOString(),
       });
     });
   });
@@ -1809,7 +2179,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   // 3) Validierung -----------------------------------------------------------------------------
   const validated: ValidatedRow[] = [];
   candidates.forEach(candidate => {
-    const outcome = validateRow(candidate, profile, fxRatesToEur);
+    const outcome = validateRow(candidate, profile, fxRatesToEur, scrapeEvidenceTtlMs);
     if ('reason' in outcome) {
       debug.rejectedListings++;
       countBy(debug.rejectionReasons, outcome.reason);
@@ -1832,9 +2202,31 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   const deduped = dedupeMarketRows(validated);
   debug.duplicatesRemoved = validated.length - deduped.length;
 
-  // 4) Gruppierung – bei gegradeten Karten zwei strikt getrennte Märkte -------------------------
-  const rawBaseRows = deduped.filter(row => row.rawCardBase);
-  const comparableRows = deduped.filter(row => !row.rawCardBase);
+  // 4) Preisführer abtrennen – sie sind nie Teil eines Marktwerts ---------------------------------
+  const guideRows = deduped.filter(row => row.kind === 'guide');
+  const marketRows = deduped.filter(row => row.kind !== 'guide');
+  const priceGuides: PriceGuideEntry[] = guideRows.map(row => ({
+    providerId: 'scrape',
+    source: row.source,
+    label: row.title,
+    segment: row.gradingClass === 'exact' ? 'graded' : 'raw',
+    condition: row.condition || null,
+    grading: null,
+    priceType: null,
+    price: row.price,
+    currency: 'EUR',
+    eur: null,
+    matchesTarget: false,
+    url: row.url || null,
+    observedAt: row.observedAt ?? null,
+    fetchedAt: row.fetchedAt || searchedAt,
+    expiresAt: row.expiresAt || searchedAt,
+  }));
+  debug.priceGuidesFound = priceGuides.length;
+
+  // 5) Gruppierung – bei gegradeten Karten zwei strikt getrennte Märkte -------------------------
+  const rawBaseRows = marketRows.filter(row => row.rawCardBase);
+  const comparableRows = marketRows.filter(row => !row.rawCardBase);
   const bucketRows: Record<ConditionKey, ValidatedRow[]> = { new: [], likeNew: [], used: [], defective: [] };
   const dropOutliers = <T extends MarketListing>(rows: T[]) => {
     const { kept, outliers } = cleanMarketRows(rows);
@@ -1883,7 +2275,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   debug.cardBaseValue = cardBaseValue;
   debug.exactGradingValue = exactGradingValue;
 
-  const headline = buildHeadline(targetKey, grading, isCard, conditionPrices, cardBaseValue, comparableRows);
+  const headline = buildHeadline(targetKey, grading, isCard, conditionPrices, cardBaseValue);
   debug.headline = headline;
 
   // 5) Status ----------------------------------------------------------------------------------
@@ -1898,7 +2290,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       .filter(([reason]) => IDENTITY_REASONS.has(reason))
       .reduce((sum, [, count]) => sum + count, 0);
     status = identityRejects >= debug.rejectedListings / 2 ? 'no_exact_matches' : 'filtered_all';
-  } else if (headline.kind === 'condition' || headline.kind === 'exact_grading' || headline.kind === 'card_base' || headline.kind === 'pooled') {
+  } else if (headline.kind === 'condition' || headline.kind === 'exact_grading' || headline.kind === 'card_base') {
     status = 'found';
   } else {
     status = 'low_sample';
@@ -1925,7 +2317,13 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     cardBaseValue,
     exactGradingValue,
     headline,
-    message: (headline.note ? headline.note + ' ' : '') + STATUS_MESSAGES[status] + partial,
+    priceGuides,
+    message:
+      providerMessage +
+      (headline.note ? headline.note + ' ' : '') +
+      STATUS_MESSAGES[status] +
+      partial +
+      (priceGuides.length ? ' Preisführer werden separat angezeigt und sind nicht Teil des Marktwerts.' : ''),
   });
 }
 
@@ -1946,14 +2344,11 @@ function marketValuation(analysis: Analysis, market: MarketData): Valuation | nu
       ? allRows.filter(row => row.rawCardBase)
       : headline.kind === 'exact_grading'
         ? allRows.filter(row => row.gradingClass === 'exact')
-        : headline.kind === 'pooled'
-          ? allRows.filter(row => (row.conditionGroup === 'used' || row.conditionGroup === 'likeNew') && !row.rawCardBase)
-          : allRows.filter(row => row.conditionGroup === key && !row.rawCardBase);
+        : allRows.filter(row => row.conditionGroup === key && !row.rawCardBase);
 
   const relevance = rows.length ? rows.reduce((sum, row) => sum + row.relevance, 0) / rows.length : 0;
   let quality: 'niedrig' | 'mittel' | 'hoch' =
     headline.soldCount >= 4 && headline.sampleCount >= 5 && relevance >= 0.75 ? 'hoch' : headline.sampleCount >= 3 ? 'mittel' : 'niedrig';
-  if (headline.kind === 'pooled') quality = 'niedrig';
   if (headline.kind === 'card_base' && quality === 'hoch') quality = 'mittel';
 
   const sensitive = ['uhren', 'schmuck', 'gemalde', 'drucke', 'munzen', 'antiquitaten', 'teppiche'].includes(normalize(analysis.category));
@@ -1971,6 +2366,7 @@ function marketValuation(analysis: Analysis, market: MarketData): Valuation | nu
       headline.basis.replace(/\.+$/, '') +
       '.' +
       (headline.note ? ' ' + headline.note : '') +
+      (headline.fxNote ? ' ' + headline.fxNote : '') +
       ' Erkannter Zustand: ' +
       analysis.condition +
       '. Keine Offline-Basispreise werden verwendet.',
