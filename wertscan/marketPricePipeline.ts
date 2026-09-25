@@ -117,6 +117,8 @@ const SOURCE_META: Record<SourceKey, SourceMeta> = {
 export type MarketListing = {
   source: string;
   title: string;
+  /** Wörtlicher Zusatzbeleg aus demselben Markt Treffer, nie aus der Suchanfrage ergänzt. */
+  identityEvidence?: string;
   price: number;
   currency: 'EUR';
   condition: string;
