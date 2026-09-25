@@ -105,6 +105,7 @@ export type MarketDisplay = {
   /** Für Flohmarktobjekte ohne sichere Modellreferenz: eigene Vergleichsspanne, nie als Marktwert beschriften. */
   comparisonRange: ComparisonRangeSection;
   identity: MarketData['objectMatch'];
+  scanGuidance: MarketData['scanGuidance'];
   soldComparables: { sold: ComparableItem[]; offers: ComparableItem[]; emptyText: string | null };
   priceGuides: { disclaimer: string; items: GuideItem[] };
 };
@@ -243,6 +244,7 @@ export function buildMarketDisplay(market: MarketData): MarketDisplay {
     },
     comparisonRange,
     identity: market.objectMatch || null,
+    scanGuidance: market.scanGuidance || null,
     soldComparables: {
       sold,
       offers,
