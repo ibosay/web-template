@@ -662,6 +662,62 @@ test('Pokémon TCG Kataloglücke darf nur mit vollständiger Nummer plus Name od
   assert.ok(market.soldComparables.every(row => !/Pikachu|143\/SV-P/i.test(row.title)));
 });
 
+
+test('Unverifizierbarer Set Alias darf bei sichtbarem Namen plus voller Nummer streng ins Web fallen', async () => {
+  const promo = charizard({
+    cardName: 'Charizard',
+    cardNumber: '143/S-P',
+    setName: 'Illustration Grand Prix Promo',
+    gradingCompany: '',
+    grade: '',
+    language: 'Japanese',
+    finish: 'Holo',
+  });
+  (promo as unknown as { condition: string }).condition = 'Near Mint';
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? {
+            status: 200,
+            text: page([
+              { title: 'Charizard 143/S-P Japanese Holo Promo', condition: 'Near Mint', price: '24,00 EUR' },
+              { title: 'Charizard 143/S-P Pokemon Promo Holo', condition: 'Near Mint', price: '26,00 EUR' },
+              { title: 'Pikachu 143/S-P Holo Promo', condition: 'Near Mint', price: '800,00 EUR' },
+            ]),
+          }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+
+  const provider = new InMemoryCardDataProvider({
+    cards: [
+      candidate({
+        cardId: 'catalog-card',
+        name: 'Charizard',
+        number: '143',
+        printedNumber: '143/S-P',
+        expansionId: 'unknown-jp-promo',
+        expansionName: 'Japanese Promo Collection',
+        language: 'Japanese',
+        languageCode: 'ja',
+        variants: [{ name: 'holofoil' }],
+      }),
+    ],
+    evidence: {},
+  });
+
+  const market = await liveMarketLookup(promo, { ...silent, cardProvider: provider });
+
+  assert.equal(market.cardMarket?.status, 'not_unique');
+  assert.equal(market.cardMarket?.debug.matchReason, 'set_unverifiable_no_alias');
+  assert.equal(market.status, 'found');
+  assert.equal(market.headline.price, 25);
+  assert.equal(market.soldComparables.length, 2);
+  assert.ok(market.soldComparables.every(row => /Charizard/.test(row.title)));
+  assert.ok(market.soldComparables.every(row => !/Pikachu/.test(row.title)));
+});
+
 test('Karte mit Provider, PCA 9,5 ohne PCA-Verkäufe: kein Marktwert, PSA/Raw nicht verwendet, Preisführer separat', async () => {
   setAi(async () => ({ status: 403, text: '' }), async () => ({ data: { items: [] } }));
   const provider = new InMemoryCardDataProvider({
