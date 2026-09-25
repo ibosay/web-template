@@ -876,6 +876,8 @@ type IdentityProfile = {
    * zusammenpassen. Das verhindert Treffer einer anderen Karte mit derselben lokalen Nummer.
    */
   cardRequireNameOrSet: boolean;
+  /** Non TCG Serien wie Zukan/Carddass: gleiche Nummer allein reicht nie, Kartenname muss passen. */
+  cardRequireName: boolean;
   /** Zustandsgruppe, in der gültige Kartenbelege landen. */
   targetKey: ConditionKey;
   /** Kategorieabhängige Flohmarkt Identität. Für Karten bleibt die bestehende Kartenlogik maßgeblich. */
@@ -930,6 +932,7 @@ function buildIdentityProfile(analysis: Analysis, queries: string[]): IdentityPr
     cardVariant: isCard ? variantKey(cardDetailText(analysis, 'variant') || cardDetailText(analysis, 'finish')) : null,
     cardCondition: isCard ? normalizeCardCondition(analysis.condition) : null,
     cardRequireNameOrSet: isCard ? cardGameOf(analysis) === null : false,
+    cardRequireName: isCard ? cardGameOf(analysis) === null : false,
     targetKey: targetConditionKey(analysis),
     objectIdentity,
     objectDecision,
@@ -967,8 +970,9 @@ function cardIdentityMatch(title: string, profile: IdentityProfile): 'exact' | '
   const tokenSet = new Set(tokens.map(token => (/^\d+$/.test(token) ? String(Number(token)) : token)));
   if (profile.cardNumberConcat) {
     if (hasExactCardNumber(tokens, profile)) {
-      if (!profile.cardRequireNameOrSet) return 'exact';
+      if (!profile.cardRequireNameOrSet && !profile.cardRequireName) return 'exact';
       const nameMatches = profile.cardNameTokens.length > 0 && profile.cardNameTokens.every(token => tokenSet.has(token));
+      if (profile.cardRequireName) return nameMatches ? 'exact' : null;
       const setMatches = profile.setTokens.length > 0 && profile.setTokens.some(token => tokenSet.has(token));
       return nameMatches || setMatches ? 'exact' : null;
     }
