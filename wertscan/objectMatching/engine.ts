@@ -123,10 +123,15 @@ function groupMet(
 function requirementsSatisfied(
   input: ObjectIdentityInput,
   all: IdentityRequirement[] | undefined,
-  alternatives: { fields: IdentityField[]; min: number; observedRequired?: boolean }[] | undefined,
+  groups: { fields: IdentityField[]; min: number; observedRequired?: boolean }[] | undefined,
+  groupMode: 'any' | 'all' = 'any',
 ) {
   const allOk = (all || []).every(requirement => requirementMet(input, requirement));
-  const groupOk = !alternatives?.length || alternatives.some(group => groupMet(input, group));
+  const groupOk =
+    !groups?.length ||
+    (groupMode === 'all'
+      ? groups.every(group => groupMet(input, group))
+      : groups.some(group => groupMet(input, group)));
   return allOk && groupOk;
 }
 
@@ -172,9 +177,23 @@ function missingExactFields(input: ObjectIdentityInput) {
   (profile.exactAll || []).forEach(req => {
     if (!requirementMet(input, req)) missing.push(req.field);
   });
-  if (profile.exactAnyGroups?.length && !profile.exactAnyGroups.some(group => groupMet(input, group))) {
-    const smallest = [...profile.exactAnyGroups].sort((a, b) => a.min - b.min)[0];
-    smallest.fields.slice(0, smallest.min).forEach(field => missing.push(field));
+  if (profile.exactAnyGroups?.length) {
+    const mode = profile.exactGroupMode || 'any';
+    if (mode === 'any') {
+      if (!profile.exactAnyGroups.some(group => groupMet(input, group))) {
+        const smallest = [...profile.exactAnyGroups].sort((a, b) => a.min - b.min)[0];
+        smallest.fields.slice(0, smallest.min).forEach(field => missing.push(field));
+      }
+    } else {
+      profile.exactAnyGroups.forEach(group => {
+        if (!groupMet(input, group)) {
+          group.fields
+            .filter(field => !bestFact(input, field))
+            .slice(0, Math.max(1, group.min))
+            .forEach(field => missing.push(field));
+        }
+      });
+    }
   }
   return Array.from(new Set(missing));
 }
@@ -256,8 +275,13 @@ function labelFor(mode: IdentityMode, score: number) {
 
 export function decideIdentity(input: ObjectIdentityInput): IdentityDecision {
   const profile = categoryProfile(input);
-  const exactSatisfied = requirementsSatisfied(input, profile.exactAll, profile.exactAnyGroups);
-  const comparableSatisfied = requirementsSatisfied(input, profile.comparableAll, profile.comparableAnyGroups);
+  const exactSatisfied = requirementsSatisfied(input, profile.exactAll, profile.exactAnyGroups, profile.exactGroupMode || 'any');
+  const comparableSatisfied = requirementsSatisfied(
+    input,
+    profile.comparableAll,
+    profile.comparableAnyGroups,
+    profile.comparableGroupMode || 'all',
+  );
   const score = identityScore(input, profile.strongFields, profile.supportingFields, exactSatisfied, comparableSatisfied);
 
   let mode: IdentityMode = 'comparable_object';
@@ -332,13 +356,18 @@ function requiredFieldsForDecision(input: ObjectIdentityInput, decision: Identit
 
   const required = new Set<IdentityField>();
   (profile.exactAll || []).forEach(req => required.add(req.field));
-  const satisfiedGroup = (profile.exactAnyGroups || []).find(group => groupMet(input, group));
-  if (satisfiedGroup) {
-    satisfiedGroup.fields
+  const groupMode = profile.exactGroupMode || 'any';
+  const satisfiedGroups =
+    groupMode === 'all'
+      ? (profile.exactAnyGroups || []).filter(group => groupMet(input, group))
+      : [(profile.exactAnyGroups || []).find(group => groupMet(input, group))].filter(Boolean);
+  satisfiedGroups.forEach(group => {
+    if (!group) return;
+    group.fields
       .filter(field => bestFact(input, field))
-      .slice(0, satisfiedGroup.min)
+      .slice(0, group.min)
       .forEach(field => required.add(field));
-  }
+  });
   return [...required];
 }
 
