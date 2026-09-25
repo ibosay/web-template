@@ -96,9 +96,16 @@ function pushFact(
 }
 
 function categoryOf(analysis: WertScanAnalysisLike): FleaMarketCategory {
-  const value = norm([analysis.category, analysis.objectType].filter(Boolean).join(' '));
+  const value = norm([
+    analysis.category,
+    analysis.objectType,
+    analysis.brand,
+    analysis.title,
+    valueOf(analysis.hotWheelsDetails, 'castingName'),
+  ].filter(Boolean).join(' '));
 
   if (/sammelkarte|trading card|pokemon|pokémon|yugioh|magic the gathering/.test(value)) return 'trading_cards';
+  if (/hot wheels/.test(value)) return 'toys';
   if (/modellauto|diecast/.test(value)) return 'model_cars';
   if (/teppich|rug|carpet|kilim/.test(value)) return 'rugs';
   if (/uhr|armbanduhr|watch|smartwatch/.test(value) && !/smartwatch/.test(value)) return 'watches';
@@ -109,7 +116,7 @@ function categoryOf(analysis: WertScanAnalysisLike): FleaMarketCategory {
   if (/waschmaschine|trockner|geschirrspuler|kühlschrank|kuhlschrank|backofen|kochfeld|kaffeemaschine|haushaltsgerat/.test(value)) return 'household_appliances';
   if (/gemalde|gemälde|druck|antiquitat|antiquität|skulptur|kunst/.test(value)) return 'art_antiques';
   if (/spielzeug|figur|puppe|lego|playmobil|hot wheels|matchbox|plüschtier|pluschtier/.test(value)) return 'toys';
-  if (/technik|elektronik|computer|maus|tastatur|konsole|controller|kamera|objektiv|smartphone|tablet|laptop|fernseher|kopfhörer|kopfhorer|lautsprecher/.test(value)) return 'electronics';
+  if (/technik|elektronik|computer|maus|tastatur|konsole|controller|kamera|objektiv|smartphone|smartwatch|smart watch|tablet|laptop|fernseher|kopfhörer|kopfhorer|lautsprecher/.test(value)) return 'electronics';
 
   return 'generic';
 }
