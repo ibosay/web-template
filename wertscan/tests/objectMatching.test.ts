@@ -402,3 +402,160 @@ test('Adapter unterscheidet Hot Wheels und Modellauto Merkmale', () => {
   assert.ok(diecast.facts.some(row => row.field === 'manufacturer' && row.value === 'Norev'));
   assert.ok(diecast.facts.some(row => row.field === 'vehicleModel' && row.value === '2CV'));
 });
+
+
+test('Buch mit ISBN ist exaktes Produkt, falsche ISBN wird verworfen', () => {
+  const input: ObjectIdentityInput = {
+    category: 'books_media',
+    objectType: 'Buch',
+    facts: [
+      fact('isbn', '9783551551672', 0.99),
+      fact('name', 'Harry Potter und der Stein der Weisen', 0.95),
+      fact('edition', 'Gebundene Ausgabe', 0.9),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'exact_product');
+
+  const exact = evaluateCandidate(input, {
+    title: 'Harry Potter und der Stein der Weisen ISBN 9783551551672',
+    fields: { isbn: '9783551551672' },
+  });
+  assert.equal(exact.accepted, true);
+
+  const wrong = evaluateCandidate(input, {
+    title: 'Harry Potter ISBN 9783551551665',
+    fields: { isbn: '9783551551665' },
+  });
+  assert.equal(wrong.accepted, false);
+  assert.ok(wrong.conflicts.includes('isbn'));
+});
+
+test('Münze nutzt Nominalname, Jahr und Land als Sammleridentität', () => {
+  const input: ObjectIdentityInput = {
+    category: 'jewelry_coins',
+    objectType: 'Münze',
+    subtype: 'coin',
+    facts: [
+      fact('name', '2 Euro', 0.99),
+      fact('year', '2002', 0.99),
+      fact('country', 'Österreich', 0.99),
+      fact('marking', 'Bertha von Suttner', 0.95),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'exact_collectible');
+
+  const exact = evaluateCandidate(input, {
+    title: 'Österreich 2 Euro 2002 Bertha von Suttner',
+    fields: { name: '2 Euro', year: '2002', country: 'Österreich' },
+  });
+  assert.equal(exact.accepted, true);
+
+  const wrongYear = evaluateCandidate(input, {
+    title: 'Österreich 2 Euro 2003 Bertha von Suttner',
+    fields: { name: '2 Euro', year: '2003', country: 'Österreich' },
+  });
+  assert.equal(wrongYear.accepted, false);
+});
+
+test('Werkzeug mit Typenschild Modellnummer wird exakt, ähnliche Serie nicht', () => {
+  const input: ObjectIdentityInput = {
+    category: 'tools',
+    objectType: 'Akkuschrauber',
+    facts: [
+      fact('brand', 'Bosch', 0.99),
+      fact('modelNumber', 'GSR 12V-15', 0.99),
+      fact('name', 'Akkuschrauber', 0.9),
+    ],
+  };
+
+  assert.equal(decideIdentity(input).mode, 'exact_product');
+
+  const exact = evaluateCandidate(input, {
+    title: 'Bosch GSR 12V-15 Professional Akkuschrauber',
+    fields: { brand: 'Bosch', modelNumber: 'GSR 12V-15' },
+  });
+  assert.equal(exact.accepted, true);
+
+  const wrong = evaluateCandidate(input, {
+    title: 'Bosch GSR 12V-35 Professional',
+    fields: { brand: 'Bosch', modelNumber: 'GSR 12V-35' },
+  });
+  assert.equal(wrong.accepted, false);
+  assert.ok(wrong.conflicts.includes('modelNumber'));
+});
+
+test('Haushaltsgerät mit E Nummer wird exakt identifiziert', () => {
+  const input: ObjectIdentityInput = {
+    category: 'household_appliances',
+    objectType: 'Geschirrspüler',
+    facts: [
+      fact('brand', 'Bosch', 0.99),
+      fact('modelNumber', 'SMS4HVI00E', 0.99),
+      fact('name', 'Geschirrspüler', 0.92),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'exact_product');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, true);
+
+  const wrong = evaluateCandidate(input, {
+    title: 'Bosch Geschirrspüler SMS4EMI06E',
+    fields: { brand: 'Bosch', modelNumber: 'SMS4EMI06E' },
+  });
+  assert.equal(wrong.accepted, false);
+});
+
+test('Antiquität ohne belastbare Signatur bleibt Vergleichsobjekt', () => {
+  const input: ObjectIdentityInput = {
+    category: 'art_antiques',
+    objectType: 'Vase',
+    facts: [
+      fact('material', 'Messing', 0.95),
+      fact('shape', 'bauchige Vase', 0.92),
+      fact('size', '28 cm', 0.99),
+      fact('marking', 'florales Relief', 0.86),
+      fact('year', 'um 1950', 0.65, false),
+    ],
+  };
+
+  const decision = decideIdentity(input);
+  assert.equal(decision.mode, 'comparable_object');
+  assert.equal(decision.valuationPolicy.marketValueAllowed, false);
+
+  const similar = evaluateCandidate(input, {
+    title: 'Vintage Messing Vase bauchig 28 cm florales Relief',
+    fields: {},
+  });
+  assert.equal(similar.accepted, true);
+  assert.notEqual(similar.quality, 'exact');
+});
+
+test('Generisches Flohmarktobjekt braucht mehrere sichtbare Merkmale für Vergleich', () => {
+  const weak: ObjectIdentityInput = {
+    category: 'generic',
+    objectType: 'Unbekanntes Objekt',
+    facts: [fact('color', 'rot', 0.9)],
+  };
+  const weakDecision = decideIdentity(weak);
+  assert.equal(weakDecision.mode, 'comparable_object');
+  assert.equal(weakDecision.requiredSearchTerms.length, 0);
+
+  const useful: ObjectIdentityInput = {
+    category: 'generic',
+    objectType: 'Dekorationsobjekt',
+    facts: [
+      fact('name', 'Kerzenhalter', 0.9),
+      fact('material', 'Messing', 0.95),
+      fact('shape', 'dreiflammig', 0.9),
+      fact('size', '25 cm', 0.95),
+    ],
+  };
+  const usefulDecision = decideIdentity(useful);
+  assert.equal(usefulDecision.mode, 'comparable_object');
+  assert.ok(usefulDecision.requiredSearchTerms.length >= 3);
+});
