@@ -214,27 +214,65 @@ function dedupe(values: string[]) {
   });
 }
 
+function minimumFieldsFromProfile(
+  input: ObjectIdentityInput,
+  all: IdentityRequirement[] | undefined,
+  groups: { fields: IdentityField[]; min: number; observedRequired?: boolean }[] | undefined,
+  groupMode: 'any' | 'all',
+) {
+  const required = new Set<IdentityField>();
+  (all || []).forEach(req => {
+    if (requirementMet(input, req)) required.add(req.field);
+  });
+
+  const eligibleGroups =
+    groupMode === 'all'
+      ? (groups || []).filter(group => groupMet(input, group))
+      : [(groups || []).find(group => groupMet(input, group))].filter(Boolean);
+
+  eligibleGroups.forEach(group => {
+    if (!group) return;
+    group.fields
+      .filter(field => {
+        const fact = bestFact(input, field);
+        return Boolean(
+          fact &&
+          fact.confidence >= 0.55 &&
+          (!group.observedRequired || fact.observed),
+        );
+      })
+      .slice(0, group.min)
+      .forEach(field => required.add(field));
+  });
+
+  return [...required];
+}
+
 function searchPlan(input: ObjectIdentityInput, mode: IdentityMode) {
   const profile = categoryProfile(input);
-  const exactFields = dedupe([
-    ...(profile.exactAll || []).map(req => req.field),
-    ...((profile.exactAnyGroups || []).flatMap(group => group.fields)),
-  ] as unknown as string[]) as unknown as IdentityField[];
 
-  const priority: IdentityField[] =
+  // Nur die Mindestanker kommen in jede Suchanfrage. Weitere sichtbare Merkmale bleiben optional,
+  // damit seltene Flohmarktware nicht durch eine überlange Suchphrase unsichtbar wird.
+  const requiredFields =
     mode === 'comparable_object'
-      ? profile.strongFields
-      : [...exactFields, ...profile.strongFields];
-
-  const requiredFields = mode === 'comparable_object'
-    ? profile.strongFields.filter(field => ['brand', 'manufacturer', 'name', 'material', 'shape', 'marking', 'pattern', 'size', 'country'].includes(field))
-    : priority.filter(field => HIGH_VALUE_FIELDS.has(field) || ['brand', 'manufacturer', 'name', 'model', 'casting', 'vehicleModel'].includes(field));
+      ? minimumFieldsFromProfile(
+          input,
+          profile.comparableAll,
+          profile.comparableAnyGroups,
+          profile.comparableGroupMode || 'all',
+        )
+      : minimumFieldsFromProfile(
+          input,
+          profile.exactAll,
+          profile.exactAnyGroups,
+          profile.exactGroupMode || 'any',
+        );
 
   const required = dedupe(
     requiredFields
       .map(field => factValue(input, field))
       .filter(Boolean),
-  ).slice(0, mode === 'comparable_object' ? 4 : 5);
+  ).slice(0, 5);
 
   const optional = dedupe(
     [...profile.strongFields, ...profile.supportingFields]
@@ -377,39 +415,19 @@ function candidateConflictsFact(candidate: CandidateEvidence, field: IdentityFie
 
 function requiredFieldsForDecision(input: ObjectIdentityInput, decision: IdentityDecision) {
   const profile = categoryProfile(input);
-  const required = new Set<IdentityField>();
-
-  const addGroups = (
-    groups: { fields: IdentityField[]; min: number; observedRequired?: boolean }[] | undefined,
-    mode: 'any' | 'all',
-  ) => {
-    const satisfiedGroups =
-      mode === 'all'
-        ? (groups || []).filter(group => groupMet(input, group))
-        : [(groups || []).find(group => groupMet(input, group))].filter(Boolean);
-    satisfiedGroups.forEach(group => {
-      if (!group) return;
-      group.fields
-        .filter(field => {
-          const fact = bestFact(input, field);
-          return Boolean(fact && (!group.observedRequired || fact.observed));
-        })
-        .slice(0, group.min)
-        .forEach(field => required.add(field));
-    });
-  };
-
-  if (decision.mode === 'comparable_object') {
-    (profile.comparableAll || []).forEach(req => {
-      if (requirementMet(input, req)) required.add(req.field);
-    });
-    addGroups(profile.comparableAnyGroups, profile.comparableGroupMode || 'all');
-    return [...required];
-  }
-
-  (profile.exactAll || []).forEach(req => required.add(req.field));
-  addGroups(profile.exactAnyGroups, profile.exactGroupMode || 'any');
-  return [...required];
+  return decision.mode === 'comparable_object'
+    ? minimumFieldsFromProfile(
+        input,
+        profile.comparableAll,
+        profile.comparableAnyGroups,
+        profile.comparableGroupMode || 'all',
+      )
+    : minimumFieldsFromProfile(
+        input,
+        profile.exactAll,
+        profile.exactAnyGroups,
+        profile.exactGroupMode || 'any',
+      );
 }
 
 export function evaluateCandidate(input: ObjectIdentityInput, candidate: CandidateEvidence): CandidateDecision {
