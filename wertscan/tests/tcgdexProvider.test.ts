@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CardCandidate, CardQuery, TcgDexProvider, lookupCardMarket, matchCandidates, tcgdexLocalId } from '../cardData';
+import { CARD_STATUS_TO_MARKET_STATUS } from '../marketPricePipeline';
 
 const NOW = new Date('2026-09-25T10:00:00.000Z');
 
@@ -323,4 +324,56 @@ test('TCGdex 143/S P wird zu localId=143/S-P (normaler Filter)', async () => {
   assert.ok(calls[0].endsWith('/v2/ja/cards?localId=143%2FS-P'));
   assert.equal(candidates.length, 1);
   assert.equal(candidates[0].printedNumber, '143/S-P');
+});
+
+test('TCGdex localId=136 liefert viele Karten: nur passendes Set/Name/Sprache/Nummer wird akzeptiert, sonst card_not_unique', async () => {
+  // Obermenge wie im echten Browser-Test: viele Karten mit localId 136 aus verschiedenen Sets.
+  const many = [
+    card('swsh3-136', '136', 'Furret', 'swsh3', 'Darkness Ablaze'),
+    card('sm1-136', '136', 'Ultra Ball', 'sm1', 'Sun & Moon'),
+    card('xy1-136', '136', 'Furret', 'xy1', 'XY'),
+    card('sv01-136', '136', 'Lokix', 'sv01', 'Scarlet & Violet'),
+    card('swsh1-136', '136', 'Dubwool V', 'swsh1', 'Sword & Shield'),
+    card('dp1-136', '136', 'Wurmple', 'dp1', 'Diamond & Pearl'),
+  ];
+  const calls: string[] = [];
+  const routes: Route[] = [
+    ...routesFor('en', '136', many),
+    ...routesFor('de', '136', [card('swsh3-136', '136', 'Wiesenior', 'swsh3', 'Flammende Finsternis')]),
+    ...routesFor('ja', '136', [card('s3-136', '136', 'オオタチ', 's3', 'ムゲンゾーン')]),
+  ];
+  const provider = new TcgDexProvider({ now: () => NOW, fetchFn: mockFetch(routes, calls) });
+  const nm = { type: 'raw' as const, condition: 'NM' as const };
+
+  // 1) Set, Name, Sprache und Nummer bekannt → genau eine Karte.
+  const exact = en({ name: 'Furret', number: '136/189', setName: 'Darkness Ablaze' });
+  const candidates = await provider.findCards(exact);
+  assert.ok(calls[0].endsWith('/v2/en/cards?localId=136'));
+  assert.equal(candidates.length, many.length, 'Obermenge aus der API');
+  const match = matchCandidates(exact, candidates);
+  assert.equal(match.status, 'unique');
+  if (match.status === 'unique') assert.equal(match.candidate.cardId, 'swsh3-136');
+  assert.equal(match.rejected.length, many.length - 1, 'alle anderen Karten abgelehnt');
+  const priced = await lookupCardMarket(exact, nm, { provider, now: () => NOW });
+  assert.equal(priced.card?.cardId, 'swsh3-136');
+  assert.equal(priced.valuation?.headline.value ?? null, null, 'TCGdex liefert nie einen Marktwert');
+
+  // 2) Set unbekannt: zwei "Furret 136" (swsh3, xy1) bleiben übrig → card_not_unique.
+  const twoLeft = await lookupCardMarket(en({ name: 'Furret', number: '136' }), nm, { provider, now: () => NOW });
+  assert.equal(twoLeft.status, 'not_unique');
+  assert.equal(CARD_STATUS_TO_MARKET_STATUS[twoLeft.status], 'card_not_unique');
+  assert.deepEqual([...twoLeft.debug.remainingCandidates].sort(), ['swsh3-136', 'xy1-136']);
+  assert.equal(twoLeft.valuation, null);
+  assert.equal(twoLeft.fallbackAllowed, false);
+
+  // 3) Sprache unbekannt: DE/EN/JA getrennt abgefragt, mehrere Sprachfassungen → card_not_unique.
+  const noLanguage = await lookupCardMarket(
+    { game: 'pokemon', name: 'Furret', number: '136', setName: null, setId: null, language: null, variant: null },
+    nm,
+    { provider, now: () => NOW }
+  );
+  assert.equal(CARD_STATUS_TO_MARKET_STATUS[noLanguage.status], 'card_not_unique');
+  assert.equal(noLanguage.debug.matchReason, 'language_unknown_multiple_candidates');
+  assert.ok(['/v2/de/', '/v2/en/', '/v2/ja/'].every(part => calls.some(url => url.includes(part))));
+  assert.equal(noLanguage.valuation, null);
 });
