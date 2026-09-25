@@ -347,27 +347,38 @@ function candidateConflictsFact(candidate: CandidateEvidence, field: IdentityFie
 
 function requiredFieldsForDecision(input: ObjectIdentityInput, decision: IdentityDecision) {
   const profile = categoryProfile(input);
-  if (decision.mode === 'comparable_object') {
-    return profile.strongFields.filter(field => {
-      const fact = bestFact(input, field);
-      return Boolean(fact && fact.observed && fact.confidence >= 0.55);
+  const required = new Set<IdentityField>();
+
+  const addGroups = (
+    groups: { fields: IdentityField[]; min: number; observedRequired?: boolean }[] | undefined,
+    mode: 'any' | 'all',
+  ) => {
+    const satisfiedGroups =
+      mode === 'all'
+        ? (groups || []).filter(group => groupMet(input, group))
+        : [(groups || []).find(group => groupMet(input, group))].filter(Boolean);
+    satisfiedGroups.forEach(group => {
+      if (!group) return;
+      group.fields
+        .filter(field => {
+          const fact = bestFact(input, field);
+          return Boolean(fact && (!group.observedRequired || fact.observed));
+        })
+        .slice(0, group.min)
+        .forEach(field => required.add(field));
     });
+  };
+
+  if (decision.mode === 'comparable_object') {
+    (profile.comparableAll || []).forEach(req => {
+      if (requirementMet(input, req)) required.add(req.field);
+    });
+    addGroups(profile.comparableAnyGroups, profile.comparableGroupMode || 'all');
+    return [...required];
   }
 
-  const required = new Set<IdentityField>();
   (profile.exactAll || []).forEach(req => required.add(req.field));
-  const groupMode = profile.exactGroupMode || 'any';
-  const satisfiedGroups =
-    groupMode === 'all'
-      ? (profile.exactAnyGroups || []).filter(group => groupMet(input, group))
-      : [(profile.exactAnyGroups || []).find(group => groupMet(input, group))].filter(Boolean);
-  satisfiedGroups.forEach(group => {
-    if (!group) return;
-    group.fields
-      .filter(field => bestFact(input, field))
-      .slice(0, group.min)
-      .forEach(field => required.add(field));
-  });
+  addGroups(profile.exactAnyGroups, profile.exactGroupMode || 'any');
   return [...required];
 }
 
@@ -414,7 +425,7 @@ export function evaluateCandidate(input: ObjectIdentityInput, candidate: Candida
       const strongMatches = matchedFields.filter(field => profile.strongFields.includes(field)).length;
       const anchorMatched = ['brand', 'manufacturer', 'name', 'vehicleModel', 'casting']
         .some(field => matchedFields.includes(field as IdentityField));
-      accepted = strongMatches >= 2 && (anchorMatched || strongMatches >= 3);
+      accepted = missingRequired.length === 0 && strongMatches >= 2 && (anchorMatched || strongMatches >= 3);
       quality = accepted ? (strongMatches >= 4 ? 'strong_comparable' : 'similar_only') : 'insufficient';
     }
   }
