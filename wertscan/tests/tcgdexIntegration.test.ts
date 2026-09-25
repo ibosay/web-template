@@ -227,6 +227,50 @@ test('Sammelkarte (Marktplatz): ein Verkauf 20 € plus zehn Angebote → noch k
   assert.equal(display.soldComparables.offers.length, 10);
 });
 
+test('Sammelkarte (Marktplatz): Verkauf 20 € wird nicht durch Angebote 60–75 € als Ausreißer entfernt; kein Marktwert', async () => {
+  marketplace(
+    [{ title: 'Charizard ex 223/197 Obsidian Flames', condition: 'Near Mint', price: '20,00 EUR' }],
+    [60, 65, 70, 75].map(price => ({ title: 'Charizard ex 223/197 Angebot ' + price, condition: 'Near Mint', price: price + ',00 EUR' }))
+  );
+  const analysis = pokemon({}, 'Near Mint');
+  const result = await withTcgdex(tcgdexRoutes, () => liveMarketLookup(analysis, silent));
+  assert.equal(result.soldComparables.length, 1, 'Verkauf bleibt erhalten');
+  assert.equal(result.soldComparables[0].price, 20);
+  assert.equal(result.debug.rejectionReasons.price_outlier || 0, 0, 'kein Beleg als Ausreißer verworfen');
+  assert.equal(result.currentOffers.length, 4);
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.headline.price, null);
+  assert.equal(marketValuation(analysis, result), null);
+  const display = buildMarketDisplay(result);
+  assert.equal(display.marketValue.state, 'no_value');
+  assert.equal(display.soldComparables.sold.length, 1);
+  assert.equal(display.soldComparables.sold[0].sortValueEur, 20);
+  assert.equal(display.soldComparables.offers.length, 4);
+});
+
+test('Sammelkarte (Marktplatz): Verkäufe 19 € und 21 € plus Angebote um 70 € → Marktwert 20 €, beide Verkäufe bleiben', async () => {
+  marketplace(
+    [
+      { title: 'Charizard ex 223/197 Obsidian Flames', condition: 'Near Mint', price: '19,00 EUR' },
+      { title: 'Charizard ex 223/197 SIR', condition: 'Near Mint', price: '21,00 EUR' },
+    ],
+    [68, 69, 70, 71, 72].map(price => ({ title: 'Charizard ex 223/197 Angebot ' + price, condition: 'Near Mint', price: price + ',00 EUR' }))
+  );
+  const analysis = pokemon({}, 'Near Mint');
+  const result = await withTcgdex(tcgdexRoutes, () => liveMarketLookup(analysis, silent));
+  assert.deepEqual(result.soldComparables.map(row => row.price).sort((a, b) => a - b), [19, 21]);
+  assert.equal(result.debug.rejectionReasons.price_outlier || 0, 0);
+  assert.equal(result.currentOffers.length, 5);
+  assert.equal(result.status, 'found');
+  assert.equal(result.headline.price, 20);
+  assert.equal(result.headline.soldCount, 2);
+  assert.equal(marketValuation(analysis, result)!.market, 20);
+  const display = buildMarketDisplay(result);
+  assert.equal(display.marketValue.value!.eur, '20,00 €');
+  assert.equal(display.soldComparables.sold.length, 2);
+  assert.equal(display.soldComparables.offers.length, 5);
+});
+
 test('Sammelkarte (Marktplatz): PCA 9,5 – PCA-9,5-Angebote, PSA, Raw und Preisführer ersetzen fehlende PCA-Verkäufe nicht', async () => {
   marketplace(
     [

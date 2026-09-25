@@ -2315,10 +2315,16 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     debug.rejectedListings += outliers.length;
     return kept;
   };
+  // Sammelkarten: Verkäufe nur gegen Verkäufe desselben exakten Segments prüfen, Angebote getrennt –
+  // Angebotspreise dürfen nie einen Verkauf als Ausreißer entfernen. Nicht-Karten: unverändert.
+  const dropSegmentOutliers = (rows: ValidatedRow[]) =>
+    isCard
+      ? [...dropOutliers(rows.filter(row => row.type === 'sold')), ...dropOutliers(rows.filter(row => row.type !== 'sold'))]
+      : dropOutliers(rows);
   (Object.keys(bucketRows) as ConditionKey[]).forEach(key => {
-    bucketRows[key] = dropOutliers(comparableRows.filter(row => row.conditionGroup === key));
+    bucketRows[key] = dropSegmentOutliers(comparableRows.filter(row => row.conditionGroup === key));
   });
-  const baseRows = dropOutliers(rawBaseRows);
+  const baseRows = dropSegmentOutliers(rawBaseRows);
 
   const finalRows: ValidatedRow[] = [...bucketRows.new, ...bucketRows.likeNew, ...bucketRows.used, ...bucketRows.defective, ...baseRows];
   debug.validatedListings = finalRows.length;
