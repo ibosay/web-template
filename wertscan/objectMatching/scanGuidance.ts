@@ -1,6 +1,7 @@
 import { decideIdentity } from './engine';
 import { objectIdentityFromAnalysis, WertScanAnalysisLike } from './analysisAdapter';
 import { FleaMarketCategory, IdentityDecision, IdentityField, ObjectIdentityInput } from './types';
+import { auditRecognition, RecognitionIssue } from './recognitionAudit';
 
 export type ScanViewId =
   | 'front'
@@ -36,6 +37,7 @@ export type ScanGuidance = {
   canSearchNow: boolean;
   canShowExactMarketValue: boolean;
   missingExactFields: IdentityField[];
+  recognitionIssues: RecognitionIssue[];
   nextViews: ScanView[];
   message: string;
 };
@@ -352,6 +354,7 @@ export function buildScanGuidance(
   decision: IdentityDecision = decideIdentity(input),
 ): ScanGuidance {
   const missing = decision.missingExactFields;
+  const audit = auditRecognition(input);
   const templates = CATEGORY_VIEWS[input.category] || CATEGORY_VIEWS.generic;
 
   const ranked = templates
@@ -368,11 +371,13 @@ export function buildScanGuidance(
     .slice(0, 3);
 
   const canSearchNow = decision.requiredSearchTerms.length >= 2 || decision.mode !== 'comparable_object';
-  const canShowExactMarketValue = decision.valuationPolicy.marketValueAllowed;
+  const canShowExactMarketValue = decision.valuationPolicy.marketValueAllowed && audit.safeForExactIdentity;
 
   let message = 'Genug sichtbare Merkmale für eine vorsichtige Marktsuche vorhanden.';
   if (!canSearchNow) {
     message = 'Noch zu wenig belastbare Merkmale. Weitere Fotos sind sinnvoll, bevor Marktpreise gesucht werden.';
+  } else if (!audit.safeForExactIdentity) {
+    message = 'Erkannte Kennungen sind nicht ausreichend belegt oder widersprechen sich. Kein exakter Marktwert, bis die Kennung im Foto bestätigt ist.';
   } else if (!canShowExactMarketValue) {
     message = 'Vergleichssuche ist möglich, aber für einen exakten Marktwert fehlt noch eine sichere Produktidentität.';
   }
@@ -383,6 +388,7 @@ export function buildScanGuidance(
     canSearchNow,
     canShowExactMarketValue,
     missingExactFields: missing,
+    recognitionIssues: audit.issues,
     nextViews,
     message,
   };
