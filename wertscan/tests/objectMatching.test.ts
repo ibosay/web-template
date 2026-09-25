@@ -8,6 +8,8 @@ import {
   IdentityField,
   ObjectIdentityInput,
   objectIdentityFromAnalysis,
+  buildScanGuidance,
+  buildScanGuidanceFromAnalysis,
 } from '../objectMatching';
 
 const fact = (
@@ -818,4 +820,98 @@ test('Generische Modellnummer allein darf keinen exakten Marktwert freischalten'
     facts: [fact('gtin', '4006381333931', 0.99)],
   };
   assert.equal(decideIdentity(barcodeProduct).mode, 'exact_product');
+});
+
+
+test('Scan Guidance fordert bei alter Aristo Uhr gezielt Gehäuseboden und Beschriftung an', () => {
+  const identity: ObjectIdentityInput = {
+    category: 'watches',
+    objectType: 'Armbanduhr',
+    facts: [
+      fact('brand', 'Aristo', 0.99),
+      fact('marking', 'Walzgolddouble 20 Mikron', 0.99),
+      fact('material', 'Boden Edelstahl', 0.95),
+      fact('color', 'schwarz', 0.9),
+    ],
+  };
+
+  const guidance = buildScanGuidance(identity);
+  assert.equal(guidance.canShowExactMarketValue, false);
+  assert.equal(guidance.canSearchNow, true);
+  assert.ok(guidance.nextViews.some(view => view.id === 'back' || view.id === 'side'));
+  assert.match(guidance.message, /Vergleichssuche|exakten Marktwert/i);
+});
+
+test('Scan Guidance verlangt bei Elektronik ohne sichtbar belegte Modellnummer das Typenschild', () => {
+  const guidance = buildScanGuidanceFromAnalysis({
+    category: 'Elektronik',
+    objectType: 'Kopfhörer',
+    brand: 'Sony',
+    title: 'Sony Kopfhörer',
+    brandConfidence: 0.99,
+    visualText: ['SONY'],
+    universalDetails: {
+      manufacturer: 'Sony',
+      modelNumber: 'WH-1000XM5',
+    },
+  });
+
+  assert.equal(guidance.canShowExactMarketValue, false);
+  assert.ok(guidance.missingExactFields.includes('modelNumber') || guidance.missingExactFields.includes('model'));
+  assert.ok(guidance.nextViews.some(view => view.id === 'model_plate' || view.id === 'label'));
+});
+
+test('Scan Guidance erkennt sichtbare Modellnummer als ausreichend für exakte Elektronik Identität', () => {
+  const guidance = buildScanGuidanceFromAnalysis({
+    category: 'Elektronik',
+    objectType: 'Kopfhörer',
+    brand: 'Sony',
+    title: 'Sony WH-1000XM5',
+    brandConfidence: 0.99,
+    visualText: ['SONY', 'WH-1000XM5'],
+    universalDetails: {
+      manufacturer: 'Sony',
+      modelNumber: 'WH-1000XM5',
+    },
+  });
+
+  assert.equal(guidance.identityMode, 'exact_product');
+  assert.equal(guidance.canShowExactMarketValue, true);
+});
+
+test('Scan Guidance für Articuno Zukan priorisiert Kartennummer und Grading Label', () => {
+  const guidance = buildScanGuidanceFromAnalysis({
+    category: 'Sammelkarten',
+    objectType: 'Sammelkarte',
+    brand: 'Pokémon Zukan / Carddass',
+    title: 'Articuno',
+    visualText: ['2004 POKEMON ZUKAN', 'ARTICUNO', 'PSA', 'GEM MT 10'],
+    cardDetails: {
+      franchise: 'Pokémon Zukan Carddass',
+      cardName: 'Articuno',
+      setName: 'Pokémon Zukan',
+      gradingCompany: 'PSA',
+      grade: '10',
+    },
+  });
+
+  assert.equal(guidance.canShowExactMarketValue, false);
+  assert.ok(guidance.missingExactFields.includes('number'));
+  assert.ok(guidance.nextViews.some(view => view.id === 'card_number'));
+});
+
+test('Scan Guidance für Hot Wheels ohne Base Code empfiehlt Unterseite oder Verpackung', () => {
+  const guidance = buildScanGuidanceFromAnalysis({
+    category: 'Spielzeug',
+    objectType: 'Modellauto',
+    brand: 'Hot Wheels',
+    title: 'Hot Wheels Camaro',
+    visualText: ['HOT WHEELS', 'MATTEL', 'CAMARO'],
+    hotWheelsDetails: {
+      manufacturer: 'Mattel',
+      castingName: 'Camaro',
+    },
+  });
+
+  assert.ok(guidance.nextViews.some(view => view.id === 'bottom' || view.id === 'packaging'));
 });
