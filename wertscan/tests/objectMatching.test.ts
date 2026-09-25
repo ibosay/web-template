@@ -1130,3 +1130,80 @@ test('Unsichere Mehrfoto Beobachtung unter Mindestvertrauen wird nicht als Beleg
   ]);
   assert.equal(fused.length, 0);
 });
+
+
+test('Kartennummer aus cardDetails ohne sichtbaren Beleg bleibt unbestätigt', () => {
+  const identity = objectIdentityFromAnalysis({
+    category: 'Sammelkarten',
+    objectType: 'Sammelkarte',
+    brand: 'Pokémon TCG',
+    title: 'Charizard',
+    visualText: ['POKEMON', 'CHARIZARD'],
+    cardDetails: {
+      franchise: 'Pokémon',
+      cardName: 'Charizard',
+      cardNumber: '143/S-P',
+      language: 'Japanese',
+    },
+  });
+
+  const numberFact = identity.facts.find(row => row.field === 'number' && row.value === '143/S-P');
+  assert.equal(numberFact?.observed, false);
+  assert.notEqual(decideIdentity(identity).mode, 'exact_collectible');
+});
+
+test('Mehrfoto Beleg kann unbestätigte Kartennummer sauber bestätigen', () => {
+  const identity = objectIdentityFromAnalysis({
+    category: 'Sammelkarten',
+    objectType: 'Sammelkarte',
+    brand: 'Pokémon TCG',
+    title: 'Charizard',
+    visualText: ['POKEMON', 'CHARIZARD'],
+    cardDetails: {
+      franchise: 'Pokémon',
+      cardName: 'Charizard',
+      cardNumber: '143/S-P',
+      language: 'Japanese',
+    },
+    photoEvidence: [
+      {
+        photoId: 'number-1',
+        view: 'card_number',
+        facts: [
+          { field: 'number', value: '143/S-P', confidence: 0.99, source: 'visible_text' },
+        ],
+      },
+    ],
+  });
+
+  const numberFact = identity.facts.find(row => row.field === 'number' && row.value === '143/S-P');
+  assert.equal(numberFact?.observed, true);
+  assert.equal(decideIdentity(identity).mode, 'exact_collectible');
+});
+
+test('Grading Firma und Note müssen auf dem Label sichtbar sein', () => {
+  const identity = objectIdentityFromAnalysis({
+    category: 'Sammelkarten',
+    objectType: 'Sammelkarte',
+    brand: 'Pokémon Zukan / Carddass',
+    title: 'Articuno',
+    visualText: ['ARTICUNO', '#379', '2004 POKEMON ZUKAN'],
+    cardDetails: {
+      franchise: 'Pokémon Zukan Carddass',
+      cardName: 'Articuno',
+      cardNumber: '379',
+      gradingCompany: 'PSA',
+      grade: '10',
+    },
+  });
+
+  const company = identity.facts.find(row => row.field === 'gradingCompany');
+  const grade = identity.facts.find(row => row.field === 'grade');
+  assert.equal(company?.observed, false);
+  assert.equal(grade?.observed, false);
+
+  const audit = auditRecognition(identity);
+  assert.equal(audit.safeForExactIdentity, false);
+  assert.ok(audit.unsupportedStableFields.includes('gradingCompany'));
+  assert.ok(audit.unsupportedStableFields.includes('grade'));
+});
