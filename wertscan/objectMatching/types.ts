@@ -109,8 +109,12 @@ export type CategoryProfile = {
   exactMode: Exclude<IdentityMode, 'comparable_object'>;
   exactAll?: IdentityRequirement[];
   exactAnyGroups?: IdentityGroup[];
+  /** any = mindestens eine Gruppe genügt, all = jede Gruppe muss erfüllt sein. */
+  exactGroupMode?: 'any' | 'all';
   comparableAll?: IdentityRequirement[];
   comparableAnyGroups?: IdentityGroup[];
+  /** Vergleichsprofile brauchen meist mehrere Merkmalsgruppen gleichzeitig. */
+  comparableGroupMode?: 'any' | 'all';
   strongFields: IdentityField[];
   supportingFields: IdentityField[];
   neverUseAsIdentity?: IdentityField[];
