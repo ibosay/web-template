@@ -380,7 +380,8 @@ test('Adapter unterscheidet Hot Wheels und Modellauto Merkmale', () => {
     },
   });
 
-  assert.equal(hotWheels.category, 'model_cars');
+  assert.equal(hotWheels.category, 'toys');
+  assert.equal(hotWheels.subtype, 'hot_wheels');
 
   const diecast = objectIdentityFromAnalysis({
     category: 'Modellautos',
