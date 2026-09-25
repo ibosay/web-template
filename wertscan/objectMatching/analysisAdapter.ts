@@ -1,4 +1,5 @@
 import { FleaMarketCategory, IdentityFact, IdentityField, ObjectIdentityInput } from './types';
+import { fusePhotoEvidence, PhotoObservation } from './photoEvidence';
 
 type Details = Record<string, unknown>;
 
@@ -34,6 +35,10 @@ export type WertScanAnalysisLike = {
   fashionDetails?: Details | null;
   instrumentDetails?: Details | null;
   sportsDetails?: Details | null;
+  /** Direkte Fakten pro Foto für robuste Mehrfoto Fusion. */
+  photoEvidence?: PhotoObservation[] | null;
+  /** Bereits aufgenommene Ansichten, damit WertScan sie nicht erneut anfordert. */
+  capturedViews?: string[] | null;
 };
 
 function fold(value: unknown) {
@@ -92,17 +97,34 @@ function pushFact(
   confidence: number,
   observed: boolean,
   source: IdentityFact['source'] = 'visible_feature',
+  evidence?: IdentityFact['evidence'],
 ) {
   const clean = value.trim();
   if (!clean) return;
-  const duplicate = target.some(item => item.field === field && compact(item.value) === compact(clean));
-  if (duplicate) return;
+  const duplicate = target.find(item => item.field === field && compact(item.value) === compact(clean));
+  const clampedConfidence = Math.max(0, Math.min(1, confidence));
+
+  if (duplicate) {
+    duplicate.confidence = Math.max(duplicate.confidence, clampedConfidence);
+    duplicate.observed = duplicate.observed || observed;
+    if (source === 'visible_text') duplicate.source = 'visible_text';
+    if (evidence) {
+      duplicate.evidence = {
+        photoIds: Array.from(new Set([...(duplicate.evidence?.photoIds || []), ...(evidence.photoIds || [])])),
+        views: Array.from(new Set([...(duplicate.evidence?.views || []), ...(evidence.views || [])])),
+        occurrences: Math.max(duplicate.evidence?.occurrences || 0, evidence.occurrences || 0),
+      };
+    }
+    return;
+  }
+
   target.push({
     field,
     value: clean,
-    confidence: Math.max(0, Math.min(1, confidence)),
+    confidence: clampedConfidence,
     observed,
     source,
+    evidence,
   });
 }
 
@@ -442,6 +464,20 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
   }
 
   if (analysis.condition) pushFact(facts, 'condition', text(analysis.condition), 0.85, true, 'visible_feature');
+
+  // Mehrere Fotos werden erst ganz am Ende fusioniert, damit direkte Fotoevidenz
+  // schwächere oder nur abgeleitete Einzelwerte aufwerten kann.
+  fusePhotoEvidence(analysis.photoEvidence || []).forEach(photoFact => {
+    pushFact(
+      facts,
+      photoFact.field,
+      photoFact.value,
+      photoFact.confidence,
+      true,
+      photoFact.source,
+      photoFact.evidence,
+    );
+  });
 
   return {
     category,
