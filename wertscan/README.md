@@ -4,7 +4,8 @@
 
 | Datei | Aufgabe |
 |---|---|
-| `marketPricePipeline.ts` | Einstieg `liveMarketLookup()` / `marketValuation()`. Nicht-Karten-Produkte: Scraping. Sammelkarten: `cardProvider`, ergänzend Scraping nur unter strengen Regeln. |
+| `marketPricePipeline.ts` | Einstieg `liveMarketLookup()` / `marketValuation()`. Nicht-Karten-Produkte: Scraping. Sammelkarten: `cardProvider` (Pokémon standardmäßig TCGdex), ergänzend Scraping nur unter strengen Regeln. |
+| `cardData/defaultCardProvider.ts` | Erzeugt den Standard-Kartenanbieter für Pokémon (`TcgDexProvider`). |
 | `marketDisplay.ts` | Anzeigevertrag v1: `marketValue`, `soldComparables`, `priceGuides`. |
 | `cardData/types.ts` | Schnittstelle `CardDataProvider`, `PriceEvidence` (`sold` / `listing` / `guide`), `FxRateProvider`. |
 | `cardData/conditions.ts` | **Zentrale Zustands-Taxonomie** (Mint, NM, EX, LP, MP, HP, DM). Keine Umwandlung zwischen Begriffen. |
@@ -122,20 +123,22 @@ TCGdex-Preiswerte werden **nie als Verkauf und nie als Marktwert** behandelt. F�
 greift nach eindeutiger Kartenidentität der bestehende `cardScrapeFallback` und sucht echte
 Vergleichsverkäufe. Bei Grading gilt weiterhin: nur exakt gleiche Firma und Note zählen.
 
+**TCGdex ist der Standard-Kartenanbieter für Pokémon.** `liveMarketLookup` erzeugt ihn automatisch
+über `createDefaultPokemonCardProvider()` (`cardData/defaultCardProvider.ts`), wenn kein
+`cardProvider` übergeben wird. Andere Spiele und Nicht-Karten-Produkte nutzen ihn nicht.
+`cardProvider: null` schaltet ihn bewusst ab (nur Marktplatzsuche).
+
 ```ts
-import { EcbFxRateProvider, TcgDexProvider } from './cardData';
+import { EcbFxRateProvider } from './cardData';
 
-const cardProvider = new TcgDexProvider();
-const fxRateProvider = new EcbFxRateProvider();
-
-const market = await liveMarketLookup(analysis, {
-  cardProvider,
-  fxRateProvider,
-  cardScrapeFallback: true,
-});
-
+const market = await liveMarketLookup(analysis, { fxRateProvider }); // Pokémon → TCGdex automatisch
 const display = buildMarketDisplay(market);
 ```
+
+Ablauf Pokémon: Bilderkennung → TCGdex-Kandidaten → exakte WertScan-Prüfung (Nummer inkl. Nenner
+über `set.cardCount.official`, Set, Sprache, Variante) → TCGdex-Preise nur als `priceGuides` →
+bei fehlenden Verkäufen `cardScrapeFallback` → Marktwert nur aus echten, zulässigen Verkäufen.
+Ist TCGdex nicht erreichbar: `provider_error`, kein TCGdex-Preis, kein Marktwert, keine Marktplatzsuche.
 
 Wichtig: TCGdex braucht keinen Key. Wenn TCGdex eine Karte nicht eindeutig identifizieren kann,
 wird nicht geraten. Scrydex kann später über dieselbe `CardDataProvider`-Schnittstelle wieder

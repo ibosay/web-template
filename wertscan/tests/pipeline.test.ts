@@ -293,7 +293,7 @@ test('Scraping: Cardmarket ist Preisführer und fließt nicht in den Wert ein', 
           : { status: 403, text: '' },
     async ({ content }) => extractAll(content)
   );
-  const result = await liveMarketLookup(rawNearMint(), silent);
+  const result = await liveMarketLookup(rawNearMint(), { ...silent, cardProvider: null });
   assert.equal(result.headline.kind, 'condition');
   assert.equal(result.headline.price, 100);
   assert.ok(result.priceGuides.length >= 1);
@@ -317,7 +317,7 @@ test('Scraping: Reverse-Holo-Titel bei unbekannter Variante wird nicht übernomm
         : { status: 403, text: '' },
     async ({ content }) => extractAll(content)
   );
-  const result = await liveMarketLookup(rawNearMint(), silent);
+  const result = await liveMarketLookup(rawNearMint(), { ...silent, cardProvider: null });
   assert.ok(result.debug.rejectionReasons.variant_unverified >= 1);
   assert.equal(result.headline.price, 100);
 });
@@ -336,7 +336,7 @@ test('Bisheriges Problem (Scraping): Verkäufe um 20 €, Angebote und Cardmarke
   );
   const raw = charizard({ gradingCompany: '', grade: '' });
   (raw as unknown as { condition: string }).condition = 'Near Mint';
-  const result = await liveMarketLookup(raw, silent);
+  const result = await liveMarketLookup(raw, { ...silent, cardProvider: null });
   assert.equal(result.status, 'found');
   assert.equal(result.headline.price, 20);
   assert.notEqual(marketValuation(raw, result)!.market, 76);
@@ -353,7 +353,7 @@ test('Raw-Karte "Mint" per Scraping: Near-Mint-Verkäufe werden nicht als Mint g
   );
   const raw = charizard({ gradingCompany: '', grade: '' });
   (raw as unknown as { condition: string }).condition = 'Mint';
-  const result = await liveMarketLookup(raw, silent);
+  const result = await liveMarketLookup(raw, { ...silent, cardProvider: null });
   assert.equal(result.headline.kind, 'none');
   assert.ok(result.debug.rejectionReasons.card_condition_mismatch >= 2);
 });

@@ -55,6 +55,7 @@ import {
   toEur,
   variantKey,
 } from './cardData';
+import { createDefaultPokemonCardProvider } from './cardData/defaultCardProvider';
 
 // ---------------------------------------------------------------------------
 // Quellen: EINE Quelle der Wahrheit für Typ, Schema, Prompt und Anzeige.
@@ -320,8 +321,12 @@ export type MarketLookupOptions = {
   extractConcurrency?: number;
   /** Wird immer mit ('debug', MarketDebug) aufgerufen. Standard: formatierte Ausgabe per console.info. */
   log?: (event: string, data: unknown) => void;
-  /** Kartendatenanbieter (z. B. ScrydexProvider, serverseitig). Ohne Provider: Scraping wie bisher. */
-  cardProvider?: CardDataProvider;
+  /**
+   * Kartendatenanbieter. Nicht angegeben (undefined): Standard für Pokémon ist der kostenlose
+   * TcgDexProvider (createDefaultPokemonCardProvider). Ein anderer Anbieter (z. B. ScrydexProvider)
+   * kann explizit übergeben werden. null: bewusst kein Kartenanbieter, nur Marktplatzsuche.
+   */
+  cardProvider?: CardDataProvider | null;
   /** Spiele, für die der Provider genutzt wird. Standard: ['pokemon']. */
   cardProviderGames?: string[];
   /** Echte Wechselkurse für die EUR-Anzeige von Provider-Preisen. */
@@ -1974,7 +1979,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     extractConcurrency = 4,
     log = (event: string, data: unknown) =>
       console.info(event === 'debug' ? formatMarketDebug(data as MarketDebug) : '[wertscan:market] ' + event + ' ' + JSON.stringify(data)),
-    cardProvider,
+    cardProvider: cardProviderOption,
     cardProviderGames = ['pokemon'],
     fxRateProvider,
     expansionAliases,
@@ -2039,6 +2044,13 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   let providerMessage = '';
   let providerGuides: PriceGuideEntry[] = [];
   let providerFallbackStatus: MarketSearchStatus | null = null;
+  // Standard: TCGdex für Pokémon, sofern kein Anbieter übergeben wurde (null = bewusst keiner).
+  const cardProvider =
+    cardProviderOption === undefined
+      ? isCard && game === 'pokemon'
+        ? createDefaultPokemonCardProvider()
+        : null
+      : cardProviderOption;
   if (isCard && cardProvider && game && cardProviderGames.includes(game)) {
     const outcome = await runCardProvider(analysis, game, cardProvider, {
       fx: fxRateProvider,
