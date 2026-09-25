@@ -63,6 +63,7 @@ const LABELS: Partial<Record<IdentityField, string>> = {
   pattern: 'Muster',
   movement: 'Werk',
   country: 'Herkunft',
+  style: 'Stil',
 };
 
 function fold(value: string) {
@@ -338,6 +339,7 @@ const FLEXIBLE_TEXT_FIELDS = new Set<IdentityField>([
   'pattern',
   'country',
   'condition',
+  'style',
 ]);
 
 function tokenClose(expected: string, actual: string) {
