@@ -30,6 +30,10 @@ export type WertScanAnalysisLike = {
   artDetails?: Details | null;
   toolDetails?: Details | null;
   applianceDetails?: Details | null;
+  furnitureDetails?: Details | null;
+  fashionDetails?: Details | null;
+  instrumentDetails?: Details | null;
+  sportsDetails?: Details | null;
 };
 
 function fold(value: unknown) {
@@ -122,6 +126,10 @@ function categoryOf(analysis: WertScanAnalysisLike): FleaMarketCategory {
   if (/werkzeug|bohrmaschine|säge|sage|schrauber|werkzeugkoffer/.test(value)) return 'tools';
   if (/waschmaschine|trockner|geschirrspuler|kühlschrank|kuhlschrank|backofen|kochfeld|kaffeemaschine|haushaltsgerat/.test(value)) return 'household_appliances';
   if (/gemalde|gemälde|druck|antiquitat|antiquität|skulptur|kunst/.test(value)) return 'art_antiques';
+  if (/mobel|möbel|stuhl|sessel|sofa|tisch|kommode|schrank|regal|lampe|leuchte|spiegel/.test(value)) return 'furniture_home';
+  if (/tasche|handtasche|rucksack|schuh|sneaker|jacke|mantel|kleid|mode|kleidung|gurtel|gürtel|brille|sonnenbrille/.test(value)) return 'fashion_accessories';
+  if (/gitarre|bass|klavier|keyboard|synthesizer|saxophon|trompete|violine|geige|musikinstrument|verstarker|verstärker/.test(value)) return 'music_instruments';
+  if (/fahrrad|ski|snowboard|tennisschlager|tennisschläger|golfschlager|golfschläger|fitnessgerat|fitnessgerät|camping|zelt|rucksack outdoor|sportgerat|sportgerät/.test(value)) return 'sports_outdoor';
   if (/spielzeug|figur|puppe|lego|playmobil|hot wheels|matchbox|plüschtier|pluschtier/.test(value)) return 'toys';
   if (/technik|elektronik|computer|maus|tastatur|konsole|controller|kamera|objektiv|smartphone|smartwatch|smart watch|tablet|laptop|fernseher|kopfhörer|kopfhorer|lautsprecher/.test(value)) return 'electronics';
 
@@ -163,6 +171,10 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
   const art = analysis.artDetails;
   const tool = analysis.toolDetails;
   const appliance = analysis.applianceDetails;
+  const furniture = analysis.furnitureDetails;
+  const fashion = analysis.fashionDetails;
+  const instrument = analysis.instrumentDetails;
+  const sports = analysis.sportsDetails;
 
   const brand = text(analysis.brand);
   if (brand) {
@@ -270,14 +282,20 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     valueOf(rug, 'material') ||
     valueOf(jewelry, 'material', 'metal') ||
     valueOf(art, 'material') ||
-    valueOf(porcelain, 'material');
+    valueOf(porcelain, 'material') ||
+    valueOf(furniture, 'material') ||
+    valueOf(fashion, 'material') ||
+    valueOf(instrument, 'material') ||
+    valueOf(sports, 'material');
   if (material) pushFact(facts, 'material', material, 0.86, true, 'visible_feature');
 
   const shape =
     valueOf(u, 'shape', 'form', 'formFactor') ||
     valueOf(rug, 'shape') ||
     valueOf(porcelain, 'shape', 'form') ||
-    valueOf(art, 'shape', 'form');
+    valueOf(art, 'shape', 'form') ||
+    valueOf(furniture, 'shape', 'form') ||
+    valueOf(fashion, 'shape', 'form');
   if (shape) pushFact(facts, 'shape', shape, 0.86, true, 'visible_feature');
 
   const movement =
@@ -288,10 +306,20 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
   const color =
     valueOf(u, 'primaryColor') ||
     valueOf(rug, 'colors') ||
-    valueOf(mc, 'color');
+    valueOf(mc, 'color') ||
+    valueOf(furniture, 'color') ||
+    valueOf(fashion, 'color') ||
+    valueOf(instrument, 'color') ||
+    valueOf(sports, 'color');
   if (color) pushFact(facts, 'color', color, 0.86, true, 'visible_feature');
 
-  const size = valueOf(u, 'dimensionsOrSize') || valueOf(rug, 'dimensions', 'size');
+  const size =
+    valueOf(u, 'dimensionsOrSize') ||
+    valueOf(rug, 'dimensions', 'size') ||
+    valueOf(furniture, 'dimensions', 'size') ||
+    valueOf(fashion, 'size') ||
+    valueOf(instrument, 'size') ||
+    valueOf(sports, 'size');
   if (size) pushFact(facts, 'size', size, 0.92, true, 'visible_feature');
 
   const marking =
@@ -300,7 +328,11 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     valueOf(analysis.toyDetails, 'manufacturerMark') ||
     valueOf(porcelain, 'backstamp', 'marking', 'bottomMark') ||
     valueOf(coin, 'inscription', 'marking') ||
-    valueOf(art, 'signature', 'marking');
+    valueOf(art, 'signature', 'marking') ||
+    valueOf(furniture, 'label', 'marking') ||
+    valueOf(fashion, 'label', 'marking', 'logo') ||
+    valueOf(instrument, 'label', 'marking') ||
+    valueOf(sports, 'label', 'marking');
   if (marking) pushFact(facts, 'marking', marking, 0.94, true, 'visible_text');
 
   const hallmark = valueOf(jewelry, 'hallmark', 'purityMark', 'punze') || valueOf(u, 'hallmark');
@@ -312,7 +344,10 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     valueOf(mc, 'year') ||
     valueOf(book, 'publicationYear', 'year') ||
     valueOf(coin, 'year') ||
-    valueOf(art, 'year', 'date');
+    valueOf(art, 'year', 'date') ||
+    valueOf(furniture, 'year', 'period') ||
+    valueOf(instrument, 'year') ||
+    valueOf(sports, 'year');
   if (year) pushFact(facts, 'year', year, 0.88, true, 'visible_text');
 
   const country =
@@ -322,8 +357,17 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     valueOf(porcelain, 'country');
   if (country) pushFact(facts, 'country', country, 0.82, supportedByVisible(country, pool), 'visible_feature');
 
-  const edition = valueOf(u, 'editionOrVariant');
+  const edition =
+    valueOf(u, 'editionOrVariant') ||
+    valueOf(fashion, 'edition', 'collection') ||
+    valueOf(sports, 'edition', 'series');
   if (edition) pushFact(facts, 'edition', edition, 0.84, true, 'visible_text');
+
+  const style =
+    valueOf(furniture, 'style', 'period') ||
+    valueOf(fashion, 'style') ||
+    valueOf(art, 'style', 'period');
+  if (style) pushFact(facts, 'style', style, 0.82, true, 'visible_feature');
 
   if (category === 'rugs') {
     const pattern = valueOf(rug, 'pattern');
@@ -360,6 +404,41 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
   if (category === 'household_appliances') {
     const applianceModel = valueOf(appliance, 'modelNumber', 'eNumber', 'productCode');
     if (applianceModel) pushFact(facts, 'modelNumber', applianceModel, 0.98, true, 'visible_text');
+  }
+
+
+  if (category === 'furniture_home') {
+    const maker = valueOf(furniture, 'manufacturer', 'maker', 'brand');
+    const modelNumber = valueOf(furniture, 'modelNumber', 'itemNumber', 'productCode');
+    const name = valueOf(furniture, 'name', 'type') || valueOf(u, 'productFamily');
+    if (maker) pushFact(facts, 'manufacturer', maker, 0.94, supportedByVisible(maker, pool), 'visible_text');
+    if (modelNumber) pushFact(facts, 'modelNumber', modelNumber, 0.97, supportedByVisible(modelNumber, pool), 'visible_text');
+    if (name) pushFact(facts, 'name', name, 0.88, true, 'visible_feature');
+  }
+
+  if (category === 'fashion_accessories') {
+    const name = valueOf(fashion, 'name', 'productType') || valueOf(u, 'productFamily');
+    const styleCode = valueOf(fashion, 'styleCode', 'modelNumber', 'productCode');
+    if (name) pushFact(facts, 'name', name, 0.9, true, 'visible_feature');
+    if (styleCode) pushFact(facts, 'modelNumber', styleCode, 0.98, supportedByVisible(styleCode, pool), 'visible_text');
+  }
+
+  if (category === 'music_instruments') {
+    const name = valueOf(instrument, 'name', 'instrumentType') || valueOf(u, 'productFamily');
+    const model = valueOf(instrument, 'model');
+    const modelNumber = valueOf(instrument, 'modelNumber', 'productCode');
+    if (name) pushFact(facts, 'name', name, 0.9, true, 'visible_feature');
+    if (model) pushFact(facts, 'model', model, 0.94, supportedByVisible(model, pool), 'visible_text');
+    if (modelNumber) pushFact(facts, 'modelNumber', modelNumber, 0.98, supportedByVisible(modelNumber, pool), 'visible_text');
+  }
+
+  if (category === 'sports_outdoor') {
+    const name = valueOf(sports, 'name', 'productType') || valueOf(u, 'productFamily');
+    const model = valueOf(sports, 'model');
+    const modelNumber = valueOf(sports, 'modelNumber', 'productCode');
+    if (name) pushFact(facts, 'name', name, 0.9, true, 'visible_feature');
+    if (model) pushFact(facts, 'model', model, 0.94, supportedByVisible(model, pool), 'visible_text');
+    if (modelNumber) pushFact(facts, 'modelNumber', modelNumber, 0.98, supportedByVisible(modelNumber, pool), 'visible_text');
   }
 
   if (analysis.condition) pushFact(facts, 'condition', text(analysis.condition), 0.85, true, 'visible_feature');
