@@ -101,6 +101,178 @@ test('Zu wenig Fotoidentität startet keine breite Marktsuche', async () => {
   assert.equal(marketValuation(weak, market), null);
 });
 
+test('Mehrfoto Evidenz kann exakte Elektronik Identität bis in die Markt Pipeline tragen', async () => {
+  const remote = {
+    category: 'Elektronik',
+    objectType: 'Fernbedienung',
+    brand: 'Apple',
+    model: 'Siri Remote',
+    title: 'Apple Siri Remote',
+    condition: 'gebraucht',
+    confidence: 0.95,
+    categoryConfidence: 0.99,
+    brandConfidence: 0.99,
+    modelConfidence: 0.5,
+    visualText: ['APPLE'],
+    identifiers: [],
+    universalDetails: {
+      manufacturer: 'Apple',
+      modelName: 'Siri Remote',
+      modelNumber: 'A2540',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: 'Fernbedienung',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      detailConfidence: 0.9,
+    },
+    photoEvidence: [
+      {
+        photoId: 'back-1',
+        view: 'back',
+        facts: [
+          { field: 'modelNumber', value: 'A2540', confidence: 0.98, source: 'visible_text' },
+        ],
+      },
+      {
+        photoId: 'label-1',
+        view: 'label',
+        facts: [
+          { field: 'modelNumber', value: 'A2540', confidence: 0.95, source: 'visible_text' },
+        ],
+      },
+    ],
+  } as unknown as Analysis;
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? {
+            status: 200,
+            text: page([
+              { title: 'Apple Siri Remote A2540', condition: 'Gebraucht', price: '42,00 EUR' },
+              { title: 'Apple TV Siri Remote A2540', condition: 'Gebraucht', price: '46,00 EUR' },
+              { title: 'Apple Siri Remote A1513', condition: 'Gebraucht', price: '15,00 EUR' },
+            ]),
+          }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+
+  const market = await liveMarketLookup(remote, silent);
+  assert.equal(market.objectMatch?.mode, 'exact_product');
+  assert.equal(market.scanGuidance?.canShowExactMarketValue, true);
+  assert.ok(market.soldComparables.length >= 2);
+  assert.ok(market.soldComparables.every(row => !/A1513/.test(row.title)));
+  assert.equal(marketValuation(remote, market)?.market, 44);
+});
+
+test('Schwache strukturierte Fotoevidenz stoppt Marktsuche auch ohne visualText', async () => {
+  const weak = {
+    category: 'Sonstiges',
+    objectType: 'Unbekannter Gegenstand',
+    brand: '',
+    model: '',
+    title: 'Gegenstand',
+    condition: 'gebraucht',
+    confidence: 0.9,
+    categoryConfidence: 0.6,
+    universalDetails: {
+      manufacturer: '',
+      modelName: '',
+      modelNumber: '',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: '',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      detailConfidence: 0.6,
+    },
+    photoEvidence: [
+      {
+        photoId: 'front-1',
+        view: 'front',
+        facts: [
+          { field: 'color', value: 'rot', confidence: 0.9, source: 'visible_feature' },
+        ],
+      },
+    ],
+  } as unknown as Analysis;
+
+  setAi(
+    async () => ({ status: 200, text: page([{ title: 'Roter Sammlergegenstand', condition: 'Gebraucht', price: '999,00 EUR' }]) }),
+    async ({ content }) => extractAll(content)
+  );
+
+  const market = await liveMarketLookup(weak, silent);
+  assert.equal(market.status, 'insufficient_identity');
+  assert.equal(market.scanGuidance?.canSearchNow, false);
+  assert.equal(aiCalls.scrape.length, 0);
+});
+
+test('Widersprüchliche Mehrfoto Modellnummern verhindern exakten Marktwert', async () => {
+  const product = {
+    category: 'Elektronik',
+    objectType: 'Kopfhörer',
+    brand: 'Sony',
+    model: 'Kopfhörer',
+    title: 'Sony Kopfhörer',
+    condition: 'gebraucht',
+    confidence: 0.94,
+    categoryConfidence: 0.99,
+    brandConfidence: 0.99,
+    modelConfidence: 0.4,
+    visualText: ['SONY'],
+    identifiers: [],
+    universalDetails: {
+      manufacturer: 'Sony',
+      modelName: '',
+      modelNumber: '',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: 'Kopfhörer',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      detailConfidence: 0.9,
+    },
+    photoEvidence: [
+      {
+        photoId: 'label-1',
+        view: 'label',
+        facts: [{ field: 'modelNumber', value: 'WH-1000XM5', confidence: 0.98, source: 'visible_text' }],
+      },
+      {
+        photoId: 'back-1',
+        view: 'back',
+        facts: [{ field: 'modelNumber', value: 'WH-1000XM4', confidence: 0.94, source: 'visible_text' }],
+      },
+    ],
+  } as unknown as Analysis;
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? {
+            status: 200,
+            text: page([
+              { title: 'Sony WH-1000XM5 Kopfhörer', condition: 'Gebraucht', price: '180,00 EUR' },
+              { title: 'Sony WH-1000XM5 Headphones', condition: 'Gebraucht', price: '190,00 EUR' },
+              { title: 'Sony WH-1000XM4 Kopfhörer', condition: 'Gebraucht', price: '130,00 EUR' },
+            ]),
+          }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+
+  const market = await liveMarketLookup(product, silent);
+  assert.equal(market.scanGuidance?.canShowExactMarketValue, false);
+  assert.ok(market.scanGuidance?.recognitionIssues.some(issue => issue.code === 'conflicting_visible_identifier'));
+  assert.equal(marketValuation(product, market), null);
+});
+
 test('Nicht-Karten-Produkt: unverändert über Scraping, nur Verkäufe im Wert, Zeitstempel je Beleg', async () => {
   setAi(
     async url =>
