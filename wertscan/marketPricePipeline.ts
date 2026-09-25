@@ -333,6 +333,8 @@ export type MarketData = {
     missingExactFields: string[];
     explanation: string[];
   } | null;
+  /** Kategorieabhängige Empfehlung für zusätzliche Fotos, wenn Identität noch nicht sicher genug ist. */
+  scanGuidance?: ScanGuidance | null;
 };
 
 export type MarketProviderListing = {
