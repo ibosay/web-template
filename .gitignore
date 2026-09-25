@@ -14,3 +14,7 @@ build
 .env
 npm-debug.log
 yarn-error.log
+
+# WertScan-Prüfberichte (können Anbieterdaten enthalten)
+*.report.json
+wertscan-bericht*.json

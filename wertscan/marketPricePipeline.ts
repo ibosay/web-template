@@ -1881,6 +1881,19 @@ async function evidenceToListing(
   };
 }
 
+/** Zuordnung Kartenanbieter-Status → Pipeline-Status (eine Stelle, auch für Prüfberichte). */
+export const CARD_STATUS_TO_MARKET_STATUS: Record<CardMarketResult['status'], MarketSearchStatus> = {
+    priced: 'found',
+    card_identified_no_market_evidence: 'card_identified_no_market_evidence',
+    card_identified_insufficient_evidence: 'card_identified_insufficient_evidence',
+    not_unique: 'card_not_unique',
+    provider_search_incomplete: 'provider_search_incomplete',
+    not_found: 'card_not_found',
+    unsupported_language: 'unsupported_language',
+    insufficient_identity: 'insufficient_identity',
+    provider_error: 'provider_error',
+};
+
 type CardProviderOutcome = {
   result: CardMarketResult;
   status: MarketSearchStatus;
@@ -1926,18 +1939,7 @@ async function runCardProvider(
     });
   }
 
-  const statusMap: Record<CardMarketResult['status'], MarketSearchStatus> = {
-    priced: 'found',
-    card_identified_no_market_evidence: 'card_identified_no_market_evidence',
-    card_identified_insufficient_evidence: 'card_identified_insufficient_evidence',
-    not_unique: 'card_not_unique',
-    provider_search_incomplete: 'provider_search_incomplete',
-    not_found: 'card_not_found',
-    unsupported_language: 'unsupported_language',
-    insufficient_identity: 'insufficient_identity',
-    provider_error: 'provider_error',
-  };
-  const status = statusMap[result.status];
+  const status = CARD_STATUS_TO_MARKET_STATUS[result.status];
 
   let headline: MarketHeadline = NO_HEADLINE;
   const rows: MarketListing[] = [];

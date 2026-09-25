@@ -17,6 +17,7 @@
 | `cardData/testProvider.ts` | Test-Provider und fester Test-Wechselkurs. |
 | `scripts/verify-scrydex.mjs` | Prüft Antwortformat und Datenabdeckung gegen die echte Scrydex-API. |
 | `scripts/verify-ecb.sh` | Prüft den EZB-Kursanbieter gegen die echte EZB-Quelle. |
+| `scripts/provider-report.sh` | Prüfbericht für den echten Anbieterbetrieb (sechs Scrydex-Testfälle + EZB). |
 | `docs/display-examples.json` | Beispielausgaben des Anzeigevertrags (aus Tests erzeugt). |
 
 ## Regeln
@@ -143,6 +144,27 @@ SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… node wertscan/scripts/verify-scrydex.mjs
 - ob `condition=NM` ausschließlich NM-Verkäufe liefert (bis dahin bleibt `trustConditionFilter` aus)
 
 Zusätzlich prüft das Skript, ob die echten Antworten dem dokumentierten Format entsprechen.
+
+## Prüfbericht echter Anbieterbetrieb (Scrydex-Testfälle + EZB)
+
+```bash
+SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… bash wertscan/scripts/provider-report.sh
+# optional zusätzlich als Datei (außerhalb des Repositorys): REPORT_FILE=/tmp/wertscan-bericht.json
+# Formatprobe ohne Netzwerk (keine echten Daten): bash wertscan/scripts/provider-report.sh --mock
+```
+
+Testkarten in `scripts/provider-report.cases.json` (anpassbar): englische Raw-Karte, japanische Promo
+143/S-P, Karte mit Normal/Reverse Holo, Raw-Karte je Zustand NM/LP/MP/HP/DM, PSA-Karte, PCA-Karte.
+
+Je Fall: Scrydex-Karten-ID, Name, Set, `number`, `printed_number`, Sprache, Varianten, Kandidaten
+(gefunden/abgelehnt/Grund), Anzahl Verkäufe je Grading und je Zustand (nur aus dem Belegfeld),
+Originalwährungen, ob alle Seiten geladen wurden, verwendetes Segment (Firma/Note bzw. Zustand),
+Marktwert oder keiner, Preisführer getrennt, Kontrolle „Preisführer nie im Marktwert“ (76 vs. 20),
+Rohdaten-Prüfung der Listings (condition-Feld vorhanden?, Antwortformat, Felder) und der
+entstehende WertScan-Status. EZB: USD→EUR, JPY→EUR, Kursdatum, veralteter Kurs, Nichterreichbarkeit.
+
+Zugangsdaten werden nur als Header verwendet und nie ausgegeben; die Ausgabe wird zusätzlich
+auf Key und Team-ID geprüft und geschwärzt. Berichte nicht ins Repository einchecken.
 
 ## Anzeigevertrag für das Frontend (`buildMarketDisplay`, Version 1)
 
@@ -349,6 +371,7 @@ Gekürzt; vollständige Ausgaben in `docs/display-examples.json` (erzeugt aus de
 ## Freigabe-Checkliste (vor gemeinsamem Testlauf/Deployment)
 
 - [x] Scrydex-Doku geprüft und im Adapter fest eingetragen
+- [ ] `provider-report.sh` mit echtem Key ausgeführt (sechs Testfälle + EZB) und Bericht ausgewertet
 - [ ] `verify-scrydex.mjs` mit echtem Key ausgeführt (Antwortformat, Datenabdeckung, condition-Filter)
 - [ ] `verify-ecb.sh` im Serverbetrieb grün (Netzwerkfreigabe für ecb.europa.eu)
 - [ ] Echte Scrydex-Testkarten sauber: normale englische Karte, japanische Promo, Karte mit mehreren

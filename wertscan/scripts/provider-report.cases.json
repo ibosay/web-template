@@ -1,0 +1,43 @@
+{
+  "_hinweis": "Testkarten für den Scrydex-Prüfbericht. Werte sind Vorschläge und können ohne Codeänderung angepasst werden. setId nur eintragen, wenn die Scrydex expansion.id bekannt ist.",
+  "cases": [
+    {
+      "id": "1_englisch_raw",
+      "beschreibung": "Normale englische Raw-Karte mit mehreren echten Verkäufen",
+      "query": { "game": "pokemon", "name": "Charizard ex", "number": "223/197", "setName": "Obsidian Flames", "setId": null, "language": "en", "variant": null },
+      "segment": { "type": "raw", "condition": "NM" }
+    },
+    {
+      "id": "2_japanische_promo",
+      "beschreibung": "Japanische Promo 143/S-P (unser Problemfall), raw",
+      "query": { "game": "pokemon", "name": "Charizard", "number": "143/S-P", "setName": null, "setId": null, "language": "ja", "variant": null },
+      "segment": { "type": "raw", "condition": "NM" }
+    },
+    {
+      "id": "3_mehrere_varianten",
+      "beschreibung": "Karte mit Normal und Reverse Holo – einmal ohne, einmal mit Variante",
+      "query": { "game": "pokemon", "name": "Pikachu", "number": "063/198", "setName": "Scarlet & Violet", "setId": null, "language": "en", "variant": null },
+      "segment": { "type": "raw", "condition": "NM" },
+      "alsoWithVariant": "Reverse Holo"
+    },
+    {
+      "id": "4_raw_mehrere_zustaende",
+      "beschreibung": "Raw-Karte, Bewertung je Zustand NM, LP, MP, HP, DM",
+      "query": { "game": "pokemon", "name": "Charizard", "number": "4/102", "setName": "Base", "setId": null, "language": "en", "variant": null },
+      "segment": { "type": "raw", "condition": "NM" },
+      "allConditions": true
+    },
+    {
+      "id": "5_psa",
+      "beschreibung": "PSA-Karte mit mehreren Verkäufen derselben Note",
+      "query": { "game": "pokemon", "name": "Charizard", "number": "4/102", "setName": "Base", "setId": null, "language": "en", "variant": null },
+      "segment": { "type": "graded", "grading": { "company": "psa", "grade": "9" } }
+    },
+    {
+      "id": "6_pca",
+      "beschreibung": "PCA-Karte: führt Scrydex PCA, wie viele echte PCA-Verkäufe gibt es?",
+      "query": { "game": "pokemon", "name": "Charizard", "number": "143/S-P", "setName": null, "setId": null, "language": "ja", "variant": null },
+      "segment": { "type": "graded", "grading": { "company": "pca", "grade": "9.5" } }
+    }
+  ]
+}
