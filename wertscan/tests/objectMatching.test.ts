@@ -717,3 +717,82 @@ test('Adapter erkennt Möbel, Mode und Musikinstrumente als eigene Flohmarkt Kat
   });
   assert.equal(guitar.category, 'music_instruments');
 });
+
+
+test('Nicht sichtbar belegte Modellnummer darf keinen exakten Marktwert freischalten', () => {
+  const identity = objectIdentityFromAnalysis({
+    category: 'Elektronik',
+    objectType: 'Fernbedienung',
+    brand: 'Apple',
+    model: 'Siri Remote',
+    title: 'Apple Siri Remote',
+    brandConfidence: 0.98,
+    modelConfidence: 0.4,
+    visualText: ['Apple'],
+    universalDetails: {
+      manufacturer: 'Apple',
+      modelName: 'Siri Remote',
+      modelNumber: 'A2540',
+    },
+  });
+
+  const modelNumber = identity.facts.find(row => row.field === 'modelNumber');
+  assert.ok(modelNumber);
+  assert.equal(modelNumber!.observed, false);
+  assert.equal(decideIdentity(identity).mode, 'comparable_object');
+});
+
+test('Sichtbar gelesene Modellnummer darf exakte Produktidentität freischalten', () => {
+  const identity = objectIdentityFromAnalysis({
+    category: 'Elektronik',
+    objectType: 'Fernbedienung',
+    brand: 'Apple',
+    model: 'Siri Remote',
+    title: 'Apple Siri Remote A2540',
+    brandConfidence: 0.98,
+    modelConfidence: 0.4,
+    visualText: ['Apple', 'A2540'],
+    universalDetails: {
+      manufacturer: 'Apple',
+      modelName: 'Siri Remote',
+      modelNumber: 'A2540',
+    },
+  });
+
+  const modelNumber = identity.facts.find(row => row.field === 'modelNumber');
+  assert.equal(modelNumber?.observed, true);
+  assert.equal(decideIdentity(identity).mode, 'exact_product');
+});
+
+test('Hot Wheels Base Code muss sichtbar belegt sein, damit er als exakter Anker zählt', () => {
+  const hiddenCode = objectIdentityFromAnalysis({
+    category: 'Spielzeug',
+    objectType: 'Modellauto',
+    brand: 'Hot Wheels',
+    title: 'Hot Wheels 67 Camaro',
+    visualText: ['HOT WHEELS', 'MATTEL', '67 CAMARO'],
+    hotWheelsDetails: {
+      manufacturer: 'Mattel',
+      castingName: '67 Camaro',
+      baseCode: 'S23',
+    },
+  });
+  const hidden = hiddenCode.facts.find(row => row.field === 'baseCode');
+  assert.equal(hidden?.observed, false);
+
+  const visibleCode = objectIdentityFromAnalysis({
+    category: 'Spielzeug',
+    objectType: 'Modellauto',
+    brand: 'Hot Wheels',
+    title: 'Hot Wheels 67 Camaro',
+    visualText: ['HOT WHEELS', 'MATTEL', '67 CAMARO', 'S23'],
+    hotWheelsDetails: {
+      manufacturer: 'Mattel',
+      castingName: '67 Camaro',
+      baseCode: 'S23',
+    },
+  });
+  const visible = visibleCode.facts.find(row => row.field === 'baseCode');
+  assert.equal(visible?.observed, true);
+  assert.equal(decideIdentity(visibleCode).mode, 'exact_collectible');
+});
