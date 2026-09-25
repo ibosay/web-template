@@ -216,19 +216,19 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     valueOf(u, 'modelNumber') ||
     valueOf(analysis.casioDetails, 'referenceNumber') ||
     valueOf(mc, 'itemCode');
-  if (modelNumber) pushFact(facts, 'modelNumber', modelNumber, 0.97, true, 'visible_text');
+  if (modelNumber) pushFact(facts, 'modelNumber', modelNumber, 0.97, supportedByVisible(modelNumber, pool), 'visible_text');
 
   const sku = valueOf(u, 'skuOrPartNumber');
-  if (sku) pushFact(facts, 'sku', sku, 0.96, true, 'visible_text');
+  if (sku) pushFact(facts, 'sku', sku, 0.96, supportedByVisible(sku, pool), 'visible_text');
 
   const barcode = valueOf(u, 'barcodeOrEan') || valueOf(book, 'ean', 'barcode');
-  if (barcode) pushFact(facts, 'gtin', barcode, 0.98, true, 'visible_text');
+  if (barcode) pushFact(facts, 'gtin', barcode, 0.98, supportedByVisible(barcode, pool), 'visible_text');
 
   const isbn = valueOf(book, 'isbn', 'isbn13', 'isbn10') || (/^(978|979)\d{10}$/.test(barcode.replace(/[^\d]/g, '')) ? barcode : '');
-  if (isbn) pushFact(facts, 'isbn', isbn, 0.99, true, 'visible_text');
+  if (isbn) pushFact(facts, 'isbn', isbn, 0.99, supportedByVisible(isbn, pool), 'visible_text');
 
   const serial = valueOf(u, 'serialOrProductionCode');
-  if (serial) pushFact(facts, 'serial', serial, 0.95, true, 'visible_text');
+  if (serial) pushFact(facts, 'serial', serial, 0.95, supportedByVisible(serial, pool), 'visible_text');
 
   if (category === 'trading_cards') {
     const name = valueOf(c, 'cardName');
@@ -256,8 +256,8 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     const toyColor = valueOf(hw, 'color') || valueOf(analysis.toyDetails, 'primaryColor');
 
     if (casting) pushFact(facts, 'casting', casting, 0.92, true, 'visible_feature');
-    if (toyNumber) pushFact(facts, 'toyNumber', toyNumber, 0.97, true, 'visible_text');
-    if (baseCode) pushFact(facts, 'baseCode', baseCode, 0.96, true, 'visible_text');
+    if (toyNumber) pushFact(facts, 'toyNumber', toyNumber, 0.97, supportedByVisible(toyNumber, pool), 'visible_text');
+    if (baseCode) pushFact(facts, 'baseCode', baseCode, 0.96, supportedByVisible(baseCode, pool), 'visible_text');
     if (variant) pushFact(facts, 'variant', variant, 0.82, true, 'visible_feature');
     if (toyColor) pushFact(facts, 'color', toyColor, 0.9, true, 'visible_feature');
   }
@@ -398,12 +398,12 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
 
   if (category === 'tools') {
     const toolModel = valueOf(tool, 'modelNumber', 'typeNumber');
-    if (toolModel) pushFact(facts, 'modelNumber', toolModel, 0.98, true, 'visible_text');
+    if (toolModel) pushFact(facts, 'modelNumber', toolModel, 0.98, supportedByVisible(toolModel, pool), 'visible_text');
   }
 
   if (category === 'household_appliances') {
     const applianceModel = valueOf(appliance, 'modelNumber', 'eNumber', 'productCode');
-    if (applianceModel) pushFact(facts, 'modelNumber', applianceModel, 0.98, true, 'visible_text');
+    if (applianceModel) pushFact(facts, 'modelNumber', applianceModel, 0.98, supportedByVisible(applianceModel, pool), 'visible_text');
   }
 
 
