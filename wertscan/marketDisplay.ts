@@ -66,11 +66,7 @@ export type ComparableItem = {
   url: string | null;
   grading: string | null;
   /** Transparenz für Flohmarktvergleiche: warum wurde dieser Treffer akzeptiert? */
-  matchQuality: MarketListing['identityMatch'] extends infer M
-    ? M extends { quality: infer Q }
-      ? Q | null
-      : null
-    : null;
+  matchQuality: 'exact' | 'strong_comparable' | 'similar_only' | 'insufficient' | null;
   matchScore: number | null;
   matchedFields: string[];
   identityEvidence: string | null;
