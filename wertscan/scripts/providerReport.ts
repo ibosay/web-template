@@ -8,11 +8,12 @@
  * Zugangsdaten werden nur als Request-Header verwendet und nie ausgegeben; jede Ausgabe wird
  * zusätzlich auf die Key-/Team-ID-Werte geprüft und notfalls geschwärzt.
  */
-import { CardQuery, EcbFxRateProvider, EvidenceResult, FxRateProvider, PriceEvidence, lookupCardMarket } from '../cardData';
+import { CardCandidate, CardQuery, EcbFxRateProvider, EvidenceResult, FxRateProvider, PriceEvidence, cardNumberKey, lookupCardMarket } from '../cardData';
 import { CardSegment } from '../cardData/cardValuation';
 import { CARD_CONDITIONS } from '../cardData/conditions';
 import { ScrydexProvider } from '../cardData/scrydexProvider';
-import { CARD_STATUS_TO_MARKET_STATUS } from '../marketPricePipeline';
+import { CARD_STATUS_TO_MARKET_STATUS, canonicalCardNumber } from '../marketPricePipeline';
+import { normalizeLanguage } from '../cardData/cardIdentity';
 
 type Env = Record<string, string | undefined>;
 type Proc = { env: Env; argv: string[]; exitCode?: number; stdout: { write(text: string): void } };
@@ -35,8 +36,16 @@ type CaseConfig = {
   alsoWithVariant?: string;
   allConditions?: boolean;
   /** Erwartetes Ergebnis; der Bericht bewertet OK/ABWEICHUNG. */
-  erwartung?: { status?: string[]; cardId?: string; variante?: string | null };
+  erwartung?: { status?: string[]; cardId?: string; variante?: string | null; suchEndpunkt?: 'en' | 'ja' | 'allgemein' };
 };
+
+/** Welcher Suchendpunkt wurde verwendet? (nur Kartensuchen, nicht Einzelkarte/Listings/Set) */
+function searchEndpointKind(paths: string[]): string {
+  const kinds = new Set(
+    paths.map(p => (p === '/pokemon/v1/ja/cards' ? 'ja' : p === '/pokemon/v1/en/cards' ? 'en' : p === '/pokemon/v1/cards' ? 'allgemein' : p.startsWith('/pokemon/v1/expansions/') ? 'set' : 'andere'))
+  );
+  return kinds.size ? [...kinds].join('+') : 'keine Suche';
+}
 
 type Json = Record<string, unknown>;
 type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string> }>;
@@ -133,10 +142,28 @@ const segmentLabel = (segment: CardSegment) =>
 /** Zeichnet die Belege auf, die der Adapter an die Bewertung übergibt. */
 class RecordingProvider extends ScrydexProvider {
   lastEvidence: EvidenceResult | null = null;
+  lastCandidates: CardCandidate[] = [];
+  async findCards(query: CardQuery): Promise<CardCandidate[]> {
+    this.lastCandidates = await super.findCards(query);
+    return this.lastCandidates;
+  }
   async getPriceEvidence(request: Parameters<ScrydexProvider['getPriceEvidence']>[0]): Promise<EvidenceResult> {
     this.lastEvidence = await super.getPriceEvidence(request);
     return this.lastEvidence;
   }
+}
+
+/**
+ * Erkennungsnahe Fälle: dieselbe Aufbereitung wie in der Pipeline (cardQueryFromAnalysis):
+ * Kartennummer über canonicalCardNumber ("143/S P" → "143/S-P"), Sprache über normalizeLanguage.
+ */
+function toPipelineQuery(recognized: CardQuery): CardQuery & { erkannteNummer?: string | null } {
+  return {
+    ...recognized,
+    number: recognized.number ? canonicalCardNumber(recognized.number) || null : null,
+    language: normalizeLanguage(recognized.language),
+    erkannteNummer: recognized.number,
+  };
 }
 
 /** Anfrage aus einer Scrydex-Karte ableiten (für dokumentierte Testkarten). */
@@ -159,7 +186,7 @@ async function queryFromCardId(cardId: string, variant: string | null): Promise<
   };
 }
 
-function checkExpectation(config: CaseConfig, status: string, cardId: string | null, variant: string | null, query: CardQuery) {
+function checkExpectation(config: CaseConfig, status: string, cardId: string | null, variant: string | null, query: CardQuery, endpoint: string) {
   const expected = config.erwartung;
   if (!expected) return null;
   // Erwartungen gelten für den Grundlauf; Läufe mit alsoWithVariant werden separat bewertet.
@@ -167,17 +194,35 @@ function checkExpectation(config: CaseConfig, status: string, cardId: string | n
   if (expected.status && !expected.status.includes(status)) problems.push('Status ' + status + ' statt ' + expected.status.join(' | '));
   if (expected.cardId && cardId !== expected.cardId) problems.push('Karte ' + cardId + ' statt ' + expected.cardId);
   if (expected.variante !== undefined && variant !== expected.variante) problems.push('Variante ' + variant + ' statt ' + expected.variante);
+  if (expected.suchEndpunkt && endpoint !== expected.suchEndpunkt) problems.push('Suchendpunkt ' + endpoint + ' statt ' + expected.suchEndpunkt);
   return { erwartet: expected, anfrageVariante: query.variant, ergebnis: problems.length ? 'ABWEICHUNG: ' + problems.join('; ') : 'OK' };
 }
 
 async function runCase(config: CaseConfig, segment: CardSegment, query: CardQuery, fx: FxRateProvider) {
-  const provider = new RecordingProvider({ apiKey: apiKey || 'mock', teamId: teamId || 'mock', fetch: fetchImpl });
+  // Alle Anfragen dieses Falls mitschreiben (Pfad + q, ohne Header).
+  const requests: { pfad: string; q: string | null; http: number | null }[] = [];
+  const recordingFetch: FetchLike = async (url, init) => {
+    const u = new URL(url);
+    try {
+      const response = await fetchImpl(url, init);
+      requests.push({ pfad: u.pathname, q: u.searchParams.get('q'), http: response.status });
+      return response;
+    } catch (error) {
+      requests.push({ pfad: u.pathname, q: u.searchParams.get('q'), http: null });
+      throw error;
+    }
+  };
+  const provider = new RecordingProvider({ apiKey: apiKey || 'mock', teamId: teamId || 'mock', fetch: recordingFetch });
   const result = await lookupCardMarket(query, segment, { provider, fx });
   const evidence: PriceEvidence[] = provider.lastEvidence?.evidence || [];
   const sold = evidence.filter(row => row.kind === 'sold');
   const guides = evidence.filter(row => row.kind === 'guide');
   const valuation = result.valuation;
   const headlineValue = valuation?.headline.value || null;
+  const searchRequests = requests.filter(r => !/\/cards\/[^/]+(\/listings)?$/.test(r.pfad));
+  const endpoint = searchEndpointKind(searchRequests.map(r => r.pfad));
+  const languageCode = (query.language || '').toLowerCase();
+  const expectedEndpoint = query.setId ? 'set' : languageCode === 'ja' || languageCode === 'en' ? languageCode : 'allgemein';
 
   // Invariante: Marktwert nur aus Verkäufen/Angeboten, nie aus Preisführern (z. B. market 76 vs. Verkäufe ~20).
   const valueFromGuides = headlineValue ? headlineValue.evidence.some(row => row.kind === 'guide') : false;
@@ -244,10 +289,33 @@ async function runCase(config: CaseConfig, segment: CardSegment, query: CardQuer
       marktwertMedian: headlineValue ? headlineValue.median + ' ' + headlineValue.currency : null,
       ergebnis: valueFromGuides ? 'FEHLER: Preisführer im Marktwert' : 'OK: Marktwert nur aus Verkäufen/Angeboten',
     },
+    suche: {
+      anfragen: searchRequests,
+      verwendeterEndpunkt: endpoint,
+      erwarteterEndpunkt: expectedEndpoint,
+      endpunktKontrolle: endpoint === expectedEndpoint || (endpoint === 'keine Suche' && !query.number)
+        ? 'OK'
+        : 'ABWEICHUNG: ' + endpoint + ' statt ' + expectedEndpoint,
+      kandidatenSprachen: Array.from(new Set(provider.lastCandidates.map(c => c.languageCode || '?'))),
+      // Sprache unbekannt + gleichnummerige Karten in mehreren Sprachen → muss "nicht eindeutig" sein.
+      mehrdeutigkeitsKontrolle: (() => {
+        if (languageCode) return 'nicht anwendbar (Sprache bekannt)';
+        const wanted = cardNumberKey(query.number).full;
+        const sameNumber = provider.lastCandidates.filter(c => [c.printedNumber, c.number].some(n => n && cardNumberKey(n).full === wanted));
+        const languages = new Set(sameNumber.map(c => c.languageCode || '?'));
+        if (languages.size <= 1) return 'OK (gleichnummerige Karten nur in ' + ([...languages][0] || 'keiner') + ' Sprache)';
+        return result.status === 'not_unique' ? 'OK (mehrere Sprachen → not_unique)' : 'ABWEICHUNG: mehrere Sprachen, aber Status ' + result.status;
+      })(),
+      andereSpracheVersucht: languageCode === 'ja'
+        ? searchRequests.some(r => r.pfad === '/pokemon/v1/en/cards' || r.pfad === '/pokemon/v1/cards')
+        : languageCode === 'en'
+          ? searchRequests.some(r => r.pfad === '/pokemon/v1/ja/cards' || r.pfad === '/pokemon/v1/cards')
+          : false,
+    },
     listingRohdaten: result.card ? await rawListingInspection(result.card.cardId) : null,
     wertscanStatus: { kartenanbieter: result.status, pipeline: CARD_STATUS_TO_MARKET_STATUS[result.status], fallbackErlaubt: result.fallbackAllowed },
     erwartung: query.variant === (config.query?.variant ?? config.variant ?? null)
-      ? checkExpectation(config, result.status, result.card?.cardId || null, result.variant, query)
+      ? checkExpectation(config, result.status, result.card?.cardId || null, result.variant, query, endpoint)
       : null,
     meldung: result.message,
     fehler: result.debug.error ? redact(result.debug.error) : null,
@@ -315,7 +383,7 @@ async function main() {
   for (const config of cases) {
     let baseQuery: CardQuery;
     try {
-      baseQuery = config.cardId ? await queryFromCardId(config.cardId, config.variant ?? null) : (config.query as CardQuery);
+      baseQuery = config.cardId ? await queryFromCardId(config.cardId, config.variant ?? null) : toPipelineQuery(config.query as CardQuery);
     } catch (error) {
       results.push({ fall: config.id, fehler: redact(String(error)) });
       continue;

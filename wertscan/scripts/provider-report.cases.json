@@ -1,48 +1,159 @@
 {
-  "_hinweis": "Testkarten für den Scrydex-Prüfbericht. Entweder 'query' (wie aus der Bilderkennung) oder 'cardId' (dokumentierte Scrydex-Karte; Anfrage wird daraus abgeleitet und läuft durch Suche + Prüfung). 'erwartung' wird im Bericht mit OK/ABWEICHUNG bewertet.",
+  "_hinweis": "Testkarten für den Scrydex-Prüfbericht. Entweder 'query' (wie aus der Bilderkennung) oder 'cardId' (dokumentierte Scrydex-Karte; Anfrage wird daraus abgeleitet und läuft durch Suche + Prüfung). 'erwartung' wird im Bericht mit OK/ABWEICHUNG bewertet. Fälle 1/1b und 2a/2b/2c starten wie die Bilderkennung ohne Karten-ID (reine findCards-Suche).",
   "cases": [
     {
       "id": "1_englisch_raw",
-      "beschreibung": "Normale englische Raw-Karte mit mehreren echten Verkäufen",
-      "query": { "game": "pokemon", "name": "Charizard ex", "number": "223/197", "setName": "Obsidian Flames", "setId": null, "language": "en", "variant": null },
-      "segment": { "type": "raw", "condition": "NM" }
+      "beschreibung": "Fall A (englisch): Eingabe wie aus der Bilderkennung, nur normale Suche",
+      "query": {
+        "game": "pokemon",
+        "name": "Charizard ex",
+        "number": "223/197",
+        "setName": "Obsidian Flames",
+        "setId": null,
+        "language": "en",
+        "variant": null
+      },
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "suchEndpunkt": "en"
+      }
     },
     {
-      "id": "2_japanische_promo",
-      "beschreibung": "Japanische Promo 143/S-P (unser Problemfall), raw",
-      "query": { "game": "pokemon", "name": "Charizard", "number": "143/S-P", "setName": null, "setId": null, "language": "ja", "variant": null },
-      "segment": { "type": "raw", "condition": "NM" }
+      "id": "1b_englisch_ohne_sprache",
+      "beschreibung": "Fall B (englisch): wie 1, aber Sprache nicht erkannt → allgemeiner Endpunkt, keine Sprache raten",
+      "query": {
+        "game": "pokemon",
+        "name": "Charizard ex",
+        "number": "223/197",
+        "setName": "Obsidian Flames",
+        "setId": null,
+        "language": null,
+        "variant": null
+      },
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "suchEndpunkt": "allgemein"
+      }
+    },
+    {
+      "id": "2a_promo_wie_bilderkennung",
+      "beschreibung": "Fall A (Promo): wie aus der Bilderkennung – Name, gedruckte Nummer in erkannter Schreibweise \"143/S P\", Sprache ja, kein Set, keine Variante",
+      "query": {
+        "game": "pokemon",
+        "name": "Charizard",
+        "number": "143/S P",
+        "setName": null,
+        "setId": null,
+        "language": "ja",
+        "variant": null
+      },
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "suchEndpunkt": "ja"
+      }
+    },
+    {
+      "id": "2b_promo_mit_erkanntem_setnamen",
+      "beschreibung": "Fall A (Promo) mit erkanntem Setnamen \"Illustration Grand Prix Promo\" (ohne Alias → erwartbar nicht eindeutig)",
+      "query": {
+        "game": "pokemon",
+        "name": "Charizard",
+        "number": "143/S P",
+        "setName": "Illustration Grand Prix Promo",
+        "setId": null,
+        "language": "ja",
+        "variant": null
+      },
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "suchEndpunkt": "ja"
+      }
+    },
+    {
+      "id": "2c_promo_ohne_sprache",
+      "beschreibung": "Fall B (Promo): Sprache nicht erkannt → allgemeiner Endpunkt; gibt es 143/S-P in mehreren Sprachen, muss not_unique entstehen",
+      "query": {
+        "game": "pokemon",
+        "name": "Charizard",
+        "number": "143/S P",
+        "setName": null,
+        "setId": null,
+        "language": null,
+        "variant": null
+      },
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "suchEndpunkt": "allgemein"
+      }
     },
     {
       "id": "3a_xy1-1_variante_unbekannt",
       "beschreibung": "xy1-1 (laut Scrydex mindestens normal und reverseHolofoil), Variante unbekannt: keine Vermischung, nicht eindeutig",
       "cardId": "xy1-1",
       "variant": null,
-      "segment": { "type": "raw", "condition": "NM" },
-      "erwartung": { "status": ["not_unique"] }
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "status": [
+          "not_unique"
+        ]
+      }
     },
     {
       "id": "3b_xy1-1_reverse_holo",
       "beschreibung": "xy1-1, Variante reverseHolofoil bekannt: nur diese Variante darf verwendet werden",
       "cardId": "xy1-1",
       "variant": "reverseHolofoil",
-      "segment": { "type": "raw", "condition": "NM" },
-      "erwartung": { "cardId": "xy1-1", "variante": "reverseHolofoil" }
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "cardId": "xy1-1",
+        "variante": "reverseHolofoil"
+      }
     },
     {
       "id": "3c_base1-4_variante_unbekannt",
       "beschreibung": "base1-4 (u. a. unlimitedHolofoil, firstEditionShadowlessHolofoil, unlimitedShadowlessHolofoil), Variante unbekannt: keine automatische Auswahl",
       "cardId": "base1-4",
       "variant": null,
-      "segment": { "type": "raw", "condition": "NM" },
-      "erwartung": { "status": ["not_unique"] }
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
+      "erwartung": {
+        "status": [
+          "not_unique"
+        ]
+      }
     },
     {
       "id": "4_raw_mehrere_zustaende",
       "beschreibung": "base1-4 unlimitedHolofoil, Bewertung je Zustand NM, LP, MP, HP, DM (Variante nötig, sonst nicht eindeutig)",
       "cardId": "base1-4",
       "variant": "unlimitedHolofoil",
-      "segment": { "type": "raw", "condition": "NM" },
+      "segment": {
+        "type": "raw",
+        "condition": "NM"
+      },
       "allConditions": true
     },
     {
@@ -50,14 +161,37 @@
       "beschreibung": "base1-4 unlimitedHolofoil, PSA 9 (mehrere Verkäufe derselben Note?)",
       "cardId": "base1-4",
       "variant": "unlimitedHolofoil",
-      "segment": { "type": "graded", "grading": { "company": "psa", "grade": "9" } },
-      "erwartung": { "cardId": "base1-4", "variante": "unlimitedHolofoil" }
+      "segment": {
+        "type": "graded",
+        "grading": {
+          "company": "psa",
+          "grade": "9"
+        }
+      },
+      "erwartung": {
+        "cardId": "base1-4",
+        "variante": "unlimitedHolofoil"
+      }
     },
     {
       "id": "6_pca",
       "beschreibung": "PCA 9,5 auf der japanischen Promo 143/S-P: führt Scrydex PCA, wie viele echte PCA-Verkäufe?",
-      "query": { "game": "pokemon", "name": "Charizard", "number": "143/S-P", "setName": null, "setId": null, "language": "ja", "variant": null },
-      "segment": { "type": "graded", "grading": { "company": "pca", "grade": "9.5" } }
+      "query": {
+        "game": "pokemon",
+        "name": "Charizard",
+        "number": "143/S-P",
+        "setName": null,
+        "setId": null,
+        "language": "ja",
+        "variant": null
+      },
+      "segment": {
+        "type": "graded",
+        "grading": {
+          "company": "pca",
+          "grade": "9.5"
+        }
+      }
     }
   ]
 }

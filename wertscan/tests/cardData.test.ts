@@ -695,3 +695,36 @@ test('Scrydex-Listings: mehrere Seiten werden zusammengeführt', async () => {
   assert.equal(evidence.filter(row => row.kind === 'sold').length, 130);
   assert.deepEqual(calls.filter(call => call.url.includes('/listings')).map(call => new URL(call.url).searchParams.get('page')), ['1', '2']);
 });
+
+test('Sprachendpunkt ja: technischer Fehler → provider_error, kein Ausweichen auf andere Sprache oder allgemeinen Endpunkt', async () => {
+  const calls: Call[] = [];
+  const provider = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    fetch: async (url: string, init: { method: string; headers: Record<string, string> }) => {
+      calls.push({ url, headers: init.headers });
+      return { ok: false, status: 503, json: async () => ({}) };
+    },
+  });
+  const result = await lookupCardMarket(query({ name: 'Charizard', number: '143/S P', language: 'ja' }), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'provider_error');
+  assert.equal(result.valuation, null);
+  assert.equal(result.fallbackAllowed, false);
+  assert.ok(calls.length >= 1);
+  assert.ok(calls.every(call => new URL(call.url).pathname === '/pokemon/v1/ja/cards'), 'nur der ja-Endpunkt');
+  assert.ok(!(result.debug.error || '').includes('k'.repeat(1)) || !(result.debug.error || '').includes('X-Api-Key'), 'keine Header in Fehlermeldung');
+});
+
+test('Sprachendpunkt ja: keine Karte gefunden → not_found, keine andere Sprache geraten', async () => {
+  const calls: Call[] = [];
+  const provider = new ScrydexProvider({ apiKey: 'k', teamId: 't', fetch: mockFetch(() => ({ data: [], page: 1, pageSize: 100, totalCount: 0 }), calls) });
+  // Die Pipeline übergibt die Nummer normalisiert ("143/S P" → "143/S-P", canonicalCardNumber).
+  const result = await lookupCardMarket(query({ name: 'Charizard', number: '143/S-P', language: 'ja' }), rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'not_found');
+  assert.equal(result.fallbackAllowed, false);
+  assert.deepEqual(
+    calls.map(call => new URL(call.url).pathname + ' ' + decodeURIComponent(new URL(call.url).searchParams.get('q') || '')),
+    ['/pokemon/v1/ja/cards printed_number:"143/S-P"', '/pokemon/v1/ja/cards name:Charizard number:143'],
+    'printed_number, dann Name + Nummer (Sprache bekannt, kein Set) – beide nur am ja-Endpunkt'
+  );
+});
