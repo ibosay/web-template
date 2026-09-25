@@ -383,6 +383,66 @@ test('Flohmarkt Technik mit sichtbarer Modellnummer bleibt exakter Marktwert', a
   assert.ok(aiCalls.scrape.some(url => url.includes('mediamarkt')), 'exakt identifizierte Technik darf Retail Quellen prüfen');
 });
 
+
+test('Nicht Karten: aktive Wunschpreise dürfen echten Verkauf nicht als Ausreißer entfernen', async () => {
+  const remote = {
+    category: 'Elektronik',
+    objectType: 'Fernbedienung',
+    brand: 'Apple',
+    model: 'Siri Remote',
+    title: 'Apple Siri Remote A2540',
+    condition: 'gebraucht',
+    confidence: 0.98,
+    categoryConfidence: 0.99,
+    brandConfidence: 0.99,
+    modelConfidence: 0.96,
+    visualText: ['Apple', 'A2540'],
+    identifiers: ['A2540'],
+    universalDetails: {
+      manufacturer: 'Apple',
+      modelName: 'Siri Remote',
+      modelNumber: 'A2540',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: 'Fernbedienung',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      detailConfidence: 0.98,
+    },
+  } as unknown as Analysis;
+
+  setAi(
+    async url => {
+      if (url.includes('LH_Sold')) {
+        return {
+          status: 200,
+          text: page([{ title: 'Apple Siri Remote A2540 verkauft', condition: 'Gebraucht', price: '20,00 EUR' }]),
+        };
+      }
+      if (url.includes('ebay.de')) {
+        return {
+          status: 200,
+          text: page([
+            { title: 'Apple Siri Remote A2540 Angebot 1', condition: 'Gebraucht', price: '60,00 EUR' },
+            { title: 'Apple Siri Remote A2540 Angebot 2', condition: 'Gebraucht', price: '65,00 EUR' },
+            { title: 'Apple Siri Remote A2540 Angebot 3', condition: 'Gebraucht', price: '70,00 EUR' },
+            { title: 'Apple Siri Remote A2540 Angebot 4', condition: 'Gebraucht', price: '75,00 EUR' },
+          ]),
+        };
+      }
+      return { status: 403, text: '' };
+    },
+    async ({ content }) => extractAll(content)
+  );
+
+  const market = await liveMarketLookup(remote, silent);
+  assert.ok(market.soldComparables.some(row => row.price === 20), 'echter Verkauf bleibt als Beleg erhalten');
+  assert.ok((market.debug.rejectionReasons.price_outlier || 0) === 0, 'Angebote dürfen Verkauf nicht als Ausreißer markieren');
+  assert.equal(market.soldComparables.length, 1);
+  assert.ok(market.currentOffers.length >= 4);
+});
+
 test('Nicht-Karten-Produkt: nur Angebote → bisherige Logik bleibt, Wert aus Angeboten (klar gekennzeichnet)', async () => {
   setAi(
     async url =>
