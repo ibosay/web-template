@@ -16,7 +16,7 @@
  *
  * Kein API-Key erforderlich.
  */
-import { cardNumberKey, variantKey } from './cardIdentity';
+import { variantKey } from './cardIdentity';
 import { CardCandidate, CardDataProvider, CardQuery, EvidenceRequest, EvidenceResult, PriceEvidence } from './types';
 
 type FetchLike = typeof fetch;
@@ -358,7 +358,7 @@ export class TcgDexProvider implements CardDataProvider {
         priceType,
         price: numeric,
         currency,
-        url: 'https://www.tcgdex.net/database/' + encodeURIComponent(request.candidate.cardId),
+        url: this.baseUrl + '/v2/' + encodeURIComponent(language) + '/cards/' + encodeURIComponent(request.candidate.cardId),
         observedAt,
         fetchedAt,
         expiresAt,
