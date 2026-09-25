@@ -2004,18 +2004,23 @@ export function formatMarketDebug(debug: MarketDebug): string {
 
 function cardGameOf(analysis: Analysis): string | null {
   const c = analysis.cardDetails;
+  const explicitFranchise = normalize(known(c?.franchise));
   const identity = normalize([
-    known(c?.franchise),
+    explicitFranchise,
     known(c?.setName),
     cardDetailText(analysis, 'officialStatus'),
-    analysis.brand,
     analysis.title,
+    explicitFranchise ? '' : analysis.brand,
   ].join(' '));
   const nonTcgPokemonMarkers = ['zukan', 'carddass', 'topsun', 'topps', 'lamincard', 'non tcg', 'non sport'];
   if (nonTcgPokemonMarkers.some(marker => identity.includes(marker))) return null;
+
+  // Explizit erkannte Franchise hat Vorrang vor einer eventuell noch alten/generischen Marke.
+  // So darf z. B. eine Magic Karte nicht wegen analysis.brand='Pokémon' an TCGdex gehen.
+  if (explicitFranchise) return explicitFranchise.includes('pokemon') ? 'pokemon' : explicitFranchise;
   if (identity.includes('pokemon')) return 'pokemon';
-  const franchise = normalize(known(c?.franchise) || analysis.title);
-  return franchise || null;
+  const fallback = normalize(analysis.title);
+  return fallback || null;
 }
 
 function cardQueryFromAnalysis(analysis: Analysis, game: string): CardQuery {
