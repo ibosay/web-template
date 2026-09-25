@@ -5,7 +5,7 @@
 | Datei | Aufgabe |
 |---|---|
 | `marketPricePipeline.ts` | Einstieg `liveMarketLookup()` / `marketValuation()`. Nicht-Karten-Produkte: Scraping. Sammelkarten: `cardProvider`, ergänzend Scraping nur unter strengen Regeln. |
-| `marketDisplay.ts` | Anzeigemodell mit drei getrennten Bereichen: Marktwert, Vergleichsverkäufe, Preisführer. |
+| `marketDisplay.ts` | Anzeigevertrag v1: `marketValue`, `soldComparables`, `priceGuides`. |
 | `cardData/types.ts` | Schnittstelle `CardDataProvider`, `PriceEvidence` (`sold` / `listing` / `guide`), `FxRateProvider`. |
 | `cardData/conditions.ts` | **Zentrale Zustands-Taxonomie** (Mint, NM, EX, LP, MP, HP, DM). Keine Umwandlung zwischen Begriffen. |
 | `cardData/expansionAliases.ts` | Kontrolliert gepflegte Set-Zuordnungen (z. B. deutsche Setnamen). |
@@ -15,7 +15,9 @@
 | `cardData/fx.ts` | `EcbFxRateProvider` (EZB-Referenzkurse), austauschbar. |
 | `cardData/scrydexProvider.ts` | Scrydex-Adapter. **Nur serverseitig.** Nicht über `cardData/index.ts` exportiert. |
 | `cardData/testProvider.ts` | Test-Provider und fester Test-Wechselkurs. |
-| `scripts/verify-scrydex.mjs` | Prüft die Scrydex-Annahmen gegen echte API-Antworten. |
+| `scripts/verify-scrydex.mjs` | Prüft Antwortformat und Datenabdeckung gegen die echte Scrydex-API. |
+| `scripts/verify-ecb.sh` | Prüft den EZB-Kursanbieter gegen die echte EZB-Quelle. |
+| `docs/display-examples.json` | Beispielausgaben des Anzeigevertrags (aus Tests erzeugt). |
 
 ## Regeln
 
@@ -44,6 +46,44 @@
 | Setname ohne bestätigten Alias | nein („nicht eindeutig“) |
 | Sprache vom Anbieter nicht geführt | nein |
 | Anbieter technisch nicht erreichbar | nein |
+
+## Technische Status
+
+`market.status` (Pipeline) bzw. `display.status` / `display.statusCategory` (Anzeige):
+
+| Status | Kategorie | Bedeutung | Marktplatz-Fallback |
+|---|---|---|---|
+| `found` | value | Marktwert aus echten Belegen | – |
+| `card_identified_no_market_evidence` | insufficient | Karte eindeutig, Anbieter liefert keine Verkäufe/Angebote | erlaubt |
+| `card_identified_insufficient_evidence` | insufficient | Karte eindeutig, zu wenige passende Belege (z. B. < 2, Zustand nicht geführt) | erlaubt |
+| `low_sample`, `filtered_all` | insufficient | Marktplatzsuche: zu wenige bzw. keine gültigen Belege | – |
+| `card_not_unique` | ambiguous | Karte wirklich mehrdeutig (Sprache/Variante/Set nicht eindeutig) | nein |
+| `provider_search_incomplete` | incomplete | Anbietersuche nicht vollständig geladen (totalCount > geladen) – nie positive Zuordnung | nein |
+| `card_not_found`, `no_exact_matches`, `unsupported_language` | not_found | exakte Karte nicht gefunden / Widerspruch / Sprache nicht geführt | nein |
+| `provider_error`, `sources_unreachable`, `extraction_failed` | technical_error | Anbieter oder Quellen technisch nicht erreichbar | nein |
+| `insufficient_identity` | not_identified | Gegenstand zu unsicher identifiziert (z. B. Kartennummer fehlt) | nein |
+
+Details zum Kartenanbieter stehen in `market.cardMarket` (`status`, `fallbackAllowed`, `fallbackReason`, `debug`).
+
+## Scrydex-Suche
+
+Die Suche wird so früh wie möglich eingegrenzt; die Entscheidung trifft danach immer die exakte Prüfung:
+
+1. `!name:"…" printed_number:"…"` (exakter Name + vollständiger Aufdruck)
+2. `!name:"…" number:…`
+3. `name:"…" number:…`
+4. `printed_number:"…"` (sprachunabhängig)
+5. `number:…` (sprachunabhängig)
+
+Mit bekannter Set-ID läuft jede Stufe über `/pokemon/v1/expansions/<id>/cards`. Die Suche stoppt, sobald
+eine Karte mit exakt passender Nummer (und Sprache, falls bekannt) gefunden ist. **Ist die Sprache
+unbekannt, wird immer zusätzlich sprachunabhängig gesucht**, damit gleichnummerige Karten anderer
+Sprachen (mit anderem Namen) nicht fehlen. Jede Stufe wird vollständig paginiert; ist das nicht
+möglich (mehr als 5 Seiten = 500 Karten), lautet das Ergebnis `provider_search_incomplete`.
+
+Listings (Verkäufe) werden vollständig paginiert, Sicherheitsgrenze 20 Seiten (2.000 Verkäufe).
+Greift sie, wird mit den geladenen Verkäufen gerechnet und der Wert als `limitedData`
+(„eingeschränkte Datenbasis: nur X von Y Verkäufen geladen“) gekennzeichnet.
 
 ## Set-Aliase pflegen
 
@@ -95,20 +135,228 @@ SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… node wertscan/scripts/verify-scrydex.mjs
 
 Zusätzlich prüft das Skript, ob die echten Antworten dem dokumentierten Format entsprechen.
 
-## Frontend
+## Anzeigevertrag für das Frontend (`buildMarketDisplay`, Version 1)
 
-Nur `buildMarketDisplay(market)` rendern. Drei Bereiche:
+Das Frontend rendert **ausschließlich** `buildMarketDisplay(market)` in drei Bereichen:
 
-- **Marktwert:** Wert oder ausdrücklich `noValueReason`. Bei Umrechnung immer Originalbetrag und `fxNote` zeigen.
-- **Vergleichsverkäufe:** `sold` (Badge „Verkauft“) und getrennt `offers` (Badge „Aktives Angebot“).
-- **Preisführer:** eigener Bereich mit `disclaimer`, Badge „Preisführer“, eigene Optik. Nie in der Verkaufsliste.
+| Bereich | Inhalt | Regeln |
+|---|---|---|
+| `marketValue` | `state` (`value` / `no_value`), `value`, `range`, `basis`, `notes`, `limitedData`, `noValueReason` | Bei `no_value` immer `noValueReason` zeigen, nie einen Preis aus anderen Bereichen. `fxNote` und `original` bei Umrechnung immer zeigen. Alle `notes` zeigen. `limitedData` → Hinweis „eingeschränkte Datenbasis“. |
+| `soldComparables` | `sold[]` (Badge „Verkauft“), `offers[]` (Badge „Aktives Angebot“), `emptyText` | Nur echte, zur Karte passende Belege. Auch bei `no_value` sichtbar. |
+| `priceGuides` | `items[]` (Badge „Preisführer“), `disclaimer` | Eigener Bereich, eigene Optik, `disclaimer` immer zeigen. Nie in der Verkaufsliste, nie als Marktwert. |
+
+Das Frontend darf **nicht**: Mediane oder Spannen berechnen, Preise zusammenführen, Preisführer in
+den Marktwert übernehmen, Währungen umrechnen, Zustände ableiten. Die Optik wird nur über `variant`
+(`sold` / `offer` / `guide`) gesteuert. `sortValueEur` dient nur zum Sortieren.
+
+Weitere Felder: `contractVersion`, `status`, `statusCategory`, `message`.
+
+### Beispielausgaben
+
+Gekürzt; vollständige Ausgaben in `docs/display-examples.json` (erzeugt aus den Tests in
+`tests/displayExamples.test.ts`, neu erzeugen mit `WRITE_DISPLAY_EXAMPLES=1 bash wertscan/run-tests.sh`).
+
+#### 1. Normale Karte mit echten Verkäufen
+
+```json
+{
+  "status": "found",
+  "statusCategory": "value",
+  "marketValue": {
+    "state": "value",
+    "value": {
+      "eur": "297,00 €",
+      "original": "330,00 USD",
+      "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+    },
+    "range": {
+      "from": "288,00 €",
+      "to": "306,00 €"
+    },
+    "basis": "Median aus Raw-NM-Belegen (tatsächlich verkauft)",
+    "notes": [
+      "Nur Belege im Zustand NM (Zustand von der Quelle angegeben)."
+    ],
+    "limitedData": false
+  },
+  "soldComparables": {
+    "sold": [
+      {
+        "badge": "Verkauft",
+        "title": "Charizard 4/102 Base Set",
+        "price": "279,00 € (310,00 USD)"
+      },
+      {
+        "badge": "Verkauft",
+        "title": "Charizard 4/102 Base Set",
+        "price": "297,00 € (330,00 USD)"
+      },
+      {
+        "badge": "Verkauft",
+        "title": "Charizard 4/102 Base Set",
+        "price": "315,00 € (350,00 USD)"
+      }
+    ],
+    "offers": 0
+  },
+  "priceGuides": [
+    {
+      "badge": "Preisführer",
+      "label": "Raw NM market",
+      "source": "scrydex",
+      "price": "810,00 € (900,00 USD)"
+    }
+  ]
+}
+```
+
+#### 2. Eindeutige Karte ohne genügend Verkäufe
+
+```json
+{
+  "status": "card_identified_insufficient_evidence",
+  "statusCategory": "insufficient",
+  "marketValue": {
+    "state": "no_value",
+    "noValueReason": "Keine zuverlässige Bewertung möglich: Für den Zustand NM liegen nicht mindestens 2 Marktbelege mit Zustandsangabe vor."
+  },
+  "soldComparables": {
+    "sold": [
+      {
+        "badge": "Verkauft",
+        "title": "Charizard 4/102 Base Set",
+        "price": "288,00 € (320,00 USD)"
+      }
+    ],
+    "offers": 0
+  },
+  "priceGuides": []
+}
+```
+
+#### 3. Nicht eindeutige Karte (Sprache unbekannt, en + ja vorhanden)
+
+```json
+{
+  "status": "card_not_unique",
+  "statusCategory": "ambiguous",
+  "marketValue": {
+    "state": "no_value",
+    "noValueReason": "Karte nicht eindeutig zuordenbar. Es wird keine Karte automatisch ausgewählt und kein Preis angezeigt. (Grund: language_unknown_multiple_candidates)"
+  },
+  "soldComparables": {
+    "sold": [],
+    "offers": 0
+  },
+  "priceGuides": []
+}
+```
+
+#### 4. Gegradete PCA-9,5-Karte ohne passende PCA-Verkäufe
+
+```json
+{
+  "status": "found",
+  "statusCategory": "value",
+  "marketValue": {
+    "state": "value",
+    "value": {
+      "eur": "78,00 €",
+      "original": "13.000 JPY",
+      "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
+    },
+    "range": {
+      "from": "75,00 €",
+      "to": "81,00 €"
+    },
+    "basis": "Median aus ungegradeten Belegen derselben Karte (Zustand teils nicht angegeben) (tatsächlich verkauft)",
+    "notes": [
+      "Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte."
+    ],
+    "limitedData": false
+  },
+  "soldComparables": {
+    "sold": [
+      {
+        "badge": "Verkauft",
+        "title": "リザードン 143/S-P",
+        "price": "72,00 € (12.000 JPY)"
+      },
+      {
+        "badge": "Verkauft",
+        "title": "リザードン 143/S-P",
+        "price": "84,00 € (14.000 JPY)"
+      }
+    ],
+    "offers": 0
+  },
+  "priceGuides": []
+}
+```
+
+#### 5. Echte Verkäufe um 20 € plus Preisführer 76 €
+
+```json
+{
+  "status": "found",
+  "statusCategory": "value",
+  "marketValue": {
+    "state": "value",
+    "value": {
+      "eur": "20,00 €",
+      "original": null,
+      "fxNote": null
+    },
+    "range": {
+      "from": "19,50 €",
+      "to": "20,50 €"
+    },
+    "basis": "Median aus Raw-NM-Belegen (tatsächlich verkauft)",
+    "notes": [
+      "Nur Belege im Zustand NM (Zustand von der Quelle angegeben)."
+    ],
+    "limitedData": false
+  },
+  "soldComparables": {
+    "sold": [
+      {
+        "badge": "Verkauft",
+        "title": "Glurak ex 223/197",
+        "price": "19,00 €"
+      },
+      {
+        "badge": "Verkauft",
+        "title": "Charizard ex 223/197",
+        "price": "20,00 €"
+      },
+      {
+        "badge": "Verkauft",
+        "title": "Charizard ex 223/197 SIR",
+        "price": "21,00 €"
+      }
+    ],
+    "offers": 0
+  },
+  "priceGuides": [
+    {
+      "badge": "Preisführer",
+      "label": "Raw NM trend",
+      "source": "cardmarket",
+      "price": "76,00 €"
+    }
+  ]
+}
+```
+
 
 ## Freigabe-Checkliste (vor gemeinsamem Testlauf/Deployment)
 
 - [x] Scrydex-Doku geprüft und im Adapter fest eingetragen
 - [ ] `verify-scrydex.mjs` mit echtem Key ausgeführt (Antwortformat, Datenabdeckung, condition-Filter)
-- [ ] EZB-Kurse im Serverbetrieb abrufbar (Netzwerkfreigabe für ecb.europa.eu)
-- [ ] Frontend auf `buildMarketDisplay` umgestellt (drei Bereiche)
+- [ ] `verify-ecb.sh` im Serverbetrieb grün (Netzwerkfreigabe für ecb.europa.eu)
+- [ ] Echte Scrydex-Testkarten sauber: normale englische Karte, japanische Promo, Karte mit mehreren
+      Varianten, Raw-Karte mit mehreren Zuständen, PSA-Karte, PCA-Karte
+- [ ] Frontend auf `buildMarketDisplay` umgestellt (drei Bereiche, Vertrag v1)
 - [ ] `bash wertscan/run-tests.sh` grün
 
 ## Tests

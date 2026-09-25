@@ -7,10 +7,24 @@ import { matchCandidates, MatchOptions, normalizeLanguage } from './cardIdentity
 import { CardSegment, CardValuation, valueCard } from './cardValuation';
 import { CardCandidate, CardDataProvider, CardQuery, FxRateProvider } from './types';
 
+/**
+ * Feste technische Status (für Frontend und Logs):
+ *  priced                                – Marktwert aus echten Belegen
+ *  card_identified_no_market_evidence    – Karte eindeutig, Anbieter liefert keine Verkäufe/Angebote
+ *  card_identified_insufficient_evidence – Karte eindeutig, Belege reichen nicht (z. B. < 2, Zustand nicht geführt)
+ *  not_unique                            – Karte wirklich mehrdeutig
+ *  provider_search_incomplete            – Anbietersuche nicht vollständig geladen (nie positive Zuordnung)
+ *  not_found                             – exakte Karte nicht gefunden / Widerspruch
+ *  unsupported_language                  – Sprache vom Anbieter nicht geführt
+ *  insufficient_identity                 – für die Suche fehlen Pflichtangaben (z. B. Nummer)
+ *  provider_error                        – Anbieter technisch nicht erreichbar
+ */
 export type CardMarketStatus =
   | 'priced'
-  | 'insufficient_data'
+  | 'card_identified_no_market_evidence'
+  | 'card_identified_insufficient_evidence'
   | 'not_unique'
+  | 'provider_search_incomplete'
   | 'not_found'
   | 'unsupported_language'
   | 'insufficient_identity'
@@ -39,6 +53,7 @@ export type CardMarketResult = {
     evidenceLoaded: number;
     evidenceByKind: Record<string, number>;
     excluded: Record<string, number>;
+    sales: { complete: boolean; loaded: number; total: number | null } | null;
     error: string | null;
   };
 };
@@ -53,8 +68,12 @@ export type CardMarketDeps = {
   trustConditionFilter?: boolean;
 };
 
-const MESSAGES: Record<Exclude<CardMarketStatus, 'priced' | 'insufficient_data'>, string> = {
+const MESSAGES: Record<Exclude<CardMarketStatus, 'priced' | 'card_identified_insufficient_evidence'>, string> = {
   not_unique: 'Karte nicht eindeutig zuordenbar. Es wird keine Karte automatisch ausgewählt und kein Preis angezeigt.',
+  provider_search_incomplete:
+    'Die Suche beim Kartendatenanbieter lieferte zu viele Treffer und konnte nicht vollständig geladen werden. Es wird keine Karte zugeordnet und kein Preis angezeigt.',
+  card_identified_no_market_evidence:
+    'Karte eindeutig erkannt, aber der Kartendatenanbieter liefert derzeit keine Verkäufe oder Angebote für diese Karte.',
   not_found: 'Diese exakte Karte (Nummer, Set, Sprache, Variante) wurde beim Datenanbieter nicht gefunden. Es wird kein Preis einer anderen Karte übernommen.',
   unsupported_language: 'Der Datenanbieter führt keine Karten in dieser Sprache. Preise anderer Sprachfassungen werden nicht übernommen.',
   insufficient_identity: 'Keine Bewertung: Für eine exakte Zuordnung fehlt mindestens die Kartennummer.',
@@ -83,15 +102,16 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
       evidenceLoaded: 0,
       evidenceByKind: {},
       excluded: {},
+      sales: null,
       error: null,
     },
   };
   const done = (status: CardMarketStatus, message?: string) => {
     result.status = status;
     result.message = message || (status in MESSAGES ? MESSAGES[status as keyof typeof MESSAGES] : '');
-    result.fallbackAllowed = status === 'insufficient_data';
-    result.fallbackReason =
-      status === 'insufficient_data'
+    const identified = status === 'card_identified_no_market_evidence' || status === 'card_identified_insufficient_evidence';
+    result.fallbackAllowed = identified;
+    result.fallbackReason = identified
         ? 'Karte eindeutig bestätigt, aber zu wenige Preisbelege beim Anbieter.'
         : status === 'priced'
           ? 'Nicht nötig: Anbieterdaten reichen aus.'
@@ -114,7 +134,7 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
     // Unvollständiges Suchergebnis: Die richtige Karte könnte fehlen → nie als eindeutig werten.
     if (error && typeof error === 'object' && (error as { incompleteSearch?: boolean }).incompleteSearch) {
       result.debug.matchReason = 'search_result_incomplete';
-      return done('not_unique', MESSAGES.not_unique + ' (Grund: Suchergebnis zu groß, nicht vollständig geladen)');
+      return done('provider_search_incomplete');
     }
     return done('provider_error');
   }
@@ -132,8 +152,11 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
   result.debug.matchReason = 'unique:' + match.numberMatch;
 
   let evidence;
+  let sales: { complete: boolean; loaded: number; total: number | null };
   try {
-    evidence = await provider.getPriceEvidence({ candidate: match.candidate, variant: match.variant, soldWithinDays: deps.soldWithinDays ?? 90 });
+    const loaded = await provider.getPriceEvidence({ candidate: match.candidate, variant: match.variant, soldWithinDays: deps.soldWithinDays ?? 90 });
+    evidence = loaded.evidence;
+    sales = { complete: loaded.salesComplete, loaded: loaded.salesLoaded, total: loaded.salesTotal };
   } catch (error) {
     result.debug.error = String(error instanceof Error ? error.message : error);
     return done('provider_error');
@@ -152,8 +175,14 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
     fx: deps.fx,
     supportedRawConditions: provider.supportedRawConditions,
     trustConditionFilter: deps.trustConditionFilter ?? false,
+    sales,
   });
   result.valuation = valuation;
   result.debug.excluded = valuation.excluded;
-  return done(valuation.headline.kind === 'none' ? 'insufficient_data' : 'priced', valuation.message);
+  result.debug.sales = sales;
+  if (valuation.headline.kind !== 'none') return done('priced', valuation.message);
+  if (!valuation.marketEvidenceCount) {
+    return done('card_identified_no_market_evidence', MESSAGES.card_identified_no_market_evidence + (valuation.priceGuides.length ? ' Preisführer werden separat angezeigt.' : ''));
+  }
+  return done('card_identified_insufficient_evidence', valuation.message);
 }

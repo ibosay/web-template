@@ -90,6 +90,15 @@ export type EvidenceRequest = {
   soldWithinDays: number;
 };
 
+export type EvidenceResult = {
+  evidence: PriceEvidence[];
+  /** false = nicht alle Verkäufe geladen (Sicherheitsgrenze) → Wert nur mit eingeschränkter Datenbasis. */
+  salesComplete: boolean;
+  salesLoaded: number;
+  /** Laut Anbieter vorhandene Verkäufe (totalCount), falls bekannt. */
+  salesTotal: number | null;
+};
+
 export interface CardDataProvider {
   readonly id: string;
   readonly displayName: string;
@@ -98,7 +107,7 @@ export interface CardDataProvider {
   /** Raw-Zustände, die der Anbieter führt (zentrale Taxonomie); null = unbekannt. */
   readonly supportedRawConditions: readonly CardCondition[] | null;
   findCards(query: CardQuery): Promise<CardCandidate[]>;
-  getPriceEvidence(request: EvidenceRequest): Promise<PriceEvidence[]>;
+  getPriceEvidence(request: EvidenceRequest): Promise<EvidenceResult>;
 }
 
 export type FxRate = { from: string; to: 'EUR'; rate: number; source: string; asOf: string };

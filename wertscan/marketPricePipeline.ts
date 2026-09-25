@@ -168,6 +168,9 @@ export type MarketSearchStatus =
   | 'filtered_all'
   | 'insufficient_identity'
   | 'card_not_unique'
+  | 'provider_search_incomplete'
+  | 'card_identified_no_market_evidence'
+  | 'card_identified_insufficient_evidence'
   | 'card_not_found'
   | 'unsupported_language'
   | 'provider_error';
@@ -189,6 +192,8 @@ export type MarketHeadline = {
   original: { price: number; from: number; to: number; currency: string } | null;
   /** Hinweis zur Umrechnung: EUR ist ein Anzeigewert, kein Marktpreis der Quelle. */
   fxNote: string;
+  /** true = nicht alle Verkäufe beim Anbieter geladen → eingeschränkte Datenbasis. */
+  limitedData: boolean;
 };
 
 type QueryRole = 'base' | 'grading' | 'product';
@@ -1572,6 +1577,7 @@ function toHeadline(kind: MarketHeadline['kind'], value: ConditionMarketPrice, n
     note,
     original: null,
     fxNote: '',
+    limitedData: false,
   };
 }
 
@@ -1588,6 +1594,7 @@ const NO_HEADLINE: MarketHeadline = {
   note: '',
   original: null,
   fxNote: '',
+  limitedData: false,
 };
 
 function buildHeadline(
@@ -1638,6 +1645,9 @@ const STATUS_MESSAGES: Record<MarketSearchStatus, string> = {
   filtered_all: 'Es wurden Angebote gefunden, aber keines hat die Prüfung auf Identität, Beleg und Plausibilität bestanden.',
   insufficient_identity: 'Keine Live-Marktsuche gestartet, weil der Gegenstand noch nicht sicher genug identifiziert ist.',
   card_not_unique: 'Karte nicht eindeutig zuordenbar. Es wird keine Karte automatisch ausgewählt und kein Preis angezeigt.',
+  provider_search_incomplete: 'Die Suche beim Kartendatenanbieter konnte nicht vollständig geladen werden. Es wird keine Karte zugeordnet und kein Preis angezeigt.',
+  card_identified_no_market_evidence: 'Karte eindeutig erkannt, aber es liegen keine Verkäufe oder Angebote beim Kartendatenanbieter vor.',
+  card_identified_insufficient_evidence: 'Karte eindeutig erkannt, aber es liegen zu wenige passende Marktbelege für eine zuverlässige Bewertung vor.',
   card_not_found: 'Diese exakte Karte wurde beim Kartendatenanbieter nicht gefunden. Es wird kein Preis einer anderen Karte übernommen.',
   unsupported_language: 'Der Kartendatenanbieter führt diese Sprachfassung nicht. Preise anderer Sprachfassungen werden nicht übernommen.',
   provider_error: 'Der Kartendatenanbieter war technisch nicht erreichbar. Das bedeutet nicht, dass es keinen Marktpreis gibt.',
@@ -1840,6 +1850,7 @@ function valueToHeadline(kind: MarketHeadline['kind'], value: ValueSummary, note
     note,
     original: value.currency === 'EUR' ? null : { price: value.median, from: value.low, to: value.high, currency: value.currency },
     fxNote,
+    limitedData: value.limitedData,
   };
 }
 
@@ -1911,7 +1922,7 @@ async function runCardProvider(
       valuation: null,
       fallbackAllowed: false,
       fallbackReason: 'Nicht erlaubt: Grading-Note fehlt.',
-      debug: { candidatesFound: 0, rejectedCandidates: [], remainingCandidates: [], matchReason: null, evidenceLoaded: 0, evidenceByKind: {}, excluded: {}, error: null },
+      debug: { candidatesFound: 0, rejectedCandidates: [], remainingCandidates: [], matchReason: null, evidenceLoaded: 0, evidenceByKind: {}, excluded: {}, sales: null, error: null },
     };
   } else {
     result = await lookupCardMarket(query, segment, {
@@ -1924,15 +1935,16 @@ async function runCardProvider(
 
   const statusMap: Record<CardMarketResult['status'], MarketSearchStatus> = {
     priced: 'found',
-    insufficient_data: 'low_sample',
+    card_identified_no_market_evidence: 'card_identified_no_market_evidence',
+    card_identified_insufficient_evidence: 'card_identified_insufficient_evidence',
     not_unique: 'card_not_unique',
+    provider_search_incomplete: 'provider_search_incomplete',
     not_found: 'card_not_found',
     unsupported_language: 'unsupported_language',
     insufficient_identity: 'insufficient_identity',
     provider_error: 'provider_error',
   };
-  let status = statusMap[result.status];
-  if (result.status === 'insufficient_data' && !result.debug.evidenceLoaded) status = 'no_exact_matches';
+  const status = statusMap[result.status];
 
   let headline: MarketHeadline = NO_HEADLINE;
   const rows: MarketListing[] = [];
@@ -1941,15 +1953,15 @@ async function runCardProvider(
     const h = valuation.headline;
     if (h.value && h.kind !== 'none') headline = valueToHeadline(h.kind === 'raw_condition' ? 'condition' : h.kind, h.value, h.note);
     const cache: FxCache = new Map();
-    const add = async (value: ValueSummary | null, role: 'exact' | 'raw' | 'condition') => {
-      if (!value) return;
-      for (const evidence of value.evidence) {
+    // Alle passenden echten Belege anzeigen – auch wenn sie für einen Marktwert nicht reichen.
+    const add = async (evidenceRows: PriceEvidence[], role: 'exact' | 'raw' | 'condition') => {
+      for (const evidence of evidenceRows) {
         const row = await evidenceToListing(evidence, role, opts.targetKey, opts.fx, cache);
         if (row) rows.push(row);
       }
     };
-    await add(valuation.exactValue, segment.type === 'graded' ? 'exact' : 'condition');
-    if (segment.type === 'graded') await add(valuation.cardBaseValue, 'raw');
+    await add(valuation.segmentEvidence.exact, segment.type === 'graded' ? 'exact' : 'condition');
+    if (segment.type === 'graded') await add(valuation.segmentEvidence.base, 'raw');
   }
   return { result, status, headline, rows, priceGuides: valuation ? valuation.priceGuides : [] };
 }

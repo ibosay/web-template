@@ -32,7 +32,7 @@
  *
  * API-Key und Team-ID nur aus Server-Umgebungsvariablen. Niemals im Client oder im Repository.
  */
-import { CardCandidate, CardDataProvider, CardQuery, EvidenceRequest, PriceEvidence } from './types';
+import { CardCandidate, CardDataProvider, CardQuery, EvidenceRequest, EvidenceResult, PriceEvidence } from './types';
 import { cardNumberKey, normalizeGrading } from './cardIdentity';
 import { SCRYDEX_RAW_CONDITIONS, normalizeCardCondition } from './conditions';
 
@@ -73,7 +73,7 @@ export type ScrydexConfig = {
   pageSize?: number;
   /** Maximal geladene Seiten der Kartensuche. Mehr Treffer → "nicht eindeutig". Standard 5. */
   maxSearchPages?: number;
-  /** Maximal geladene Listing-Seiten (neueste zuerst angenommen). Standard 5. */
+  /** Sicherheitsgrenze für Listing-Seiten. Standard 20 (= 2.000 Verkäufe). Darüber: eingeschränkte Datenbasis. */
   maxListingPages?: number;
 };
 
@@ -130,7 +130,7 @@ export class ScrydexProvider implements CardDataProvider {
       listingTtlMs: config.listingTtlMs ?? 24 * 3600 * 1000,
       pageSize: Math.max(1, Math.min(SCRYDEX_MAX_PAGE_SIZE, config.pageSize ?? SCRYDEX_MAX_PAGE_SIZE)),
       maxSearchPages: config.maxSearchPages ?? 5,
-      maxListingPages: config.maxListingPages ?? 5,
+      maxListingPages: config.maxListingPages ?? 20,
     };
   }
 
@@ -175,25 +175,44 @@ export class ScrydexProvider implements CardDataProvider {
   }
 
   /**
-   * Suchanfragen von präzise nach breit. Die Suche darf breiter sein als das Ergebnis:
-   * WertScan prüft jeden Kandidaten anschließend selbst exakt (Nummer/printed_number, Set,
-   * Sprache, Variante). Sprache wird nicht in q gesetzt – sie steht im Kartenobjekt.
+   * Suchstufen von präzise nach breit. Bekannte Set-ID, vollständige Nummer und Name grenzen die
+   * Suche so früh wie möglich ein. Die Entscheidung trifft danach immer WertScan (cardIdentity.ts).
+   * languageIndependent = Stufe ohne Namensbedingung (findet auch anderssprachige Kartennamen).
    */
-  buildSearches(query: CardQuery): { path: string; q: string }[] {
+  buildSearches(query: CardQuery): { path: string; q: string; languageIndependent: boolean }[] {
     const key = query.number ? cardNumberKey(query.number) : null;
+    const raw = (query.number || '').trim().replace(/^#\s*/, '');
     // number (z. B. "143") ist der Teil vor dem "/"; printed_number ist der vollständige Aufdruck.
-    const numberValue = key ? (key.hasDenominator ? query.number!.split('/')[0].trim().replace(/^#/, '') : query.number!.trim()) : '';
+    const numberValue = key ? (key.hasDenominator ? raw.split('/')[0].trim() : raw) : '';
+    const printedValue = key && (key.hasDenominator || /[a-z]/.test(key.full)) ? raw : '';
     const name = query.name ? luceneValue(query.name) : '';
     const numberTerm = numberValue ? 'number:' + luceneValue(numberValue) : '';
+    const printedTerm = printedValue ? 'printed_number:' + luceneValue(printedValue) : '';
     const path = query.setId ? expansionCardsPath(query.setId) : CARDS_PATH;
-    const searches = [
-      name && numberTerm ? '!name:' + name + ' ' + numberTerm : '',
-      name && numberTerm ? 'name:' + name + ' ' + numberTerm : '',
-      // Nummer allein: findet auch anderssprachige Namen (z. B. japanische Karten).
-      numberTerm && (query.setId || !name) ? numberTerm : '',
-      !numberTerm && name ? '!name:' + name : '',
-    ].filter(Boolean);
-    return Array.from(new Set(searches)).map(q => ({ path, q }));
+    const stages: { q: string; languageIndependent: boolean }[] = [
+      { q: name && printedTerm ? '!name:' + name + ' ' + printedTerm : '', languageIndependent: false },
+      { q: name && numberTerm ? '!name:' + name + ' ' + numberTerm : '', languageIndependent: false },
+      { q: name && numberTerm ? 'name:' + name + ' ' + numberTerm : '', languageIndependent: false },
+      { q: printedTerm, languageIndependent: true },
+      { q: numberTerm, languageIndependent: true },
+      { q: !numberTerm && name ? '!name:' + name : '', languageIndependent: false },
+    ];
+    const seen = new Set<string>();
+    return stages
+      .filter(stage => stage.q && !seen.has(stage.q) && seen.add(stage.q))
+      .map(stage => ({ path, q: stage.q, languageIndependent: stage.languageIndependent }));
+  }
+
+  /** Steht unter den Kandidaten einer mit exakt passender Nummer (und Sprache, falls bekannt)? */
+  private hasExactHit(candidates: CardCandidate[], query: CardQuery): boolean {
+    if (!query.number) return candidates.length > 0;
+    const wanted = cardNumberKey(query.number);
+    return candidates.some(candidate => {
+      const numbers = [candidate.printedNumber, candidate.number].filter((value): value is string => Boolean(value)).map(value => cardNumberKey(value));
+      const numberHit = numbers.some(key => key.full === wanted.full || (!key.hasDenominator && key.full === wanted.lead) || (!wanted.hasDenominator && key.lead === wanted.full));
+      const languageHit = !query.language || (candidate.languageCode || '').toLowerCase() === query.language.toLowerCase();
+      return numberHit && languageHit;
+    });
   }
 
   /**
@@ -217,11 +236,13 @@ export class ScrydexProvider implements CardDataProvider {
 
   async findCards(query: CardQuery): Promise<CardCandidate[]> {
     const found = new Map<string, CardCandidate>();
-    for (const search of this.buildSearches(query)) {
-      const result = await this.getAllPages(search.path, { q: search.q, include: 'prices' }, this.config.maxSearchPages);
+    const stages = this.buildSearches(query);
+    const run = async (stage: { path: string; q: string }) => {
+      const result = await this.getAllPages(stage.path, { q: stage.q, include: 'prices' }, this.config.maxSearchPages);
       if (!result.complete) {
+        // Nie eine Teilmenge als Kandidatenliste verwenden: die richtige Karte könnte fehlen.
         throw new IncompleteSearchError(
-          'Scrydex-Suche "' + search.q + '" hat ' + (result.totalCount ?? 'mehr als ' + result.items.length) + ' Treffer; nur ' + result.items.length + ' geladen.'
+          'Scrydex-Suche "' + stage.q + '" hat ' + (result.totalCount ?? 'mehr als ' + result.items.length) + ' Treffer; nur ' + result.items.length + ' geladen.'
         );
       }
       result.items.forEach(raw => {
@@ -230,7 +251,18 @@ export class ScrydexProvider implements CardDataProvider {
         this.rawCards.set(candidate.cardId, raw);
         found.set(candidate.cardId, candidate);
       });
-      if (found.size) break; // präzise Suche erfolgreich → keine breitere nötig
+    };
+    const ran = new Set<string>();
+    for (const stage of stages) {
+      await run(stage);
+      ran.add(stage.q);
+      if (this.hasExactHit([...found.values()], query)) break;
+    }
+    // Sprache unbekannt: zusätzlich sprachunabhängig suchen, damit gleichnummerige Karten
+    // anderer Sprachen (mit anderem Namen) nicht fehlen und fälschlich Eindeutigkeit entsteht.
+    if (!query.language) {
+      const independent = stages.find(stage => stage.languageIndependent);
+      if (independent && !ran.has(independent.q)) await run(independent);
     }
     return [...found.values()];
   }
@@ -291,7 +323,7 @@ export class ScrydexProvider implements CardDataProvider {
     return evidence;
   }
 
-  async getPriceEvidence(request: EvidenceRequest): Promise<PriceEvidence[]> {
+  async getPriceEvidence(request: EvidenceRequest): Promise<EvidenceResult> {
     const fetchedAt = this.config.now();
     const cardId = request.candidate.cardId;
     const raw = await this.rawCard(cardId);
@@ -300,9 +332,9 @@ export class ScrydexProvider implements CardDataProvider {
     // Bewusst KEIN condition-Filter: Zustand nur, wenn er im einzelnen Listing steht.
     const params: Record<string, string> = { days: String(request.soldWithinDays) };
     if (request.variant) params.variant = request.variant;
-    // Unvollständig geladene Listings (mehr als maxListingPages Seiten) sind unkritisch: weniger
-    // Belege führen höchstens zu "keine zuverlässige Bewertung", nie zu einem falschen Treffer.
-    const { items } = await this.getAllPages(CARDS_PATH + '/' + encodeURIComponent(cardId) + '/listings', params, this.config.maxListingPages);
+    // Listings werden vollständig paginiert. Greift die Sicherheitsgrenze (maxListingPages), wird
+    // mit den geladenen Verkäufen gearbeitet und das Ergebnis als eingeschränkte Datenbasis markiert.
+    const { items, complete, totalCount } = await this.getAllPages(CARDS_PATH + '/' + encodeURIComponent(cardId) + '/listings', params, this.config.maxListingPages);
     const expiresAt = new Date(fetchedAt.getTime() + this.config.listingTtlMs).toISOString();
     const seen = new Set<string>();
 
@@ -342,7 +374,8 @@ export class ScrydexProvider implements CardDataProvider {
         expiresAt,
       });
     });
-    return evidence;
+    const salesLoaded = evidence.filter(row => row.kind === 'sold').length;
+    return { evidence, salesComplete: complete, salesLoaded, salesTotal: totalCount };
   }
 }
 

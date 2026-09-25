@@ -197,8 +197,12 @@ export function matchCandidates(query: CardQuery, candidates: CardCandidate[], o
     if (set === 'conflict') return reject('set_mismatch');
     if (set === 'unverifiable') return reject('set_unverifiable_no_alias');
     if (numberMatch === 'lead' && set !== 'match') return reject('number_not_exact_without_set');
-    // Ohne bestätigtes Set muss wenigstens der Name exakt passen (sonst könnten Nachdrucke/Promos verwechselt werden).
-    if (set === 'unknown' && query.name && normText(query.name) !== normText(candidate.name)) return reject('name_mismatch_without_set');
+    // Ohne bestätigtes Set muss wenigstens der Name exakt passen (sonst könnten Nachdrucke/Promos
+    // verwechselt werden). Nur bei BEKANNTER Sprache: Namen unterscheiden sich zwischen Sprachen
+    // (Charizard / リザードン). Bei unbekannter Sprache bleibt die Karte Kandidat → "nicht eindeutig".
+    if (set === 'unknown' && queryLanguage && query.name && normText(query.name) !== normText(candidate.name)) {
+      return reject('name_mismatch_without_set');
+    }
 
     const variants = candidate.variants.map(entry => entry.name);
     if (queryVariant) {

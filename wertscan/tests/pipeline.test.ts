@@ -239,7 +239,7 @@ test('Karte eindeutig, Anbieter ohne ausreichende Preise → ergänzende Marktpl
   );
   const provider = new InMemoryCardDataProvider({ cards: [candidate()], evidence: { c1: [sold(100)] } });
   const result = await liveMarketLookup(charizard({ language: 'Japanisch' }), { ...silent, cardProvider: provider, fxRateProvider: fx });
-  assert.equal(result.cardMarket!.status, 'insufficient_data');
+  assert.equal(result.cardMarket!.status, 'card_identified_insufficient_evidence');
   assert.equal(result.cardMarket!.fallbackAllowed, true);
   assert.ok(aiCalls.scrape.length > 0);
   assert.ok(result.debug.rejectionReasons.language_mismatch >= 1, 'deutscher Titel verworfen');
@@ -334,11 +334,11 @@ test('Anzeige: drei getrennte Bereiche; Preisführer nie als Verkauf, Marktwert 
   assert.equal(display.marketValue.state, 'value');
   assert.equal(display.marketValue.value!.original, '110,00 USD');
   assert.match(display.marketValue.value!.fxNote!, /kein Marktpreis der Quelle/);
-  assert.equal(display.comparableSales.sold.length, 2);
-  assert.ok(display.comparableSales.sold.every(item => item.variant === 'sold' && item.badge === 'Verkauft'));
+  assert.equal(display.soldComparables.sold.length, 2);
+  assert.ok(display.soldComparables.sold.every(item => item.variant === 'sold' && item.badge === 'Verkauft'));
   assert.equal(display.priceGuides.items.length, 1);
   assert.ok(display.priceGuides.items.every(item => item.variant === 'guide' && item.badge === 'Preisführer'));
-  assert.ok(!display.comparableSales.sold.some(item => item.price.original === '5.000,00 USD'), 'Preisführer nicht unter Verkäufen');
+  assert.ok(!display.soldComparables.sold.some(item => item.price.original === '5.000,00 USD'), 'Preisführer nicht unter Verkäufen');
 
   const empty = buildMarketDisplay(await liveMarketLookup(charizard(), { ...silent, cardProvider: new InMemoryCardDataProvider({ cards: [candidate(), candidate({ cardId: 'x', languageCode: 'en' })], evidence: {} }) }));
   assert.equal(empty.marketValue.state, 'no_value');

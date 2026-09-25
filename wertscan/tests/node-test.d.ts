@@ -16,3 +16,6 @@ declare module 'node:assert/strict' {
   };
   export default assert;
 }
+
+/** CommonJS-Laufzeit (nur Tests, für das optionale Schreiben der Beispielausgaben). */
+declare const require: (module: string) => any;

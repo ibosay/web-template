@@ -6,4 +6,4 @@ cd "$(dirname "$0")"
 OUT="$(mktemp -d)"
 trap 'rm -rf "$OUT"' EXIT
 npx -y -p typescript@5 tsc -p tsconfig.test.json --outDir "$OUT"
-node --test "$OUT"/tests/*.test.js
+WERTSCAN_DIR="$(pwd)" node --test "$OUT"/tests/*.test.js

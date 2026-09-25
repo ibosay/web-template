@@ -1,0 +1,353 @@
+{
+  "1_normale_karte_mit_verkaeufen": {
+    "contractVersion": 1,
+    "status": "found",
+    "statusCategory": "value",
+    "message": "Nur Belege im Zustand NM (Zustand von der Quelle angegeben). Preisführer werden separat angezeigt und sind nicht Teil des Marktwerts.",
+    "marketValue": {
+      "state": "value",
+      "value": {
+        "eur": "297,00 €",
+        "original": "330,00 USD",
+        "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+      },
+      "range": {
+        "from": {
+          "eur": "288,00 €",
+          "original": "320,00 USD",
+          "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+        },
+        "to": {
+          "eur": "306,00 €",
+          "original": "340,00 USD",
+          "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+        }
+      },
+      "basis": "Median aus Raw-NM-Belegen (tatsächlich verkauft)",
+      "notes": [
+        "Nur Belege im Zustand NM (Zustand von der Quelle angegeben)."
+      ],
+      "limitedData": false,
+      "noValueReason": null
+    },
+    "soldComparables": {
+      "sold": [
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "Charizard 4/102 Base Set",
+          "price": {
+            "eur": "279,00 €",
+            "original": "310,00 USD",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "sortValueEur": 279,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        },
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "Charizard 4/102 Base Set",
+          "price": {
+            "eur": "297,00 €",
+            "original": "330,00 USD",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "sortValueEur": 297,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        },
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "Charizard 4/102 Base Set",
+          "price": {
+            "eur": "315,00 €",
+            "original": "350,00 USD",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "sortValueEur": 315,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        }
+      ],
+      "offers": [],
+      "emptyText": null
+    },
+    "priceGuides": {
+      "disclaimer": "Preisführer sind Richtwerte der jeweiligen Plattform, keine tatsächlich verkauften Artikel, und fließen nicht in den Marktwert ein.",
+      "items": [
+        {
+          "variant": "guide",
+          "badge": "Preisführer",
+          "label": "Raw NM market",
+          "source": "scrydex",
+          "price": {
+            "eur": "810,00 €",
+            "original": "900,00 USD",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "matchesTarget": true,
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        }
+      ]
+    }
+  },
+  "2_eindeutige_karte_zu_wenige_verkaeufe": {
+    "contractVersion": 1,
+    "status": "card_identified_insufficient_evidence",
+    "statusCategory": "insufficient",
+    "message": "Keine zuverlässige Bewertung möglich: Für den Zustand NM liegen nicht mindestens 2 Marktbelege mit Zustandsangabe vor.",
+    "marketValue": {
+      "state": "no_value",
+      "value": null,
+      "range": null,
+      "basis": "",
+      "notes": [],
+      "limitedData": false,
+      "noValueReason": "Keine zuverlässige Bewertung möglich: Für den Zustand NM liegen nicht mindestens 2 Marktbelege mit Zustandsangabe vor."
+    },
+    "soldComparables": {
+      "sold": [
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "Charizard 4/102 Base Set",
+          "price": {
+            "eur": "288,00 €",
+            "original": "320,00 USD",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs USD→EUR 0.9 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "sortValueEur": 288,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        }
+      ],
+      "offers": [],
+      "emptyText": null
+    },
+    "priceGuides": {
+      "disclaimer": "Preisführer sind Richtwerte der jeweiligen Plattform, keine tatsächlich verkauften Artikel, und fließen nicht in den Marktwert ein.",
+      "items": []
+    }
+  },
+  "3_nicht_eindeutige_karte": {
+    "contractVersion": 1,
+    "status": "card_not_unique",
+    "statusCategory": "ambiguous",
+    "message": "Karte nicht eindeutig zuordenbar. Es wird keine Karte automatisch ausgewählt und kein Preis angezeigt. (Grund: language_unknown_multiple_candidates)",
+    "marketValue": {
+      "state": "no_value",
+      "value": null,
+      "range": null,
+      "basis": "",
+      "notes": [],
+      "limitedData": false,
+      "noValueReason": "Karte nicht eindeutig zuordenbar. Es wird keine Karte automatisch ausgewählt und kein Preis angezeigt. (Grund: language_unknown_multiple_candidates)"
+    },
+    "soldComparables": {
+      "sold": [],
+      "offers": [],
+      "emptyText": "Keine passenden Vergleichsverkäufe gefunden."
+    },
+    "priceGuides": {
+      "disclaimer": "Preisführer sind Richtwerte der jeweiligen Plattform, keine tatsächlich verkauften Artikel, und fließen nicht in den Marktwert ein.",
+      "items": []
+    }
+  },
+  "4_pca_ohne_pca_verkaeufe": {
+    "contractVersion": 1,
+    "status": "found",
+    "statusCategory": "value",
+    "message": "Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte.",
+    "marketValue": {
+      "state": "value",
+      "value": {
+        "eur": "78,00 €",
+        "original": "13.000 JPY",
+        "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
+      },
+      "range": {
+        "from": {
+          "eur": "75,00 €",
+          "original": "12.500 JPY",
+          "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
+        },
+        "to": {
+          "eur": "81,00 €",
+          "original": "13.500 JPY",
+          "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
+        }
+      },
+      "basis": "Median aus ungegradeten Belegen derselben Karte (Zustand teils nicht angegeben) (tatsächlich verkauft)",
+      "notes": [
+        "Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte."
+      ],
+      "limitedData": false,
+      "noValueReason": null
+    },
+    "soldComparables": {
+      "sold": [
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "リザードン 143/S-P",
+          "price": {
+            "eur": "72,00 €",
+            "original": "12.000 JPY",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "sortValueEur": 72,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        },
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "リザードン 143/S-P",
+          "price": {
+            "eur": "84,00 €",
+            "original": "14.000 JPY",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "sortValueEur": 84,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        }
+      ],
+      "offers": [],
+      "emptyText": null
+    },
+    "priceGuides": {
+      "disclaimer": "Preisführer sind Richtwerte der jeweiligen Plattform, keine tatsächlich verkauften Artikel, und fließen nicht in den Marktwert ein.",
+      "items": []
+    }
+  },
+  "5_verkaeufe_20_eur_preisfuehrer_76_eur": {
+    "contractVersion": 1,
+    "status": "found",
+    "statusCategory": "value",
+    "message": "Nur Belege im Zustand NM (Zustand von der Quelle angegeben). Preisführer werden separat angezeigt und sind nicht Teil des Marktwerts.",
+    "marketValue": {
+      "state": "value",
+      "value": {
+        "eur": "20,00 €",
+        "original": null,
+        "fxNote": null
+      },
+      "range": {
+        "from": {
+          "eur": "19,50 €",
+          "original": null,
+          "fxNote": null
+        },
+        "to": {
+          "eur": "20,50 €",
+          "original": null,
+          "fxNote": null
+        }
+      },
+      "basis": "Median aus Raw-NM-Belegen (tatsächlich verkauft)",
+      "notes": [
+        "Nur Belege im Zustand NM (Zustand von der Quelle angegeben)."
+      ],
+      "limitedData": false,
+      "noValueReason": null
+    },
+    "soldComparables": {
+      "sold": [
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "Glurak ex 223/197",
+          "price": {
+            "eur": "19,00 €",
+            "original": null,
+            "fxNote": null
+          },
+          "sortValueEur": 19,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        },
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "Charizard ex 223/197",
+          "price": {
+            "eur": "20,00 €",
+            "original": null,
+            "fxNote": null
+          },
+          "sortValueEur": 20,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        },
+        {
+          "variant": "sold",
+          "badge": "Verkauft",
+          "title": "Charizard ex 223/197 SIR",
+          "price": {
+            "eur": "21,00 €",
+            "original": null,
+            "fxNote": null
+          },
+          "sortValueEur": 21,
+          "source": "ebay (scrydex)",
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "url": "https://www.ebay.com/itm/example",
+          "grading": null
+        }
+      ],
+      "offers": [],
+      "emptyText": null
+    },
+    "priceGuides": {
+      "disclaimer": "Preisführer sind Richtwerte der jeweiligen Plattform, keine tatsächlich verkauften Artikel, und fließen nicht in den Marktwert ein.",
+      "items": [
+        {
+          "variant": "guide",
+          "badge": "Preisführer",
+          "label": "Raw NM trend",
+          "source": "cardmarket",
+          "price": {
+            "eur": "76,00 €",
+            "original": null,
+            "fxNote": null
+          },
+          "matchesTarget": true,
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        }
+      ]
+    }
+  }
+}

@@ -33,6 +33,8 @@ export type ValueSummary = {
   newestObservedAt: string | null;
   /** Frühester Ablauf aller verwendeten Belege. */
   expiresAt: string;
+  /** true = beim Anbieter wurden nicht alle Verkäufe geladen (Sicherheitsgrenze). */
+  limitedData: boolean;
   evidence: PriceEvidence[];
 };
 
@@ -54,6 +56,16 @@ export type CardValuation = {
   rawUnspecifiedValue: ValueSummary | null;
   priceGuides: PriceGuideEntry[];
   excluded: Record<string, number>;
+  /** Verwendbare Markt-Belege (Verkäufe + Angebote) nach Grundfilter – ohne Preisführer. */
+  marketEvidenceCount: number;
+  /**
+   * Alle passenden Markt-Belege je Segment, auch wenn sie für einen Wert nicht reichen
+   * (für die Liste "Vergleichsverkäufe"). exact: gleiche Firma+Note bzw. gleicher Raw-Zustand;
+   * base: ungegradete Belege für den Kartenbasiswert (nur Graded).
+   */
+  segmentEvidence: { exact: PriceEvidence[]; base: PriceEvidence[] };
+  /** Abdeckung der Verkäufe beim Anbieter. */
+  sales: { complete: boolean; loaded: number; total: number | null };
   message: string;
 };
 
@@ -169,6 +181,7 @@ async function summarize(
       oldestObservedAt: observed[0] || null,
       newestObservedAt: observed[observed.length - 1] || null,
       expiresAt: rows.map(row => row.expiresAt).sort()[0],
+      limitedData: false,
       evidence: rows,
     },
     reason: null,
@@ -201,6 +214,8 @@ export type ValuationInput = {
    * garantiert nur Belege dieses Zustands liefert. Standard: false.
    */
   trustConditionFilter?: boolean;
+  /** Vom Provider gemeldete Vollständigkeit der Verkäufe. Standard: vollständig. */
+  sales?: { complete: boolean; loaded: number; total: number | null };
 };
 
 export async function valueCard(input: ValuationInput): Promise<CardValuation> {
@@ -263,6 +278,7 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
 
   let exactValue: ValueSummary | null = null;
   let cardBaseValue: ValueSummary | null = null;
+  const segmentEvidence: { exact: PriceEvidence[]; base: PriceEvidence[] } = { exact: [], base: [] };
   let headline: CardHeadline = { kind: 'none', value: null, note: '' };
   let message = '';
 
@@ -270,6 +286,7 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
     const label = formatGrading(segment.grading);
     const exactRows = market.filter(row => sameGrading(row.grading, segment.grading));
     market.filter(row => row.grading && !sameGrading(row.grading, segment.grading)).forEach(() => count('other_grading'));
+    segmentEvidence.exact = exactRows;
     exactValue = await soldFirst(exactRows, label + '-Belegen', input.fx, cache, excluded);
 
     // Kartenbasiswert: nur NM oder "Zustand nicht angegeben"; bekannte schlechtere Zustände ausgeschlossen.
@@ -278,6 +295,7 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
       if (condition && condition !== 'NM') return count('raw_not_nm_for_base'), false;
       return true;
     });
+    segmentEvidence.base = baseRows;
     const nmOnly = baseRows.filter(row => conditionOf(row) === 'NM');
     cardBaseValue =
       (await soldFirst(nmOnly, 'ungegradeten NM-Belegen derselben Karte', input.fx, cache, excluded)) ||
@@ -309,6 +327,7 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
         const condition = conditionOf(row);
         return condition && condition !== segment.condition;
       }).forEach(() => count('other_condition'));
+      segmentEvidence.exact = conditionRows;
       exactValue = await soldFirst(conditionRows, 'Raw-' + segment.condition + '-Belegen', input.fx, cache, excluded);
       if (exactValue) {
         headline = { kind: 'raw_condition', value: exactValue, note: 'Nur Belege im Zustand ' + segment.condition + ' (Zustand von der Quelle angegeben).' };
@@ -319,8 +338,31 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
   }
 
   const rawUnspecifiedValue = await soldFirst(rawUnspecifiedRows, 'Raw-Belegen ohne Zustandsangabe', input.fx, cache, excluded);
+  const sales = input.sales || { complete: true, loaded: market.filter(row => row.kind === 'sold').length, total: null };
+  const limitedNote =
+    'Eingeschränkte Datenbasis: nur ' + sales.loaded + (sales.total != null ? ' von ' + sales.total : '') + ' Verkäufen beim Anbieter geladen.';
+  if (!sales.complete) {
+    [exactValue, cardBaseValue, rawUnspecifiedValue].forEach(value => {
+      if (value && value.basis === 'sold') {
+        value.limitedData = true;
+        value.description += ' – ' + limitedNote;
+      }
+    });
+  }
   if (headline.kind !== 'none') message = headline.note;
+  if (headline.value?.limitedData) message += ' ' + limitedNote;
   if (priceGuides.length) message += ' Preisführer werden separat angezeigt und sind nicht Teil des Marktwerts.';
 
-  return { headline, exactValue, cardBaseValue, rawUnspecifiedValue, priceGuides, excluded, message: message.trim() };
+  return {
+    headline,
+    exactValue,
+    cardBaseValue,
+    rawUnspecifiedValue,
+    priceGuides,
+    excluded,
+    marketEvidenceCount: market.length,
+    segmentEvidence,
+    sales,
+    message: message.trim(),
+  };
 }

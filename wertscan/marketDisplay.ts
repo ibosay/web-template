@@ -1,33 +1,55 @@
 /**
- * Anzeigemodell für das Frontend: drei strikt getrennte Bereiche.
+ * Anzeigevertrag für das Frontend (MARKET_DISPLAY_CONTRACT_VERSION = 1).
  *
- *   1. Marktwert          – nur aus echten Belegen (MarketData.headline) oder ausdrücklich "keine Bewertung"
- *   2. Vergleichsverkäufe – tatsächlich verkaufte Artikel; aktive Angebote getrennt gekennzeichnet
- *   3. Preisführer        – Richtwerte (Cardmarket, Scrydex market …), NIE als Verkauf dargestellt
+ * Das Frontend rendert ausschließlich das Ergebnis von buildMarketDisplay() in drei Bereichen:
  *
- * Das Frontend rendert nur dieses Modell. Jeder Eintrag hat einen festen `variant`, der die
- * Optik bestimmt: 'sold' | 'offer' | 'guide'. Ein Preisführer kann dadurch nicht wie ein
- * verkaufter Artikel aussehen.
+ *   marketValue     – Hauptwert oder ausdrücklich "keine Bewertung" (noValueReason)
+ *   soldComparables – tatsächlich verkaufte Artikel (sold); aktive Angebote getrennt (offers)
+ *   priceGuides     – Preisführer/Marktindikatoren, eigene Optik, nie als Verkauf
+ *
+ * Das Frontend darf NICHT: Mediane oder Spannen berechnen, Preise zusammenführen, Preisführer
+ * in den Marktwert übernehmen, Währungen umrechnen, Zustände ableiten oder bei state
+ * 'no_value' einen Preis aus den anderen Bereichen anzeigen. Alle Beträge kommen fertig
+ * formatiert; Rohbeträge liegen nur zur Barrierefreiheit/Sortierung bei.
+ *
+ * Optik wird ausschließlich über `variant` gesteuert: 'sold' | 'offer' | 'guide'.
  */
 import { MarketData, MarketListing } from './marketPricePipeline';
 
+export const MARKET_DISPLAY_CONTRACT_VERSION = 1;
+
 export type DisplayMoney = {
-  /** Formatierter EUR-Anzeigewert oder null, wenn kein Kurs vorhanden ist. */
+  /** Formatierter EUR-Anzeigewert oder null (kein Kurs vorhanden). */
   eur: string | null;
   /** Originalbetrag der Quelle, wenn nicht EUR (z. B. "2.600 JPY"). */
   original: string | null;
-  /** Pflichthinweis bei umgerechneten Beträgen (Kurs, Quelle, Stand). */
+  /** Pflichthinweis bei umgerechneten Beträgen (Kurs, Quelle, Stand). Immer anzeigen, wenn gesetzt. */
   fxNote: string | null;
 };
 
+/**
+ * Grobe Kategorie des Status für Frontend-Logik und Logs:
+ *  value            – Marktwert vorhanden
+ *  insufficient     – Karte/Produkt erkannt, zu wenige Marktbelege
+ *  ambiguous        – Karte nicht eindeutig zuordenbar
+ *  incomplete       – Anbietersuche unvollständig (nie positive Zuordnung)
+ *  not_found        – exakte Karte/Produkt nicht gefunden
+ *  technical_error  – Quelle oder Anbieter technisch nicht erreichbar
+ *  not_identified   – Gegenstand zu unsicher identifiziert
+ */
+export type StatusCategory = 'value' | 'insufficient' | 'ambiguous' | 'incomplete' | 'not_found' | 'technical_error' | 'not_identified';
+
 export type MarketValueSection = {
-  title: 'Marktwert';
   state: 'value' | 'no_value';
   value: DisplayMoney | null;
   range: { from: DisplayMoney; to: DisplayMoney } | null;
+  /** Woraus der Wert stammt (z. B. "Median aus … (tatsächlich verkauft)"). */
   basis: string;
+  /** Zusätzliche Pflichthinweise (z. B. PCA-Basiswert-Satz). Alle anzeigen. */
   notes: string[];
-  /** Immer anzeigen, wenn state = 'no_value' – nie durch einen Preis ersetzen. */
+  /** true = nur ein Teil der Verkäufe geladen → Hinweis "eingeschränkte Datenbasis" anzeigen. */
+  limitedData: boolean;
+  /** Bei state 'no_value' immer anzeigen – nie durch einen Preis ersetzen. */
   noValueReason: string | null;
 };
 
@@ -36,6 +58,8 @@ export type ComparableItem = {
   badge: 'Verkauft' | 'Aktives Angebot';
   title: string;
   price: DisplayMoney;
+  /** Rohbetrag in EUR nur für Sortierung/Screenreader – nicht für Berechnungen. */
+  sortValueEur: number;
   source: string;
   observedAt: string | null;
   fetchedAt: string | null;
@@ -49,6 +73,7 @@ export type GuideItem = {
   label: string;
   source: string;
   price: DisplayMoney;
+  /** Passt zu Zustand/Grading des Exemplars (optisch hervorhebbar, bleibt Preisführer). */
   matchesTarget: boolean;
   observedAt: string | null;
   fetchedAt: string;
@@ -56,14 +81,34 @@ export type GuideItem = {
 };
 
 export type MarketDisplay = {
+  contractVersion: typeof MARKET_DISPLAY_CONTRACT_VERSION;
   status: MarketData['status'];
+  statusCategory: StatusCategory;
+  message: string;
   marketValue: MarketValueSection;
-  comparableSales: { title: 'Vergleichsverkäufe'; sold: ComparableItem[]; offers: ComparableItem[]; emptyText: string | null };
-  priceGuides: { title: 'Preisführer'; disclaimer: string; items: GuideItem[] };
+  soldComparables: { sold: ComparableItem[]; offers: ComparableItem[]; emptyText: string | null };
+  priceGuides: { disclaimer: string; items: GuideItem[] };
 };
 
-const eur = (value: number) =>
-  value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+const CATEGORY: Record<MarketData['status'], StatusCategory> = {
+  loading: 'insufficient',
+  found: 'value',
+  low_sample: 'insufficient',
+  card_identified_no_market_evidence: 'insufficient',
+  card_identified_insufficient_evidence: 'insufficient',
+  filtered_all: 'insufficient',
+  no_exact_matches: 'not_found',
+  card_not_found: 'not_found',
+  unsupported_language: 'not_found',
+  card_not_unique: 'ambiguous',
+  provider_search_incomplete: 'incomplete',
+  sources_unreachable: 'technical_error',
+  extraction_failed: 'technical_error',
+  provider_error: 'technical_error',
+  insufficient_identity: 'not_identified',
+};
+
+const eur = (value: number) => value.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
 
 const money = (value: number, currency: string) =>
   value.toLocaleString('de-DE', { minimumFractionDigits: currency === 'JPY' ? 0 : 2, maximumFractionDigits: currency === 'JPY' ? 0 : 2 }) + ' ' + currency;
@@ -83,6 +128,7 @@ function comparable(row: MarketListing): ComparableItem {
     badge: sold ? 'Verkauft' : 'Aktives Angebot',
     title: row.title,
     price: listingMoney(row),
+    sortValueEur: row.price,
     source: row.source,
     observedAt: row.observedAt ?? (row.date || null),
     fetchedAt: row.fetchedAt || null,
@@ -93,7 +139,7 @@ function comparable(row: MarketListing): ComparableItem {
 
 export function buildMarketDisplay(market: MarketData): MarketDisplay {
   const h = market.headline;
-  const hasValue = h.kind !== 'none' && h.kind !== 'reference' && (h.price != null || h.original != null);
+  const hasValue = market.status === 'found' && h.kind !== 'none' && h.kind !== 'reference' && (h.price != null || h.original != null);
   const fxNote = h.fxNote || null;
   const value: DisplayMoney | null = hasValue
     ? { eur: h.price != null ? eur(h.price) : null, original: h.original ? money(h.original.price, h.original.currency) : null, fxNote }
@@ -106,29 +152,30 @@ export function buildMarketDisplay(market: MarketData): MarketDisplay {
         }
       : null;
 
-  const notes = [h.note].filter(Boolean);
-  const sold = [...market.soldComparables].filter(row => row.kind !== 'guide').map(comparable);
-  const offers = [...market.currentOffers].filter(row => row.kind !== 'guide').map(comparable);
+  // Preisführer können hier nie auftauchen (kind 'guide' wird ausgeschlossen).
+  const sold = market.soldComparables.filter(row => row.kind !== 'guide').map(comparable);
+  const offers = market.currentOffers.filter(row => row.kind !== 'guide').map(comparable);
 
   return {
+    contractVersion: MARKET_DISPLAY_CONTRACT_VERSION,
     status: market.status,
+    statusCategory: CATEGORY[market.status],
+    message: market.message,
     marketValue: {
-      title: 'Marktwert',
       state: hasValue ? 'value' : 'no_value',
       value,
       range,
       basis: hasValue ? h.basis : '',
-      notes,
+      notes: hasValue ? [h.note].filter(Boolean) : [],
+      limitedData: hasValue && h.limitedData,
       noValueReason: hasValue ? null : market.message || 'Keine zuverlässige Bewertung möglich.',
     },
-    comparableSales: {
-      title: 'Vergleichsverkäufe',
+    soldComparables: {
       sold,
       offers,
       emptyText: sold.length || offers.length ? null : 'Keine passenden Vergleichsverkäufe gefunden.',
     },
     priceGuides: {
-      title: 'Preisführer',
       disclaimer: 'Preisführer sind Richtwerte der jeweiligen Plattform, keine tatsächlich verkauften Artikel, und fließen nicht in den Marktwert ein.',
       items: market.priceGuides.map(entry => ({
         variant: 'guide' as const,

@@ -182,7 +182,7 @@ test('Erkannter Zustand "Mint" bei Anbieter ohne Mint-Kategorie → kein Zustand
     evidence: { c1: [ev({ price: 20, condition: 'NM' }), ev({ price: 22, condition: 'NM' })] },
   });
   const result = await lookupCardMarket(query(), { type: 'raw', condition: 'MINT' }, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'insufficient_data');
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
   assert.equal(result.valuation!.headline.value, null);
   assert.match(result.message, /"Mint" wird vom Datenanbieter nicht geführt/);
   assert.equal(result.fallbackAllowed, true, 'Karte eindeutig → ergänzende Suche wäre erlaubt');
@@ -192,7 +192,7 @@ test('Zustand nur über Anfragefilter (nicht im Beleg) zählt nicht – außer d
   const evidence = { c1: [ev({ price: 20, condition: 'NM', conditionSource: 'provider_filter' }), ev({ price: 22, condition: 'NM', conditionSource: 'provider_filter' })] };
   const provider = new InMemoryCardDataProvider({ cards: [card({})], evidence });
   const strict = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
-  assert.equal(strict.status, 'insufficient_data');
+  assert.equal(strict.status, 'card_identified_insufficient_evidence');
   const verified = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW, trustConditionFilter: true });
   assert.equal(verified.status, 'priced');
 });
@@ -203,7 +203,7 @@ test('Raw NM: Belege ohne Zustandsangabe werden NICHT als NM gewertet', async ()
     evidence: { c1: [ev({ price: 20 }), ev({ price: 22 }), ev({ price: 25 })] },
   });
   const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'insufficient_data');
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
   assert.ok(result.valuation!.rawUnspecifiedValue, 'Information zu Verkäufen ohne Zustand vorhanden');
   assert.match(result.message, /Keine zuverlässige Bewertung möglich/);
 });
@@ -305,7 +305,7 @@ test('Nur Preisführer → keine Bewertung, Preisführer separat sichtbar', asyn
     evidence: { c1: [ev({ kind: 'guide', source: 'scrydex', priceType: 'market', condition: 'NM', price: 76 })] },
   });
   const result = await lookupCardMarket(query(), rawNM, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'insufficient_data');
+  assert.equal(result.status, 'card_identified_no_market_evidence');
   assert.equal(result.valuation!.headline.value, null);
   assert.equal(result.valuation!.priceGuides.length, 1);
   assert.equal(result.valuation!.priceGuides[0].eur!.amount, 68.4);
@@ -333,7 +333,7 @@ test('Gemischte Währungen ohne Kurs → kein Wert', async () => {
     evidence: { c1: [ev({ currency: 'JPY', price: 2500, condition: 'NM' }), ev({ currency: 'USD', price: 17, condition: 'NM' })] },
   });
   const result = await lookupCardMarket(query(), rawNM, { provider, now: () => NOW });
-  assert.equal(result.status, 'insufficient_data');
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
 });
 
 test('Abgelaufene Belege, falsche Variante und Belege ohne Variante (bei mehreren Varianten) zählen nicht', async () => {
@@ -349,7 +349,7 @@ test('Abgelaufene Belege, falsche Variante und Belege ohne Variante (bei mehrere
     },
   });
   const result = await lookupCardMarket(query({ variant: 'Holo' }), rawNM, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'insufficient_data');
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
   assert.deepEqual(result.valuation!.excluded.expired, 1);
   assert.deepEqual(result.valuation!.excluded.other_variant, 1);
   assert.deepEqual(result.valuation!.excluded.variant_not_stated, 1);
@@ -467,7 +467,7 @@ test('Scrydex-Adapter: Mapping, Header, include=prices, Preisführer vs. Verkäu
   assert.equal(calls[0].headers['X-Api-Key'], 'test-key');
   assert.equal(calls[0].headers['X-Team-ID'], 'test-team');
 
-  const evidence = await provider.getPriceEvidence({ candidate: candidates[0], variant: 'holofoil', soldWithinDays: 90 });
+  const evidence = (await provider.getPriceEvidence({ candidate: candidates[0], variant: 'holofoil', soldWithinDays: 90 })).evidence;
   const guides = evidence.filter(row => row.kind === 'guide');
   const sold = evidence.filter(row => row.kind === 'sold');
   assert.equal(guides.length, 6);
@@ -495,34 +495,59 @@ test('Scrydex-Adapter: Zugangsdaten nur aus Server-Umgebung, nie ohne Key, nie i
   }
 });
 
-test('Scrydex-Adapter: Lucene-q (!name exakt, number), Set-Endpunkt, keine Sprachendpunkte, breitere Suche nur bei 0 Treffern', async () => {
+test('Scrydex-Suche früh eingegrenzt: printed_number + exakter Name zuerst, breiter nur ohne exakten Treffer', async () => {
+  const qOf = (call: Call) => decodeURIComponent(new URL(call.url).searchParams.get('q') || '');
+  const japanese = { id: 'sx-9', name: 'リザードン', number: '143', printed_number: '143/S-P', expansion: { id: 'svp' }, language_code: 'ja', variants: [{ name: 'holofoil' }] };
+
+  // Sprache bekannt (ja): Namensstufen finden nichts (japanischer Name), printed_number trifft → Stopp.
   const calls: Call[] = [];
   const provider = new ScrydexProvider({
     apiKey: 'k',
     teamId: 't',
-    now: () => NOW,
-    fetch: mockFetch(url => {
-      const q = decodeURIComponent(new URL(url).searchParams.get('q') || '');
-      if (q.startsWith('!name:')) return { data: [] }; // exakter Name liefert nichts (z. B. japanischer Name)
-      return { data: [{ id: 'sx-9', name: 'リザードン', number: '143', printed_number: '143/S-P', expansion: { id: 'svp' }, language_code: 'ja', variants: [{ name: 'holofoil' }] }] };
-    }, calls),
+    fetch: mockFetch(url => (/printed_number/.test(decodeURIComponent(url)) && !/name:/.test(decodeURIComponent(url)) ? { data: [japanese] } : { data: [] }), calls),
   });
-  const found = await provider.findCards(query({ name: 'Charizard ex', number: '143/S-P' }));
-  assert.equal(found.length, 1);
-  const qs = calls.map(call => decodeURIComponent(new URL(call.url).searchParams.get('q') || ''));
-  assert.equal(qs[0], '!name:"Charizard ex" number:143');
-  assert.equal(qs[1], 'name:"Charizard ex" number:143');
-  assert.equal(calls.length, 2, 'nach erstem Treffer keine weitere Suche');
+  const found = await provider.findCards(query({ name: 'Charizard ex', number: '143/S-P', language: 'ja' }));
+  assert.deepEqual(found.map(c => c.cardId), ['sx-9']);
+  assert.deepEqual(calls.map(qOf), [
+    '!name:"Charizard ex" printed_number:"143/S-P"',
+    '!name:"Charizard ex" number:143',
+    'name:"Charizard ex" number:143',
+    'printed_number:"143/S-P"',
+  ]);
   assert.ok(calls.every(call => new URL(call.url).pathname === '/pokemon/v1/cards'), 'allgemeiner Endpunkt, keine en/ja-Pfade');
-  assert.ok(qs.every(q => !/language/.test(q)), 'Sprache nicht in q');
-  assert.equal(found[0].number, '143');
-  assert.equal(found[0].printedNumber, '143/S-P');
+  assert.ok(calls.map(qOf).every(q => !/language/.test(q)), 'Sprache nicht in q');
 
+  // Exakter Treffer in der ersten Stufe → keine weiteren Anfragen (Sprache bekannt).
+  const early: Call[] = [];
+  const direct = new ScrydexProvider({ apiKey: 'k', teamId: 't', fetch: mockFetch(() => ({ data: [japanese] }), early) });
+  await direct.findCards(query({ name: 'Charizard', number: '143/S-P', language: 'ja' }));
+  assert.equal(early.length, 1);
+
+  // Sprache UNBEKANNT: nach dem Treffer zusätzlich sprachunabhängig suchen (printed_number),
+  // damit eine gleichnummerige Karte anderer Sprache nicht fehlt.
+  const english = { ...japanese, id: 'sx-en', name: 'Charizard', language_code: 'en' };
+  const both: Call[] = [];
+  const unknownLanguage = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    fetch: mockFetch(url => (/name:/.test(decodeURIComponent(url)) ? { data: [english] } : { data: [english, japanese] }), both),
+  });
+  const candidates = await unknownLanguage.findCards(query({ name: 'Charizard', number: '143/S-P', language: null }));
+  assert.deepEqual(both.map(qOf), ['!name:Charizard printed_number:"143/S-P"', 'printed_number:"143/S-P"']);
+  assert.equal(candidates.length, 2);
+  const result = await lookupCardMarket(query({ name: 'Charizard', number: '143/S-P', language: null }), rawNM, {
+    provider: unknownLanguage,
+    fx,
+    now: () => NOW,
+  });
+  assert.equal(result.status, 'not_unique', 'Sprache unbekannt + zwei Sprachfassungen → nicht eindeutig');
+
+  // Set-ID bekannt → Set-Endpunkt.
   const setCalls: Call[] = [];
   const scoped = new ScrydexProvider({ apiKey: 'k', teamId: 't', fetch: mockFetch(() => ({ data: [] }), setCalls) });
-  await scoped.findCards(query({ setId: 'sv3', number: '223/197', name: null }));
-  assert.equal(new URL(setCalls[0].url).pathname, '/pokemon/v1/expansions/sv3/cards');
-  assert.equal(decodeURIComponent(new URL(setCalls[0].url).searchParams.get('q') || ''), 'number:223');
+  await scoped.findCards(query({ setId: 'sv3', number: '223/197', name: null, language: 'en' }));
+  assert.ok(setCalls.every(call => new URL(call.url).pathname === '/pokemon/v1/expansions/sv3/cards'));
+  assert.deepEqual(setCalls.map(qOf), ['printed_number:"223/197"', 'number:223']);
 });
 
 test('Scrydex-Adapter: Einzelkarte nachladen, market/low/mid/high nur Preisführer, Listings nur mit sold_at, Duplikate per id', async () => {
@@ -562,7 +587,7 @@ test('Scrydex-Adapter: Einzelkarte nachladen, market/low/mid/high nur Preisführ
       return { data: [] };
     }, calls),
   });
-  const evidence = await provider.getPriceEvidence({ candidate: card({ cardId: 'sx-1' }), variant: 'holofoil', soldWithinDays: 30 });
+  const evidence = (await provider.getPriceEvidence({ candidate: card({ cardId: 'sx-1' }), variant: 'holofoil', soldWithinDays: 30 })).evidence;
   assert.equal(new URL(calls[0].url).pathname, '/pokemon/v1/cards/sx-1');
   assert.equal(new URL(calls[0].url).searchParams.get('include'), 'prices');
   const guides = evidence.filter(row => row.kind === 'guide');
@@ -580,7 +605,7 @@ test('Scrydex-Adapter: Einzelkarte nachladen, market/low/mid/high nur Preisführ
     fx,
     now: () => NOW,
   });
-  assert.equal(result.status, 'insufficient_data', 'Verkäufe ohne Zustandsfeld ergeben keinen NM-Wert');
+  assert.equal(result.status, 'card_identified_insufficient_evidence', 'Verkäufe ohne Zustandsfeld ergeben keinen NM-Wert');
   assert.ok(result.valuation!.priceGuides.some(entry => entry.price === 76 && entry.priceType === 'market'));
 });
 
@@ -611,7 +636,7 @@ test('Scrydex-Paginierung: alle Seiten laden (page/page_size, totalCount); unvol
     fetch: mockFetch(() => ({ data: makeCards(0, 100), page: 1, pageSize: 100, totalCount: 150 }), []),
   });
   const result = await lookupCardMarket(query({ name: 'Pikachu', number: '25/102', language: 'en' }), rawNM, { provider: capped, fx, now: () => NOW });
-  assert.equal(result.status, 'not_unique');
+  assert.equal(result.status, 'provider_search_incomplete');
   assert.equal(result.debug.matchReason, 'search_result_incomplete');
   assert.equal(result.fallbackAllowed, false);
 });
@@ -631,7 +656,7 @@ test('Scrydex-Listings: mehrere Seiten werden zusammengeführt', async () => {
       return page === 1 ? { data: rows(0, 100), page: 1, pageSize: 100, totalCount: 130 } : { data: rows(100, 30), page: 2, pageSize: 100, totalCount: 130 };
     }, calls),
   });
-  const evidence = await provider.getPriceEvidence({ candidate: card({ cardId: 'sx-1', variants: [] }), variant: null, soldWithinDays: 90 });
+  const evidence = (await provider.getPriceEvidence({ candidate: card({ cardId: 'sx-1', variants: [] }), variant: null, soldWithinDays: 90 })).evidence;
   assert.equal(evidence.filter(row => row.kind === 'sold').length, 130);
   assert.deepEqual(calls.filter(call => call.url.includes('/listings')).map(call => new URL(call.url).searchParams.get('page')), ['1', '2']);
 });
