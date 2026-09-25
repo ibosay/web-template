@@ -2275,6 +2275,20 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   const hasHardIdentity = isCard
     ? Boolean(profile.cardNumberConcat || profile.cardNameTokens.length)
     : profile.primaryHardTokens.length > 0 || profile.boostTokens.length > 0;
+
+  // Wenn WertScan bereits direkte Fotoevidenz besitzt, aber daraus noch keine belastbare
+  // Suchidentität entsteht, wird keine breite Marktsuche gestartet. Das spart Suchläufe
+  // und verhindert Fantasietreffer bei "irgendeiner Uhr", "rotem Spielzeug" usw.
+  // Alte Integrationen ohne visualText/identifiers behalten aus Kompatibilitätsgründen
+  // die bisherige Pipeline, bis sie auf den neuen Scanvertrag umgestellt sind.
+  const hasDirectPhotoEvidence = Boolean(
+    (analysis.visualText || []).some(value => String(value || '').trim()) ||
+    (analysis.identifiers || []).some(value => String(value || '').trim())
+  );
+  if (!isCard && hasDirectPhotoEvidence && !scanGuidance.canSearchNow) {
+    return finish('insufficient_identity');
+  }
+
   if (!queries.length || (analysis.confidence < 0.55 && !hasHardIdentity)) return finish('insufficient_identity');
 
   // Sammelkarten mit Kartendatenanbieter: strukturierte, exakte Zuordnung statt Scraping.
