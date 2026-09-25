@@ -79,6 +79,124 @@ test('Nicht-Karten-Produkt: unverändert über Scraping, nur Verkäufe im Wert, 
   assert.equal(marketValuation(airpods, result)!.market, 125);
 });
 
+
+test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert', async () => {
+  const watch = {
+    category: 'Uhren',
+    objectType: 'Armbanduhr',
+    brand: 'Aristo',
+    model: 'Nicht erkannt',
+    title: 'Aristo Armbanduhr',
+    material: 'Walzgolddouble',
+    condition: 'gebraucht',
+    confidence: 0.94,
+    categoryConfidence: 0.99,
+    brandConfidence: 0.99,
+    modelConfidence: 0.2,
+    visualText: ['Aristo', 'WALZGOLDDOUBLE 20 MIKRON', 'BODEN EDELSTAHL'],
+    identifiers: [],
+    universalDetails: {
+      manufacturer: 'Aristo',
+      modelName: '',
+      modelNumber: '',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: 'Armbanduhr',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      material: 'Walzgolddouble',
+      visibleMarks: 'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+      primaryColor: 'schwarz',
+      detailConfidence: 0.95,
+    },
+  } as unknown as Analysis;
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? {
+            status: 200,
+            text: page([
+              { title: 'Aristo Vintage Armbanduhr Walzgolddouble 20 Mikron Boden Edelstahl', condition: 'Gebraucht', price: '45,00 EUR' },
+              { title: 'Aristo rechteckige Uhr Walzgolddouble 20 Mikron Boden Edelstahl', condition: 'Gebraucht', price: '50,00 EUR' },
+              { title: 'Aristo alte Damenuhr Walzgolddouble 20 Mikron Boden Edelstahl', condition: 'Gebraucht', price: '55,00 EUR' },
+              { title: 'Aristo Diver Automatik Edelstahl 42 mm', condition: 'Gebraucht', price: '563,00 EUR' },
+            ]),
+          }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+
+  const market = await liveMarketLookup(watch, silent);
+  assert.equal(market.status, 'found');
+  assert.equal(market.objectMatch?.mode, 'comparable_object');
+  assert.equal(market.objectMatch?.label, 'Sehr gut vergleichbar');
+  assert.equal(market.objectMatch?.marketValueAllowed, false);
+  assert.equal(marketValuation(watch, market), null, 'vergleichbare Objekte dürfen keinen exakten Marktwert erzeugen');
+  assert.ok(market.soldComparables.length >= 3);
+  assert.ok(market.soldComparables.every(row => row.price !== 563), 'unpassende moderne Aristo Diver Uhr wird verworfen');
+
+  const display = buildMarketDisplay(market);
+  assert.equal(display.statusCategory, 'comparable');
+  assert.equal(display.marketValue.state, 'no_value');
+  assert.equal(display.comparisonRange.state, 'range');
+  assert.equal(display.comparisonRange.label, 'Sehr gut vergleichbar');
+  assert.match(display.marketValue.noValueReason || '', /keine.*exakt|Exakte Modellreferenz/i);
+});
+
+test('Flohmarkt Technik mit sichtbarer Modellnummer bleibt exakter Marktwert', async () => {
+  const remote = {
+    category: 'Elektronik',
+    objectType: 'Fernbedienung',
+    brand: 'Apple',
+    model: 'Siri Remote',
+    title: 'Apple Siri Remote A2540',
+    condition: 'gebraucht',
+    confidence: 0.98,
+    categoryConfidence: 0.99,
+    brandConfidence: 0.99,
+    modelConfidence: 0.96,
+    visualText: ['Apple', 'A2540'],
+    identifiers: ['A2540'],
+    universalDetails: {
+      manufacturer: 'Apple',
+      modelName: 'Siri Remote',
+      modelNumber: 'A2540',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: 'Fernbedienung',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      detailConfidence: 0.98,
+    },
+  } as unknown as Analysis;
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? {
+            status: 200,
+            text: page([
+              { title: 'Apple Siri Remote A2540', condition: 'Gebraucht', price: '42,00 EUR' },
+              { title: 'Apple TV Siri Remote A2540 Fernbedienung', condition: 'Gebraucht', price: '46,00 EUR' },
+              { title: 'Apple Siri Remote A1513', condition: 'Gebraucht', price: '15,00 EUR' },
+            ]),
+          }
+        : { status: 403, text: '' },
+    async ({ content }) => extractAll(content)
+  );
+
+  const market = await liveMarketLookup(remote, silent);
+  assert.equal(market.objectMatch?.mode, 'exact_product');
+  assert.equal(market.objectMatch?.marketValueAllowed, true);
+  assert.ok(market.soldComparables.every(row => !/A1513/.test(row.title)));
+  const valuation = marketValuation(remote, market);
+  assert.ok(valuation);
+  assert.equal(valuation!.market, 44);
+});
+
 test('Nicht-Karten-Produkt: nur Angebote → bisherige Logik bleibt, Wert aus Angeboten (klar gekennzeichnet)', async () => {
   setAi(
     async url =>
