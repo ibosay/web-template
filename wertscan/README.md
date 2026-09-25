@@ -65,14 +65,26 @@ const display = buildMarketDisplay(market); // für das Frontend
 
 `SCRYDEX_API_KEY` und `SCRYDEX_TEAM_ID` nur als Server-Umgebungsvariablen setzen, niemals im Client oder im Repository.
 
-### Annahmen verifizieren
+### Laut Scrydex-Dokumentation bestätigt (fest im Adapter)
+
+- Header `X-Api-Key`, `X-Team-ID`; allgemeiner Endpunkt `/pokemon/v1/cards` (keine en/ja-Endpunkte),
+  Einzelkarte `/pokemon/v1/cards/<id>`, Set `/pokemon/v1/expansions/<id>/cards`
+- `q` Lucene-ähnlich: `!name:…` (exakt), `name:…`, `number:…`, `expansion.id:…`
+- `number` (z. B. 87) und `printed_number` (z. B. 87/160, SWSH101) werden beide gespeichert
+- Preise nur mit `include=prices`; Raw NM/LP/MP/HP/DM; Graded mit company/grade (PCA nur, wenn im Datensatz)
+- `market/low/mid/high` = Scrydex-Marktindikatoren → **Preisführer**, nie Verkauf
+- `/cards/<id>/listings` mit `sold_at` = echte Verkäufe; Datensätze ohne `sold_at` werden nicht verwendet
+- Währungen USD und JPY; EUR nur als gekennzeichneter Anzeigewert
+- Listing-Objekt ohne garantiertes `condition`-Feld → kein Zustandsfilter, `trustConditionFilter` aus
+
+### Noch mit echtem Zugang prüfen
 
 ```bash
-SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… node wertscan/scripts/verify-scrydex.mjs --name "Charizard" --number 143 --lang ja
+SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… node wertscan/scripts/verify-scrydex.mjs --name "Charizard" --number 143 --printed "143/S-P"
 ```
 
-Das Skript prüft Auth-Header, Antwort-Wrapper, `q`-Syntax, Kartenfelder, Preisstruktur, Sprachendpunkte,
-Listing-Felder und ob der Filter `condition=NM` in jedem Beleg bestätigt ist.
+Das Skript prüft Antwort-Wrapper, Paginierung, Anführungszeichen in `q`, Suchbarkeit von `number`/`printed_number`,
+tatsächliche Sprach-, Grading- (PCA?) und Währungsabdeckung sowie das Verhalten des `condition`-Filters.
 
 ## Frontend
 
@@ -84,7 +96,8 @@ Nur `buildMarketDisplay(market)` rendern. Drei Bereiche:
 
 ## Freigabe-Checkliste (vor gemeinsamem Testlauf/Deployment)
 
-- [ ] `verify-scrydex.mjs` mit echtem Key ausgeführt, alle PRÜFEN-Punkte im Adapter angepasst
+- [x] Scrydex-Doku geprüft und im Adapter fest eingetragen
+- [ ] `verify-scrydex.mjs` mit echtem Key ausgeführt (Paginierung, Wrapper, q-Quoting, Abdeckung, condition-Filter)
 - [ ] EZB-Kurse im Serverbetrieb abrufbar (Netzwerkfreigabe für ecb.europa.eu)
 - [ ] Frontend auf `buildMarketDisplay` umgestellt (drei Bereiche)
 - [ ] `bash wertscan/run-tests.sh` grün

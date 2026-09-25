@@ -494,3 +494,92 @@ test('Scrydex-Adapter: Zugangsdaten nur aus Server-Umgebung, nie ohne Key, nie i
     delete g.window;
   }
 });
+
+test('Scrydex-Adapter: Lucene-q (!name exakt, number), Set-Endpunkt, keine Sprachendpunkte, breitere Suche nur bei 0 Treffern', async () => {
+  const calls: Call[] = [];
+  const provider = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    now: () => NOW,
+    fetch: mockFetch(url => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') || '');
+      if (q.startsWith('!name:')) return { data: [] }; // exakter Name liefert nichts (z. B. japanischer Name)
+      return { data: [{ id: 'sx-9', name: 'リザードン', number: '143', printed_number: '143/S-P', expansion: { id: 'svp' }, language_code: 'ja', variants: [{ name: 'holofoil' }] }] };
+    }, calls),
+  });
+  const found = await provider.findCards(query({ name: 'Charizard ex', number: '143/S-P' }));
+  assert.equal(found.length, 1);
+  const qs = calls.map(call => decodeURIComponent(new URL(call.url).searchParams.get('q') || ''));
+  assert.equal(qs[0], '!name:"Charizard ex" number:143');
+  assert.equal(qs[1], 'name:"Charizard ex" number:143');
+  assert.equal(calls.length, 2, 'nach erstem Treffer keine weitere Suche');
+  assert.ok(calls.every(call => new URL(call.url).pathname === '/pokemon/v1/cards'), 'allgemeiner Endpunkt, keine en/ja-Pfade');
+  assert.ok(qs.every(q => !/language/.test(q)), 'Sprache nicht in q');
+  assert.equal(found[0].number, '143');
+  assert.equal(found[0].printedNumber, '143/S-P');
+
+  const setCalls: Call[] = [];
+  const scoped = new ScrydexProvider({ apiKey: 'k', teamId: 't', fetch: mockFetch(() => ({ data: [] }), setCalls) });
+  await scoped.findCards(query({ setId: 'sv3', number: '223/197', name: null }));
+  assert.equal(new URL(setCalls[0].url).pathname, '/pokemon/v1/expansions/sv3/cards');
+  assert.equal(decodeURIComponent(new URL(setCalls[0].url).searchParams.get('q') || ''), 'number:223');
+});
+
+test('Scrydex-Adapter: Einzelkarte nachladen, market/low/mid/high nur Preisführer, Listings nur mit sold_at, Duplikate per id', async () => {
+  const calls: Call[] = [];
+  const provider = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    now: () => NOW,
+    fetch: mockFetch(url => {
+      const path = new URL(url).pathname;
+      if (path.endsWith('/listings')) {
+        return {
+          data: [
+            { id: 'l1', source: 'ebay', card_id: 'sx-1', title: 'A', variant: 'holofoil', price: 20, currency: 'USD', sold_at: '2026-09-01' },
+            { id: 'l1', source: 'ebay', card_id: 'sx-1', title: 'A', variant: 'holofoil', price: 20, currency: 'USD', sold_at: '2026-09-01' },
+            { id: 'l2', source: 'ebay', card_id: 'sx-1', title: 'ohne Verkaufsdatum', variant: 'holofoil', price: 76, currency: 'USD' },
+            { id: 'l3', source: 'ebay', card_id: 'sx-1', title: 'B', variant: 'holofoil', company: 'TAG', grade: '10', price: 300, currency: 'USD', sold_at: '2026-09-02' },
+          ],
+        };
+      }
+      if (path === '/pokemon/v1/cards/sx-1') {
+        return {
+          data: {
+            id: 'sx-1',
+            variants: [
+              {
+                name: 'holofoil',
+                prices: [
+                  { type: 'raw', condition: 'NM', low: 18, market: 76, currency: 'USD', trends: {} },
+                  { type: 'graded', company: 'PSA', grade: '10', low: 800, mid: 900, high: 1000, market: 950, currency: 'USD' },
+                ],
+              },
+            ],
+          },
+        };
+      }
+      return { data: [] };
+    }, calls),
+  });
+  const evidence = await provider.getPriceEvidence({ candidate: card({ cardId: 'sx-1' }), variant: 'holofoil', soldWithinDays: 30 });
+  assert.equal(new URL(calls[0].url).pathname, '/pokemon/v1/cards/sx-1');
+  assert.equal(new URL(calls[0].url).searchParams.get('include'), 'prices');
+  const guides = evidence.filter(row => row.kind === 'guide');
+  assert.deepEqual(guides.map(row => row.priceType).sort(), ['high', 'low', 'low', 'market', 'market', 'mid']);
+  assert.ok(guides.every(row => /kein Einzelverkauf/.test(row.title || '')));
+  const sold = evidence.filter(row => row.kind === 'sold');
+  assert.deepEqual(sold.map(row => row.externalId), ['l1', 'l3'], 'ohne sold_at verworfen, Duplikat entfernt');
+  assert.deepEqual(sold[1].grading, { company: 'tag', grade: '10' });
+  assert.ok(!evidence.some(row => row.kind === 'listing'), 'keine erfundenen aktiven Angebote');
+  assert.ok(!calls.some(call => new URL(call.url).searchParams.has('condition')), 'kein Zustandsfilter');
+
+  // Scrydex-market (76 USD) ist Preisführer: Marktwert kommt nicht daraus.
+  const result = await lookupCardMarket(query(), rawNM, {
+    provider: new InMemoryCardDataProvider({ cards: [card({ cardId: 'sx-1' })], evidence: { 'sx-1': evidence } }),
+    fx,
+    now: () => NOW,
+  });
+  assert.equal(result.status, 'insufficient_data', 'Verkäufe ohne Zustandsfeld ergeben keinen NM-Wert');
+  assert.ok(result.valuation!.priceGuides.some(entry => entry.price === 76 && entry.priceType === 'market'));
+});

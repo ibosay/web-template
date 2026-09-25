@@ -51,6 +51,8 @@ export type PriceEvidence = {
   /** Ursprüngliche Quelle, z. B. "ebay" bei Scrydex-Listings oder "scrydex" bei Preisführern. */
   source: string;
   cardId: string;
+  /** ID des Belegs beim Anbieter (z. B. Scrydex-Listing-id), für Duplikaterkennung. */
+  externalId?: string | null;
   variant: string | null;
   title: string | null;
   /** null = ungegradet (raw). */

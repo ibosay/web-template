@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 /**
- * Prüft die mit "PRÜFEN" markierten Annahmen des Scrydex-Adapters gegen ECHTE API-Antworten.
- * Nur serverseitig/lokal ausführen. Der Key wird nie ausgegeben.
+ * Prüft den Scrydex-Adapter gegen ECHTE API-Antworten. Nur serverseitig/lokal ausführen.
+ * Der Key wird nie ausgegeben.
  *
  *   SCRYDEX_API_KEY=… SCRYDEX_TEAM_ID=… node wertscan/scripts/verify-scrydex.mjs \
- *     --name "Charizard" --number 143 --lang ja
+ *     --name "Charizard" --number 143 --printed "143/S-P" [--expansion <expansionId>]
  *
- * Ausgabe: ein Bericht je Annahme mit OK / ABWEICHUNG / UNKLAR und den beobachteten Rohdaten
- * (gekürzt). Den Bericht bitte vor dem produktiven Einsatz auswerten und den Adapter anpassen.
+ * Laut Doku bestätigt (hier nur Plausibilitätsprüfung): Header, Endpunkte, q-Syntax,
+ * Kartenfelder, Preisstruktur, Listing-Felder.
+ * Offen und hier geprüft: Antwort-Wrapper, Paginierung, Anführungszeichen in q, Suchbarkeit von
+ * number/printed_number, tatsächliche Sprach-/Grading-/Währungsabdeckung, condition-Filter.
  */
 
 const args = Object.fromEntries(
@@ -22,132 +24,135 @@ if (!apiKey || !teamId) {
 }
 const name = args.name || 'Charizard';
 const number = args.number || '4';
-const lang = args.lang || 'en';
+const printed = args.printed || '';
+const expansion = args.expansion || '';
 
-// Annahmen des Adapters (scrydexProvider.ts)
-const ASSUMED = { apiKeyHeader: 'X-Api-Key', teamIdHeader: 'X-Team-ID', cardsPath: '/pokemon/v1/cards' };
-
+const HEADERS = { 'X-Api-Key': apiKey, 'X-Team-ID': teamId };
+const CARDS = '/pokemon/v1/cards';
 const report = [];
 const add = (check, verdict, detail) => report.push({ check, verdict, detail });
-const shorten = value => JSON.stringify(value, null, 0)?.slice(0, 600);
+const shorten = value => JSON.stringify(value)?.slice(0, 600);
+const lucene = value => (/^[A-Za-z0-9._-]+$/.test(value) ? value : '"' + value.replace(/"/g, '') + '"');
 
-async function get(path, params = {}, headers = { [ASSUMED.apiKeyHeader]: apiKey, [ASSUMED.teamIdHeader]: teamId }) {
+async function get(path, params = {}, headers = HEADERS) {
   const query = new URLSearchParams(params).toString();
-  const url = base + path + (query ? '?' + query : '');
   try {
-    const response = await fetch(url, { headers: { ...headers, Accept: 'application/json' } });
+    const response = await fetch(base + path + (query ? '?' + query : ''), { headers: { ...headers, Accept: 'application/json' } });
     let body = null;
     try {
       body = await response.json();
     } catch {
       body = null;
     }
-    return { status: response.status, body, path: path + (query ? '?' + query : '') };
+    return { status: response.status, body };
   } catch (error) {
-    return { status: 0, body: null, path, error: String(error) };
+    return { status: 0, body: null, error: String(error) };
   }
 }
+const listOf = body => (Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : []);
+const meta = body => (body && typeof body === 'object' && !Array.isArray(body) ? Object.fromEntries(Object.entries(body).filter(([k]) => k !== 'data')) : {});
 
-const listOf = body => (Array.isArray(body) ? body : Array.isArray(body?.data) ? body.data : null);
+// 1) Auth (bestätigt – Plausibilität)
+const auth = await get(CARDS, { q: 'name:' + lucene(name), page_size: '1' });
+const noAuth = await get(CARDS, { q: 'name:' + lucene(name), page_size: '1' }, {});
+add('Auth X-Api-Key / X-Team-ID', auth.status === 200 ? 'OK' : 'ABWEICHUNG', { mitHeadern: auth.status, ohneHeader: noAuth.status, fehler: auth.error });
 
-// 1) Authentifizierung / Header-Namen
-const auth = await get(ASSUMED.cardsPath, { q: `name:"${name}"`, page_size: '1' });
-const noAuth = await get(ASSUMED.cardsPath, { q: `name:"${name}"`, page_size: '1' }, {});
-add(
-  'Auth-Header ' + ASSUMED.apiKeyHeader + ' / ' + ASSUMED.teamIdHeader,
-  auth.status === 200 && noAuth.status !== 200 ? 'OK' : auth.status === 200 ? 'UNKLAR (auch ohne Header 200)' : 'ABWEICHUNG',
-  { mitHeadern: auth.status, ohneHeader: noAuth.status, fehler: auth.error }
-);
-
-// 2) Antwort-Wrapper
-add(
-  'Antwort-Wrapper { data: [...] }',
-  Array.isArray(auth.body?.data) ? 'OK' : Array.isArray(auth.body) ? 'ABWEICHUNG (direktes Array – Adapter kann das)' : 'ABWEICHUNG',
-  { topLevelKeys: auth.body && typeof auth.body === 'object' ? Object.keys(auth.body) : typeof auth.body }
-);
-
-// 3) q-Syntax
-const qExact = await get(ASSUMED.cardsPath, { q: `name:"${name}" number:"${number}"`, include: 'prices', page_size: '50' });
-const exactList = listOf(qExact.body) || [];
-const numberHits = exactList.filter(card => String(card.number) === String(number) || String(card.printed_number || '').startsWith(String(number)));
-add(
-  'q-Syntax name:"…" number:"…"',
-  qExact.status === 200 && exactList.length && numberHits.length === exactList.length ? 'OK' : qExact.status === 200 ? 'UNKLAR (Treffer prüfen)' : 'ABWEICHUNG',
-  { status: qExact.status, treffer: exactList.length, mitPassenderNummer: numberHits.length, beispiele: exactList.slice(0, 3).map(c => [c.id, c.name, c.number, c.printed_number, c.language_code]) }
-);
-
-// 4) Kartenfelder
-const sample = exactList[0] || (listOf(auth.body) || [])[0];
-if (sample) {
-  const fields = {
-    id: sample.id !== undefined,
-    name: sample.name !== undefined,
-    number: sample.number !== undefined,
-    printed_number: sample.printed_number !== undefined,
-    'expansion.id': sample.expansion?.id !== undefined,
-    'expansion.name': sample.expansion?.name !== undefined,
-    language: sample.language !== undefined,
-    language_code: sample.language_code !== undefined,
-    'variants[].name': Array.isArray(sample.variants) && sample.variants.every(v => v?.name !== undefined),
-  };
-  add('Kartenfelder', Object.values(fields).every(Boolean) ? 'OK' : 'ABWEICHUNG', fields);
-
-  // 5) Preise aus include=prices
-  const priceEntries = (sample.variants || []).flatMap(v => (Array.isArray(v.prices) ? v.prices : [])).concat(Array.isArray(sample.prices) ? sample.prices : []);
-  add(
-    'include=prices → variants[].prices[] mit type/condition/company/grade/low/market/currency',
-    priceEntries.length ? 'OK (Struktur prüfen)' : 'UNKLAR (keine Preise in dieser Karte)',
-    {
-      ort: (sample.variants || []).some(v => Array.isArray(v.prices)) ? 'variants[].prices' : Array.isArray(sample.prices) ? 'prices' : 'keine',
-      keys: [...new Set(priceEntries.flatMap(entry => Object.keys(entry)))],
-      typen: [...new Set(priceEntries.map(entry => entry.type))],
-      zustaende: [...new Set(priceEntries.map(entry => entry.condition).filter(Boolean))],
-      waehrungen: [...new Set(priceEntries.map(entry => entry.currency))],
-      beispiel: shorten(priceEntries[0]),
-    }
-  );
-} else {
-  add('Kartenfelder', 'UNKLAR', 'keine Karte gefunden – andere --name/--number verwenden');
-}
-
-// 6) Sprachspezifische Endpunkte
-const langPath = await get(`/pokemon/v1/${lang}/cards`, { q: `name:"${name}"`, page_size: '5' });
-const langQuery = await get(ASSUMED.cardsPath, { q: `name:"${name}" language_code:${lang}`, page_size: '5' });
-add('Sprachspezifischer Endpunkt / Sprachfilter', 'UNKLAR (Ergebnisse vergleichen)', {
-  [`/pokemon/v1/${lang}/cards`]: { status: langPath.status, sprachen: [...new Set((listOf(langPath.body) || []).map(c => c.language_code))] },
-  'q language_code': { status: langQuery.status, sprachen: [...new Set((listOf(langQuery.body) || []).map(c => c.language_code))] },
-  allgemein: { sprachen: [...new Set(exactList.map(c => c.language_code))] },
+// 2) Wrapper + Paginierung (offen)
+add('Antwort-Wrapper { data: [...] }', Array.isArray(auth.body?.data) ? 'OK' : Array.isArray(auth.body) ? 'ABWEICHUNG (Array – Adapter kann das)' : 'ABWEICHUNG', {
+  topLevelKeys: auth.body && typeof auth.body === 'object' ? Object.keys(auth.body) : typeof auth.body,
+  metadaten: meta(auth.body),
+});
+const page1 = await get(CARDS, { q: 'name:' + lucene(name), page_size: '5', page: '1' });
+const page2 = await get(CARDS, { q: 'name:' + lucene(name), page_size: '5', page: '2' });
+const ids1 = listOf(page1.body).map(c => c.id);
+const ids2 = listOf(page2.body).map(c => c.id);
+add('Paginierung page/page_size', ids1.length === 5 && ids2.length && !ids2.some(id => ids1.includes(id)) ? 'OK' : 'UNKLAR (Metadaten prüfen)', {
+  seite1: ids1.length,
+  seite2: ids2.length,
+  ueberschneidung: ids2.filter(id => ids1.includes(id)).length,
+  metadaten: meta(page1.body),
 });
 
-// 7) Listings
-if (sample?.id) {
-  const listings = await get(`/pokemon/v1/cards/${encodeURIComponent(sample.id)}/listings`, { days: '90', page_size: '100' });
-  const items = listOf(listings.body) || [];
-  const keys = [...new Set(items.flatMap(item => Object.keys(item)))];
-  add('Listings: Felder source/title/variant/company/grade/price/currency/sold_at/url', listings.status === 200 ? 'OK (Felder prüfen)' : 'ABWEICHUNG', {
+// 3) q-Varianten des Adapters (offen: Anführungszeichen, Suchbarkeit von number/printed_number)
+const variants = {
+  'name + number': 'name:' + lucene(name) + ' number:' + lucene(number),
+  '!name + number (exakt)': '!name:' + lucene(name) + ' number:' + lucene(number),
+  'nur number': 'number:' + lucene(number),
+  ...(printed ? { printed_number: 'printed_number:' + lucene(printed) } : {}),
+  ...(expansion ? { 'expansion.id + number': 'expansion.id:' + lucene(expansion) + ' number:' + lucene(number) } : {}),
+};
+let sample = null;
+const allCards = [];
+for (const [label, q] of Object.entries(variants)) {
+  const result = await get(CARDS, { q, include: 'prices', page_size: '100' });
+  const cards = listOf(result.body);
+  allCards.push(...cards);
+  if (!sample && cards.length) sample = cards[0];
+  const numberOk = cards.filter(c => String(c.number) === String(number)).length;
+  add('q: ' + label, result.status !== 200 ? 'ABWEICHUNG' : !cards.length ? 'UNKLAR (0 Treffer)' : 'OK', {
+    q,
+    status: result.status,
+    treffer: cards.length,
+    mitNumber: numberOk,
+    beispiele: cards.slice(0, 5).map(c => [c.id, c.name, c.number, c.printed_number, c.language_code, c.expansion?.id]),
+  });
+}
+if (expansion) {
+  const scoped = await get('/pokemon/v1/expansions/' + encodeURIComponent(expansion) + '/cards', { q: 'number:' + lucene(number), page_size: '20' });
+  add('Set-Endpunkt /expansions/<id>/cards', scoped.status === 200 ? 'OK' : 'ABWEICHUNG', { status: scoped.status, treffer: listOf(scoped.body).length });
+}
+
+// 4) Abdeckung: Sprachen, printed_number, Varianten
+const unique = [...new Map(allCards.map(c => [c.id, c])).values()];
+add('Abdeckung dieser Suche', unique.length ? 'INFO' : 'UNKLAR', {
+  karten: unique.length,
+  sprachen: [...new Set(unique.map(c => c.language_code))],
+  printedNumbers: [...new Set(unique.map(c => c.printed_number))].slice(0, 20),
+  mitPrintedNumber: unique.filter(c => c.printed_number).length,
+  varianten: [...new Set(unique.flatMap(c => (c.variants || []).map(v => v.name)))],
+});
+
+// 5) Preise: Firmen (PCA?), Zustände, Währungen, trends
+if (sample) {
+  const prices = unique.flatMap(c => (c.variants || []).flatMap(v => v.prices || []));
+  add('Preisobjekte (include=prices)', prices.length ? 'INFO' : 'UNKLAR (keine Preise)', {
+    keys: [...new Set(prices.flatMap(p => Object.keys(p)))],
+    typen: [...new Set(prices.map(p => p.type))],
+    rawZustaende: [...new Set(prices.filter(p => p.type === 'raw').map(p => p.condition))],
+    firmen: [...new Set(prices.filter(p => p.type === 'graded').map(p => p.company))],
+    pcaVorhanden: prices.some(p => String(p.company).toUpperCase() === 'PCA'),
+    waehrungen: [...new Set(prices.map(p => p.currency))],
+    beispielTrends: shorten(prices.find(p => p.trends)?.trends),
+  });
+
+  // 6) Listings: sold_at, id, Paginierung, condition-Feld
+  const listings = await get(CARDS + '/' + encodeURIComponent(sample.id) + '/listings', { days: '90', page_size: '100' });
+  const items = listOf(listings.body);
+  add('Listings /cards/<id>/listings', listings.status === 200 ? 'OK' : 'ABWEICHUNG', {
+    karte: sample.id,
     status: listings.status,
     anzahl: items.length,
-    keys,
-    paginierung: listings.body && typeof listings.body === 'object' ? Object.keys(listings.body).filter(k => k !== 'data') : [],
-    mitSoldAt: items.filter(item => item.sold_at).length,
-    mitConditionFeld: items.filter(item => item.condition !== undefined && item.condition !== null).length,
+    keys: [...new Set(items.flatMap(item => Object.keys(item)))],
+    metadaten: meta(listings.body),
+    ohneSoldAt: items.filter(item => !item.sold_at).length,
+    mitId: items.filter(item => item.id).length,
+    mitConditionFeld: items.filter(item => item.condition != null).length,
+    quellen: [...new Set(items.map(item => item.source))],
+    firmen: [...new Set(items.map(item => item.company).filter(Boolean))],
+    waehrungen: [...new Set(items.map(item => item.currency))],
     beispiel: shorten(items[0]),
   });
 
-  // 8) Zustandsfilter: liefert condition=NM garantiert nur NM, und steht NM im Beleg?
-  const filtered = await get(`/pokemon/v1/cards/${encodeURIComponent(sample.id)}/listings`, { days: '90', page_size: '100', condition: 'NM' });
-  const filteredItems = listOf(filtered.body) || [];
-  const withField = filteredItems.filter(item => item.condition !== undefined && item.condition !== null);
-  const allNm = withField.length === filteredItems.length && withField.every(item => String(item.condition).toUpperCase() === 'NM');
+  // 7) condition-Filter: nur verwendbar, wenn JEDES Listing condition=NM im Beleg trägt
+  const filtered = await get(CARDS + '/' + encodeURIComponent(sample.id) + '/listings', { days: '90', page_size: '100', condition: 'NM' });
+  const filteredItems = listOf(filtered.body);
+  const withField = filteredItems.filter(item => item.condition != null);
+  const allNm = filteredItems.length > 0 && withField.length === filteredItems.length && withField.every(item => String(item.condition).toUpperCase() === 'NM');
   add(
-    'Zustandsfilter condition=NM',
-    filteredItems.length === 0
-      ? 'UNKLAR (keine Belege)'
-      : allNm
-        ? 'OK: jedes Listing trägt condition=NM im Beleg (Filter wäre belegbar)'
-        : 'NICHT VERWENDEN: Zustand nicht in jedem Beleg bestätigt',
+    'condition=NM-Filter',
+    !filteredItems.length ? 'UNKLAR (keine Belege)' : allNm ? 'BELEGBAR: jedes Listing trägt condition=NM' : 'NICHT VERWENDEN (trustConditionFilter bleibt aus)',
     { status: filtered.status, anzahl: filteredItems.length, mitConditionFeld: withField.length, werte: [...new Set(withField.map(item => item.condition))] }
   );
 }
 
-console.log(JSON.stringify({ geprueftAm: new Date().toISOString(), basis: base, karte: { name, number, lang }, ergebnisse: report }, null, 2));
+console.log(JSON.stringify({ geprueftAm: new Date().toISOString(), basis: base, suche: { name, number, printed, expansion }, ergebnisse: report }, null, 2));

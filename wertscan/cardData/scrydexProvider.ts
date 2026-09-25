@@ -2,15 +2,30 @@
  * Scrydex-Adapter (NUR serverseitig verwenden).
  *
  * Übersetzt Scrydex-Antworten in CardCandidate / PriceEvidence. Er entscheidet NICHT, ob eine
- * Karte passt – das macht WertScan in cardIdentity.ts. Er deutet keine Zustände hinein:
- * condition wird nur übernommen, wenn Scrydex es in der konkreten Antwort liefert.
+ * Karte passt – das macht WertScan in cardIdentity.ts.
  *
- * Grundlage: vom WertScan-Team geprüfte Scrydex-Dokumentation:
- *   GET /pokemon/v1/cards?q=…&include=prices     Karten inkl. variants[].prices
- *   GET /pokemon/v1/cards/<id>/listings           Verkäufe (source, title, variant, company, grade, price, currency, sold_at, url)
- * Vor dem Livebetrieb gegen die Doku prüfen (mit "PRÜFEN" markiert):
- *   - Namen der Auth-Header, q-Syntax, Pfade der sprachspezifischen Endpunkte, Paginierung,
- *     Form des Antwort-Wrappers ({ data: [...] }).
+ * Laut Scrydex-Dokumentation bestätigt (vom WertScan-Team geprüft, 2026-09):
+ *   - Auth-Header: X-Api-Key, X-Team-ID
+ *   - GET /pokemon/v1/cards?q=…                     allgemeiner Kartenendpunkt (keine eigenen en/ja-Endpunkte)
+ *   - GET /pokemon/v1/cards/<id>                    Einzelkarte
+ *   - GET /pokemon/v1/expansions/<expansionId>/cards Karten eines Sets
+ *   - q: Lucene-ähnlich, z. B. name:charizard, !name:charizard (exakt), expansion.id:sm1, kombinierbar
+ *   - Kartenobjekt: id, name, number, printed_number, expansion.id/.name, language, language_code,
+ *     variants[] (je name, eigene Bilder/Preise)
+ *   - Preise nur mit include=prices. Raw: condition (NM, LP, MP, HP, DM), type 'raw', low, market,
+ *     currency, trends. Graded: company, grade, type, low, mid, high, market, currency, trends.
+ *     market = von Scrydex berechneter Durchschnitt über Quellen → Preisführer, KEIN Verkauf.
+ *   - Währungen derzeit USD und JPY (japanische Raw-Preise in JPY).
+ *   - GET /pokemon/v1/cards/<id>/listings: id, source, card_id, title, variant, company, grade, url,
+ *     price, currency, sold_at (= Verkaufsdatum) → echte Verkäufe.
+ *   - Listings kennen einen condition-FILTER, das Listing-Objekt aber kein garantiertes
+ *     condition-Feld → Zustand wird nur übernommen, wenn er im einzelnen Listing steht.
+ *
+ * Noch mit echtem Zugang zu bestätigen (scripts/verify-scrydex.mjs):
+ *   - Antwort-Wrapper { data: [...] } und Paginierung (Parameter- und Feldnamen)
+ *   - Anführungszeichen für Werte mit Leer-/Sonderzeichen in q (Lucene-Standard angenommen)
+ *   - ob number/printed_number in q suchbar sind (Adapter fällt sonst auf Namens-/Setsuche zurück)
+ *   - Verhalten des condition-Filters
  *
  * API-Key und Team-ID nur aus Server-Umgebungsvariablen. Niemals im Client oder im Repository.
  */
@@ -18,9 +33,11 @@ import { CardCandidate, CardDataProvider, CardQuery, EvidenceRequest, PriceEvide
 import { cardNumberKey, normalizeGrading } from './cardIdentity';
 import { SCRYDEX_RAW_CONDITIONS, normalizeCardCondition } from './conditions';
 
-// PRÜFEN: Header-Namen laut Scrydex-Doku.
 export const SCRYDEX_API_KEY_HEADER = 'X-Api-Key';
 export const SCRYDEX_TEAM_ID_HEADER = 'X-Team-ID';
+export const SCRYDEX_BASE_URL = 'https://api.scrydex.com';
+const CARDS_PATH = '/pokemon/v1/cards';
+const expansionCardsPath = (expansionId: string) => '/pokemon/v1/expansions/' + encodeURIComponent(expansionId) + '/cards';
 
 type FetchLike = (url: string, init: { method: string; headers: Record<string, string> }) => Promise<{
   ok: boolean;
@@ -34,12 +51,11 @@ export type ScrydexConfig = {
   baseUrl?: string;
   fetch?: FetchLike;
   now?: () => Date;
-  /** Cache-Dauer für Preisführer (WertScan-Metadatum expiresAt). Standard 24 h. */
+  /** Gültigkeit der Scrydex-Marktindikatoren (WertScan-Metadatum expiresAt). Standard 24 h. */
   guideTtlMs?: number;
-  /** Cache-Dauer für Verkäufe. Standard 24 h. */
+  /** Gültigkeit der Verkäufe (expiresAt). Standard 24 h. */
   listingTtlMs?: number;
-  /** PRÜFEN: Pfad für Kartensuche je Sprache. Standard: allgemeiner Endpunkt, Sprache prüft WertScan selbst. */
-  cardsPath?: (languageCode: string | null) => string;
+  /** Seitengröße für Kartensuche/Listings. Paginierung mit echtem Zugang bestätigen. */
   pageSize?: number;
 };
 
@@ -55,17 +71,27 @@ const list = (value: unknown): Json[] => (Array.isArray(value) ? (value.filter(i
 
 /** Antwort-Wrapper tolerant lesen: { data: [...] } oder direktes Array. */
 const dataList = (payload: unknown): Json[] => (Array.isArray(payload) ? list(payload) : list(obj(payload).data));
+/** Einzelobjekt tolerant lesen: { data: {...} } oder direktes Objekt. */
+const dataObject = (payload: unknown): Json => {
+  const data = obj(payload).data;
+  return data && typeof data === 'object' && !Array.isArray(data) ? (data as Json) : obj(payload);
+};
 
-const quote = (value: string) => '"' + value.replace(/"/g, '') + '"';
+/** Lucene-Wert: einfache Token unverändert, sonst in Anführungszeichen (Sonderzeichen entfernt). */
+export const luceneValue = (value: string) => {
+  const clean = value.replace(/["\\]/g, '').trim();
+  return /^[A-Za-z0-9._-]+$/.test(clean) ? clean : '"' + clean + '"';
+};
 
 export class ScrydexProvider implements CardDataProvider {
   readonly id = 'scrydex';
   readonly displayName = 'Scrydex';
+  /** Laut Doku derzeit Englisch und Japanisch. */
   readonly supportedLanguages = ['en', 'ja'];
   readonly supportedRawConditions = SCRYDEX_RAW_CONDITIONS;
 
   private readonly config: Required<Omit<ScrydexConfig, 'fetch'>> & { fetch: FetchLike };
-  /** Rohdaten der zuletzt gefundenen Karten (für Preise aus include=prices ohne erneuten Abruf). */
+  /** Rohdaten gefundener Karten (für include=prices ohne erneuten Abruf). */
   private readonly rawCards = new Map<string, Json>();
 
   constructor(config: ScrydexConfig) {
@@ -79,13 +105,12 @@ export class ScrydexProvider implements CardDataProvider {
     this.config = {
       apiKey: config.apiKey,
       teamId: config.teamId,
-      baseUrl: (config.baseUrl || 'https://api.scrydex.com').replace(/\/$/, ''),
+      baseUrl: (config.baseUrl || SCRYDEX_BASE_URL).replace(/\/$/, ''),
       fetch: fetchImpl,
       now: config.now || (() => new Date()),
       guideTtlMs: config.guideTtlMs ?? 24 * 3600 * 1000,
       listingTtlMs: config.listingTtlMs ?? 24 * 3600 * 1000,
-      cardsPath: config.cardsPath || (() => '/pokemon/v1/cards'),
-      pageSize: config.pageSize ?? 50,
+      pageSize: config.pageSize ?? 100,
     };
   }
 
@@ -129,43 +154,55 @@ export class ScrydexProvider implements CardDataProvider {
     };
   }
 
-  /** PRÜFEN: q-Syntax. WertScan prüft das Ergebnis ohnehin selbst exakt; die Suche darf breiter sein. */
-  buildQueries(query: CardQuery): string[] {
-    const number = query.number ? cardNumberKey(query.number) : null;
-    const numberValue = number ? (number.hasDenominator ? query.number!.split('/')[0].trim() : query.number!.trim()) : '';
-    const parts = (withName: boolean) =>
-      [
-        withName && query.name ? 'name:' + quote(query.name) : '',
-        numberValue ? 'number:' + quote(numberValue) : '',
-        query.setId ? 'expansion.id:' + quote(query.setId) : '',
-      ]
-        .filter(Boolean)
-        .join(' ');
-    return Array.from(new Set([parts(true), parts(false)].filter(Boolean)));
+  /**
+   * Suchanfragen von präzise nach breit. Die Suche darf breiter sein als das Ergebnis:
+   * WertScan prüft jeden Kandidaten anschließend selbst exakt (Nummer/printed_number, Set,
+   * Sprache, Variante). Sprache wird nicht in q gesetzt – sie steht im Kartenobjekt.
+   */
+  buildSearches(query: CardQuery): { path: string; q: string }[] {
+    const key = query.number ? cardNumberKey(query.number) : null;
+    // number (z. B. "143") ist der Teil vor dem "/"; printed_number ist der vollständige Aufdruck.
+    const numberValue = key ? (key.hasDenominator ? query.number!.split('/')[0].trim().replace(/^#/, '') : query.number!.trim()) : '';
+    const name = query.name ? luceneValue(query.name) : '';
+    const numberTerm = numberValue ? 'number:' + luceneValue(numberValue) : '';
+    const path = query.setId ? expansionCardsPath(query.setId) : CARDS_PATH;
+    const searches = [
+      name && numberTerm ? '!name:' + name + ' ' + numberTerm : '',
+      name && numberTerm ? 'name:' + name + ' ' + numberTerm : '',
+      // Nummer allein: findet auch anderssprachige Namen (z. B. japanische Karten).
+      numberTerm && (query.setId || !name) ? numberTerm : '',
+      !numberTerm && name ? '!name:' + name : '',
+    ].filter(Boolean);
+    return Array.from(new Set(searches)).map(q => ({ path, q }));
   }
 
   async findCards(query: CardQuery): Promise<CardCandidate[]> {
-    const languages = query.language ? [query.language] : [null];
     const found = new Map<string, CardCandidate>();
-    for (const language of languages) {
-      for (const q of this.buildQueries(query)) {
-        const payload = await this.get(this.config.cardsPath(language), { q, include: 'prices', page_size: String(this.config.pageSize) });
-        dataList(payload).forEach(raw => {
-          const candidate = this.toCandidate(raw);
-          if (!candidate) return;
-          this.rawCards.set(candidate.cardId, raw);
-          found.set(candidate.cardId, candidate);
-        });
-        if (found.size) break; // präzise Suche erfolgreich → keine breitere nötig
-      }
+    for (const search of this.buildSearches(query)) {
+      const payload = await this.get(search.path, { q: search.q, include: 'prices', page_size: String(this.config.pageSize) });
+      dataList(payload).forEach(raw => {
+        const candidate = this.toCandidate(raw);
+        if (!candidate) return;
+        this.rawCards.set(candidate.cardId, raw);
+        found.set(candidate.cardId, candidate);
+      });
+      if (found.size) break; // präzise Suche erfolgreich → keine breitere nötig
     }
     return [...found.values()];
   }
 
-  /** Preise aus include=prices → ausschließlich Preisführer (guide). */
-  private guideEvidence(cardId: string, fetchedAt: Date): PriceEvidence[] {
-    const raw = this.rawCards.get(cardId);
-    if (!raw) return [];
+  private async rawCard(cardId: string): Promise<Json | null> {
+    const cached = this.rawCards.get(cardId);
+    if (cached) return cached;
+    const payload = await this.get(CARDS_PATH + '/' + encodeURIComponent(cardId), { include: 'prices' });
+    const raw = dataObject(payload);
+    if (str(raw.id) !== cardId) return null;
+    this.rawCards.set(cardId, raw);
+    return raw;
+  }
+
+  /** Preisobjekte (include=prices) → ausschließlich Preisführer/Marktindikatoren (guide), nie Verkäufe. */
+  private guideEvidence(raw: Json, cardId: string, fetchedAt: Date): PriceEvidence[] {
     const expiresAt = new Date(fetchedAt.getTime() + this.config.guideTtlMs).toISOString();
     const variants = list(raw.variants);
     const priceSets: { variant: string | null; prices: Json[] }[] = variants.length
@@ -176,12 +213,13 @@ export class ScrydexProvider implements CardDataProvider {
     priceSets.forEach(({ variant, prices }) =>
       prices.forEach(entry => {
         const currency = str(entry.currency);
-        if (!currency) return;
         const type = str(entry.type);
+        if (!currency || (type !== 'raw' && type !== 'graded')) return;
+        // Firma nur, wenn der Datensatz sie enthält (z. B. PCA nur, wenn Scrydex PCA liefert).
         const grading = type === 'graded' ? normalizeGrading(str(entry.company), str(entry.grade) ?? num(entry.grade)) : null;
-        if (type === 'graded' && !grading) return; // Graded ohne Firma/Note ist nicht zuordenbar
+        if (type === 'graded' && !grading) return;
+        const condition = type === 'raw' ? normalizeCardCondition(str(entry.condition)) : null;
         const priceTypes = type === 'graded' ? ['market', 'low', 'mid', 'high'] : ['market', 'low'];
-        const condition = type === 'graded' ? null : normalizeCardCondition(str(entry.condition));
         priceTypes.forEach(priceType => {
           const price = num(entry[priceType]);
           if (price == null || price <= 0) return;
@@ -191,7 +229,7 @@ export class ScrydexProvider implements CardDataProvider {
             source: 'scrydex',
             cardId,
             variant,
-            title: null,
+            title: 'Scrydex Marktindikator (' + priceType + ', Durchschnitt mehrerer Quellen – kein Einzelverkauf)',
             grading,
             condition,
             conditionSource: condition ? 'provider_field' : null,
@@ -199,7 +237,7 @@ export class ScrydexProvider implements CardDataProvider {
             price,
             currency: currency.toUpperCase(),
             url: null,
-            observedAt: str(entry.updated_at) || str(entry.date), // nur falls geliefert
+            observedAt: null, // Scrydex nennt für Preisobjekte keinen Stichtag in der Doku
             fetchedAt: fetchedAt.toISOString(),
             expiresAt,
           });
@@ -212,29 +250,38 @@ export class ScrydexProvider implements CardDataProvider {
   async getPriceEvidence(request: EvidenceRequest): Promise<PriceEvidence[]> {
     const fetchedAt = this.config.now();
     const cardId = request.candidate.cardId;
-    const evidence = this.guideEvidence(cardId, fetchedAt);
+    const raw = await this.rawCard(cardId);
+    const evidence = raw ? this.guideEvidence(raw, cardId, fetchedAt) : [];
 
-    const params: Record<string, string> = { days: String(request.soldWithinDays), page_size: '100' };
+    // Bewusst KEIN condition-Filter: Zustand nur, wenn er im einzelnen Listing steht.
+    const params: Record<string, string> = { days: String(request.soldWithinDays), page_size: String(this.config.pageSize) };
     if (request.variant) params.variant = request.variant;
-    const payload = await this.get('/pokemon/v1/cards/' + encodeURIComponent(cardId) + '/listings', params);
+    const payload = await this.get(CARDS_PATH + '/' + encodeURIComponent(cardId) + '/listings', params);
     const expiresAt = new Date(fetchedAt.getTime() + this.config.listingTtlMs).toISOString();
+    const seen = new Set<string>();
 
     dataList(payload).forEach(item => {
+      const soldAt = str(item.sold_at);
+      // Nur Datensätze mit Verkaufsdatum sind belegte Verkäufe. Ohne sold_at: nicht verwenden.
+      if (!soldAt) return;
+      const listingId = str(item.id);
+      if (listingId && seen.has(listingId)) return;
+      if (listingId) seen.add(listingId);
       const price = num(item.price);
       const currency = str(item.currency);
       if (price == null || price <= 0 || !currency) return;
       const company = str(item.company);
       const gradeValue = str(item.grade) ?? num(item.grade);
       const grading = company || gradeValue != null ? normalizeGrading(company, gradeValue) : null;
-      // Graded-Angabe unvollständig (nur Firma oder nur Note) → nicht zuordenbar, weder raw noch graded.
+      // Graded-Angabe unvollständig (nur Firma oder nur Note) → weder raw noch graded zuordenbar.
       if ((company || gradeValue != null) && !grading) return;
-      // Zustand nur aus dem Feld DIESES Listings. Kein Rückschluss aus Titel oder Anfragefilter.
       const condition = normalizeCardCondition(str(item.condition));
       evidence.push({
-        kind: str(item.sold_at) ? 'sold' : 'listing',
+        kind: 'sold',
         providerId: this.id,
         source: str(item.source) || 'scrydex',
         cardId: str(item.card_id) || cardId,
+        externalId: listingId,
         variant: str(item.variant),
         title: str(item.title),
         grading,
@@ -244,7 +291,7 @@ export class ScrydexProvider implements CardDataProvider {
         price,
         currency: currency.toUpperCase(),
         url: str(item.url),
-        observedAt: str(item.sold_at),
+        observedAt: soldAt,
         fetchedAt: fetchedAt.toISOString(),
         expiresAt,
       });
