@@ -31,7 +31,7 @@ test('Vintage Aristo Uhr wird als stark vergleichbar statt erfunden exakt behand
       fact('brand', 'Aristo', 0.99),
       fact('marking', 'Walzgolddouble 20 Mikron', 0.99),
       fact('material', 'Boden Edelstahl', 0.98),
-      fact('shape', 'rechteckig', 0.95, false),
+      fact('shape', 'rechteckig', 0.95),
       fact('color', 'schwarzes Zifferblatt', 0.92),
       fact('serial', '123456', 0.9),
     ],
