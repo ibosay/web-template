@@ -642,11 +642,14 @@ function titleGrounded(title: string, haystackTokens: Set<string>) {
  * Kleine Lücken sind erlaubt, damit Labels wie "Material:" oder Satzzeichen nicht stören.
  * So darf das Extraktionsmodell keine Merkmale aus Suchanfrage oder Vorwissen einschleusen.
  */
-function identityEvidenceGrounded(evidence: string, section: ReadableSection) {
+function identityEvidenceGrounded(evidence: string, title: string, section: ReadableSection) {
   const expected = looseTokens(evidence).filter(token => token.length >= 2);
   if (!expected.length) return true;
   if (expected.length > 32) return false;
   const source = looseTokens(section.text);
+  const titleTokens = looseTokens(title).filter(token => token.length >= 3).slice(0, 6);
+
+  const evidenceStarts: number[] = [];
   for (let start = 0; start < source.length; start++) {
     if (source[start] !== expected[0]) continue;
     let cursor = start + 1;
@@ -665,9 +668,18 @@ function identityEvidenceGrounded(evidence: string, section: ReadableSection) {
       }
       cursor = found + 1;
     }
-    if (ok) return true;
+    if (ok) evidenceStarts.push(start);
   }
-  return false;
+  if (!evidenceStarts.length) return false;
+  if (!titleTokens.length) return true;
+
+  // Zusatzbeleg muss nahe am zugehörigen Titel stehen, damit Text eines anderen Listings
+  // auf derselben Suchseite nicht versehentlich übernommen wird.
+  const titlePositions: number[] = [];
+  source.forEach((token, index) => {
+    if (titleTokens.includes(token)) titlePositions.push(index);
+  });
+  return evidenceStarts.some(start => titlePositions.some(pos => Math.abs(pos - start) <= 60));
 }
 
 // ---------------------------------------------------------------------------
@@ -1572,7 +1584,7 @@ function validateRow(
   if (row.section) {
     if (!priceGrounded(priceText, price, row.section.haystack)) return { reason: 'price_not_in_source' };
     if (!titleGrounded(title, row.section.tokens)) return { reason: 'title_not_in_source' };
-    if (identityEvidence && !identityEvidenceGrounded(identityEvidence, row.section)) {
+    if (identityEvidence && !identityEvidenceGrounded(identityEvidence, title, row.section)) {
       return { reason: 'identity_evidence_not_in_source' };
     }
   }
