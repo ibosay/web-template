@@ -31,6 +31,39 @@ const HIGH_VALUE_FIELDS = new Set<IdentityField>([
   'baseCode',
 ]);
 
+const CONFLICT_SENSITIVE_FIELDS = new Set<IdentityField>([
+  'modelNumber',
+  'sku',
+  'gtin',
+  'isbn',
+  'number',
+  'toyNumber',
+  'baseCode',
+  'gradingCompany',
+  'grade',
+]);
+
+export type IdentityConflict = {
+  field: IdentityField;
+  values: string[];
+};
+
+export function identityConflicts(input: ObjectIdentityInput): IdentityConflict[] {
+  const conflicts: IdentityConflict[] = [];
+  CONFLICT_SENSITIVE_FIELDS.forEach(field => {
+    const values = input.facts
+      .filter(fact => fact.field === field && fact.observed && fact.confidence >= 0.55 && clean(fact.value))
+      .map(fact => clean(fact.value));
+    const unique: string[] = [];
+    values.forEach(value => {
+      const key = compact(value);
+      if (!unique.some(existing => compact(existing) === key)) unique.push(value);
+    });
+    if (unique.length > 1) conflicts.push({ field, values: unique });
+  });
+  return conflicts;
+}
+
 const LABELS: Partial<Record<IdentityField, string>> = {
   brand: 'Marke',
   manufacturer: 'Hersteller',
@@ -315,7 +348,10 @@ function labelFor(mode: IdentityMode, score: number) {
 
 export function decideIdentity(input: ObjectIdentityInput): IdentityDecision {
   const profile = categoryProfile(input);
-  const exactSatisfied = requirementsSatisfied(input, profile.exactAll, profile.exactAnyGroups, profile.exactGroupMode || 'any');
+  const conflicts = identityConflicts(input);
+  const exactSatisfied =
+    conflicts.length === 0 &&
+    requirementsSatisfied(input, profile.exactAll, profile.exactAnyGroups, profile.exactGroupMode || 'any');
   const comparableSatisfied = requirementsSatisfied(
     input,
     profile.comparableAll,
@@ -336,6 +372,13 @@ export function decideIdentity(input: ObjectIdentityInput): IdentityDecision {
   if (mode === 'exact_collectible') explanation.push('Sammleridentität ausreichend durch sichtbare Merkmale belegt.');
   if (mode === 'comparable_object') {
     explanation.push('Keine ausreichend sichere exakte Produktkennung vorhanden.');
+    if (conflicts.length) {
+      explanation.push(
+        'Widersprüchliche sichtbare Kennungen: ' +
+          conflicts.map(conflict => (LABELS[conflict.field] || conflict.field) + ' (' + conflict.values.join(' / ') + ')').join(', ') +
+          '.'
+      );
+    }
     if (comparableSatisfied) explanation.push('Vergleichssuche über mehrere beobachtete Merkmale ist zulässig.');
     else explanation.push('Merkmalsbasis ist noch schwach, Treffer müssen besonders konservativ behandelt werden.');
   }
