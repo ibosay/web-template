@@ -182,7 +182,7 @@ export async function lookupCardMarket(query: CardQuery, segment: CardSegment, d
   result.debug.sales = sales;
   if (valuation.headline.kind !== 'none') return done('priced', valuation.message);
   if (!valuation.marketEvidenceCount) {
-    return done('card_identified_no_market_evidence', MESSAGES.card_identified_no_market_evidence + (valuation.priceGuides.length ? ' Preisführer werden separat angezeigt.' : ''));
+    return done('card_identified_no_market_evidence', (valuation.message || MESSAGES.card_identified_no_market_evidence));
   }
   return done('card_identified_insufficient_evidence', valuation.message);
 }

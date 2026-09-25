@@ -175,44 +175,41 @@ export class ScrydexProvider implements CardDataProvider {
   }
 
   /**
-   * Suchstufen von präzise nach breit. Bekannte Set-ID, vollständige Nummer und Name grenzen die
-   * Suche so früh wie möglich ein. Die Entscheidung trifft danach immer WertScan (cardIdentity.ts).
-   * languageIndependent = Stufe ohne Namensbedingung (findet auch anderssprachige Kartennamen).
+   * Kandidatensuche. Die Menge, auf der WertScan über Eindeutigkeit entscheidet, stammt NUR aus
+   * Suchen, die nie strenger sind als die eigene Prüfung (cardIdentity.matchCandidates):
+   *
+   *  1. Vollständige gedruckte Nummer bekannt: printed_number:"…" (namens- und sprachunabhängig),
+   *     bei bekannter Set-ID zusätzlich number:… im Set (für Karten ohne printed_number).
+   *  2. Sonst, wenn die Prüfung den Namen ohnehin verlangt (Sprache bekannt, Set unbekannt):
+   *     name:"…" number:… (nicht exakt, also Obermenge der exakten Namen).
+   *  3. Sonst: number:… (im Set, falls Set-ID bekannt; sonst global – kann zu groß werden →
+   *     provider_search_incomplete statt Raten).
+   *
+   * Exakte Namenssuchen (!name) werden bewusst NICHT verwendet: Bei bekanntem Set verlangt die
+   * Prüfung keinen gleichen Namen; eine exakte Namenssuche könnte eine zweite passende Karte
+   * (z. B. Promo-Variante als eigenes Kartenobjekt, weiteres Printing) verbergen.
+   * Varianten wie Reverse Holo/normal oder 1st Edition/Unlimited liegen bei Scrydex im selben
+   * Kartenobjekt (variants[]) und kommen mit jeder Suche vollständig mit.
    */
-  buildSearches(query: CardQuery): { path: string; q: string; languageIndependent: boolean }[] {
+  buildSearches(query: CardQuery): { path: string; q: string }[] {
     const key = query.number ? cardNumberKey(query.number) : null;
+    if (!key || !key.full) return [];
     const raw = (query.number || '').trim().replace(/^#\s*/, '');
     // number (z. B. "143") ist der Teil vor dem "/"; printed_number ist der vollständige Aufdruck.
-    const numberValue = key ? (key.hasDenominator ? raw.split('/')[0].trim() : raw) : '';
-    const printedValue = key && (key.hasDenominator || /[a-z]/.test(key.full)) ? raw : '';
-    const name = query.name ? luceneValue(query.name) : '';
-    const numberTerm = numberValue ? 'number:' + luceneValue(numberValue) : '';
-    const printedTerm = printedValue ? 'printed_number:' + luceneValue(printedValue) : '';
-    const path = query.setId ? expansionCardsPath(query.setId) : CARDS_PATH;
-    const stages: { q: string; languageIndependent: boolean }[] = [
-      { q: name && printedTerm ? '!name:' + name + ' ' + printedTerm : '', languageIndependent: false },
-      { q: name && numberTerm ? '!name:' + name + ' ' + numberTerm : '', languageIndependent: false },
-      { q: name && numberTerm ? 'name:' + name + ' ' + numberTerm : '', languageIndependent: false },
-      { q: printedTerm, languageIndependent: true },
-      { q: numberTerm, languageIndependent: true },
-      { q: !numberTerm && name ? '!name:' + name : '', languageIndependent: false },
-    ];
-    const seen = new Set<string>();
-    return stages
-      .filter(stage => stage.q && !seen.has(stage.q) && seen.add(stage.q))
-      .map(stage => ({ path, q: stage.q, languageIndependent: stage.languageIndependent }));
-  }
+    const numberValue = key.hasDenominator ? raw.split('/')[0].trim() : raw;
+    const printedValue = key.hasDenominator || /[a-z]/.test(key.full) ? raw : '';
+    const numberTerm = 'number:' + luceneValue(numberValue);
+    const setPath = query.setId ? expansionCardsPath(query.setId) : null;
 
-  /** Steht unter den Kandidaten einer mit exakt passender Nummer (und Sprache, falls bekannt)? */
-  private hasExactHit(candidates: CardCandidate[], query: CardQuery): boolean {
-    if (!query.number) return candidates.length > 0;
-    const wanted = cardNumberKey(query.number);
-    return candidates.some(candidate => {
-      const numbers = [candidate.printedNumber, candidate.number].filter((value): value is string => Boolean(value)).map(value => cardNumberKey(value));
-      const numberHit = numbers.some(key => key.full === wanted.full || (!key.hasDenominator && key.full === wanted.lead) || (!wanted.hasDenominator && key.lead === wanted.full));
-      const languageHit = !query.language || (candidate.languageCode || '').toLowerCase() === query.language.toLowerCase();
-      return numberHit && languageHit;
-    });
+    if (printedValue) {
+      const searches = [{ path: setPath || CARDS_PATH, q: 'printed_number:' + luceneValue(printedValue) }];
+      if (setPath) searches.push({ path: setPath, q: numberTerm });
+      return searches;
+    }
+    if (setPath) return [{ path: setPath, q: numberTerm }];
+    const nameRequiredByMatcher = Boolean(query.language && query.name && !query.setName);
+    if (nameRequiredByMatcher) return [{ path: CARDS_PATH, q: 'name:' + luceneValue(query.name!) + ' ' + numberTerm }];
+    return [{ path: CARDS_PATH, q: numberTerm }];
   }
 
   /**
@@ -236,13 +233,17 @@ export class ScrydexProvider implements CardDataProvider {
 
   async findCards(query: CardQuery): Promise<CardCandidate[]> {
     const found = new Map<string, CardCandidate>();
-    const stages = this.buildSearches(query);
-    const run = async (stage: { path: string; q: string }) => {
-      const result = await this.getAllPages(stage.path, { q: stage.q, include: 'prices' }, this.config.maxSearchPages);
+    const searches = this.buildSearches(query);
+    const ran = new Set<string>();
+    const run = async (search: { path: string; q: string }) => {
+      const key = search.path + '?' + search.q;
+      if (ran.has(key)) return;
+      ran.add(key);
+      const result = await this.getAllPages(search.path, { q: search.q, include: 'prices' }, this.config.maxSearchPages);
       if (!result.complete) {
         // Nie eine Teilmenge als Kandidatenliste verwenden: die richtige Karte könnte fehlen.
         throw new IncompleteSearchError(
-          'Scrydex-Suche "' + stage.q + '" hat ' + (result.totalCount ?? 'mehr als ' + result.items.length) + ' Treffer; nur ' + result.items.length + ' geladen.'
+          'Scrydex-Suche "' + search.q + '" hat ' + (result.totalCount ?? 'mehr als ' + result.items.length) + ' Treffer; nur ' + result.items.length + ' geladen.'
         );
       }
       result.items.forEach(raw => {
@@ -252,17 +253,14 @@ export class ScrydexProvider implements CardDataProvider {
         found.set(candidate.cardId, candidate);
       });
     };
-    const ran = new Set<string>();
-    for (const stage of stages) {
-      await run(stage);
-      ran.add(stage.q);
-      if (this.hasExactHit([...found.values()], query)) break;
-    }
-    // Sprache unbekannt: zusätzlich sprachunabhängig suchen, damit gleichnummerige Karten
-    // anderer Sprachen (mit anderem Namen) nicht fehlen und fälschlich Eindeutigkeit entsteht.
-    if (!query.language) {
-      const independent = stages.find(stage => stage.languageIndependent);
-      if (independent && !ran.has(independent.q)) await run(independent);
+    // Alle Suchen laufen vollständig; kein vorzeitiger Abbruch nach dem ersten Treffer.
+    for (const search of searches) await run(search);
+
+    // printed_number evtl. nicht für jede Karte gepflegt: ohne Treffer auf number ausweichen
+    // (gleiche Regeln: nie strenger als die Prüfung).
+    if (!found.size && searches.length && searches[0].q.startsWith('printed_number:')) {
+      const withoutPrinted = this.buildSearches({ ...query, number: (query.number || '').split('/')[0] });
+      for (const search of withoutPrinted) await run(search);
     }
     return [...found.values()];
   }

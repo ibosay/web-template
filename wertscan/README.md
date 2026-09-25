@@ -25,6 +25,8 @@
 2. Keine Preisübernahme bei abweichender Nummer, Sprache, Variante oder Set.
 3. Mehrere mögliche Karten (z. B. Sprache oder Variante unbekannt) → „Karte nicht eindeutig zuordenbar“.
 4. Raw und Graded strikt getrennt. Graded nur bei exakt gleicher Firma **und** Note.
+   Fehlen ausreichende Verkäufe mit exakt gleicher Firma und Note, gibt es **keinen Marktwert**.
+   Ungegradete Preise, andere Firmen/Noten und Preisführer ersetzen ihn nie (kein Kartenbasiswert).
 5. Verkäufe haben Vorrang vor Angeboten. Beide werden nie zu einem Wert gemischt.
 6. Preisführer (Scrydex market, Cardmarket, BrickLink, PriceCharting) nur separat, nie im Marktwert.
 7. Zustände nur aus dem Zustandsfeld des Belegs (`conditionSource = 'provider_field'`), nie aus Titeln.
@@ -67,19 +69,26 @@ Details zum Kartenanbieter stehen in `market.cardMarket` (`status`, `fallbackAll
 
 ## Scrydex-Suche
 
-Die Suche wird so früh wie möglich eingegrenzt; die Entscheidung trifft danach immer die exakte Prüfung:
+Grundsatz: Die Kandidatenmenge, auf der über Eindeutigkeit entschieden wird, stammt nur aus Suchen,
+die **nie strenger sind als die eigene exakte Prüfung**. Sonst könnte eine zweite passende Karte
+unsichtbar bleiben und fälschlich Eindeutigkeit entstehen.
 
-1. `!name:"…" printed_number:"…"` (exakter Name + vollständiger Aufdruck)
-2. `!name:"…" number:…`
-3. `name:"…" number:…`
-4. `printed_number:"…"` (sprachunabhängig)
-5. `number:…` (sprachunabhängig)
+| Bekannt | Suche(n) |
+|---|---|
+| vollständige gedruckte Nummer (z. B. `143/S-P`, `223/197`, `SWSH101`) | `printed_number:"…"` – namens- und sprachunabhängig; bei Set-ID zusätzlich `number:…` im Set |
+| nur Nummer + Set-ID | `number:…` über `/pokemon/v1/expansions/<id>/cards` |
+| nur Nummer, Sprache bekannt, kein Set | `name:"…" number:…` (die Prüfung verlangt dann ohnehin den Namen; nicht exakt, also Obermenge) |
+| nur Nummer, sonst | `number:…` global |
 
-Mit bekannter Set-ID läuft jede Stufe über `/pokemon/v1/expansions/<id>/cards`. Die Suche stoppt, sobald
-eine Karte mit exakt passender Nummer (und Sprache, falls bekannt) gefunden ist. **Ist die Sprache
-unbekannt, wird immer zusätzlich sprachunabhängig gesucht**, damit gleichnummerige Karten anderer
-Sprachen (mit anderem Namen) nicht fehlen. Jede Stufe wird vollständig paginiert; ist das nicht
-möglich (mehr als 5 Seiten = 500 Karten), lautet das Ergebnis `provider_search_incomplete`.
+- Keine exakte Namenssuche (`!name`) für die Kandidatenmenge: Bei bekanntem Set verlangt die Prüfung
+  keinen gleichen Namen, `!name` könnte also z. B. eine Promo-Variante als eigenes Kartenobjekt verbergen.
+- Kein vorzeitiger Abbruch: alle vorgesehenen Suchen laufen vollständig (paginiert). Liefert
+  `printed_number` nichts, wird auf `number` ausgewichen.
+- Varianten (Reverse Holo/normal, 1st Edition/Unlimited) liegen bei Scrydex im selben Kartenobjekt
+  (`variants[]`) und kommen immer vollständig mit. Ist die Variante unbekannt und gibt es mehrere →
+  `card_not_unique`.
+- Jede Suche wird vollständig paginiert. Mehr als 5 Seiten (500 Karten) → `provider_search_incomplete`,
+  nie eine Zuordnung.
 
 Listings (Verkäufe) werden vollständig paginiert, Sicherheitsgrenze 20 Seiten (2.000 Verkäufe).
 Greift sie, wird mit den geladenen Verkäufen gerechnet und der Wert als `limitedData`
@@ -204,7 +213,8 @@ Gekürzt; vollständige Ausgaben in `docs/display-examples.json` (erzeugt aus de
       "badge": "Preisführer",
       "label": "Raw NM market",
       "source": "scrydex",
-      "price": "810,00 € (900,00 USD)"
+      "price": "810,00 € (900,00 USD)",
+      "matchesTarget": true
     }
   ]
 }
@@ -218,6 +228,7 @@ Gekürzt; vollständige Ausgaben in `docs/display-examples.json` (erzeugt aus de
   "statusCategory": "insufficient",
   "marketValue": {
     "state": "no_value",
+    "value": null,
     "noValueReason": "Keine zuverlässige Bewertung möglich: Für den Zustand NM liegen nicht mindestens 2 Marktbelege mit Zustandsangabe vor."
   },
   "soldComparables": {
@@ -242,6 +253,7 @@ Gekürzt; vollständige Ausgaben in `docs/display-examples.json` (erzeugt aus de
   "statusCategory": "ambiguous",
   "marketValue": {
     "state": "no_value",
+    "value": null,
     "noValueReason": "Karte nicht eindeutig zuordenbar. Es wird keine Karte automatisch ausgewählt und kein Preis angezeigt. (Grund: language_unknown_multiple_candidates)"
   },
   "soldComparables": {
@@ -252,45 +264,30 @@ Gekürzt; vollständige Ausgaben in `docs/display-examples.json` (erzeugt aus de
 }
 ```
 
-#### 4. Gegradete PCA-9,5-Karte ohne passende PCA-Verkäufe
+#### 4. Gegradete PCA-9,5-Karte ohne PCA-9,5-Verkäufe (PSA 10 und Raw vorhanden)
 
 ```json
 {
-  "status": "found",
-  "statusCategory": "value",
+  "status": "card_identified_insufficient_evidence",
+  "statusCategory": "insufficient",
   "marketValue": {
-    "state": "value",
-    "value": {
-      "eur": "78,00 €",
-      "original": "13.000 JPY",
-      "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
-    },
-    "range": {
-      "from": "75,00 €",
-      "to": "81,00 €"
-    },
-    "basis": "Median aus ungegradeten Belegen derselben Karte (Zustand teils nicht angegeben) (tatsächlich verkauft)",
-    "notes": [
-      "Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte."
-    ],
-    "limitedData": false
+    "state": "no_value",
+    "value": null,
+    "noValueReason": "Keine zuverlässige Bewertung möglich: Für PCA 9,5 liegen nicht mindestens 2 passende Marktbelege vor. Ungegradete Preise, andere Grading-Firmen oder -Noten und Preisführer werden dafür nicht verwendet. Preisführer werden separat angezeigt und sind nicht Teil des Marktwerts."
   },
   "soldComparables": {
-    "sold": [
-      {
-        "badge": "Verkauft",
-        "title": "リザードン 143/S-P",
-        "price": "72,00 € (12.000 JPY)"
-      },
-      {
-        "badge": "Verkauft",
-        "title": "リザードン 143/S-P",
-        "price": "84,00 € (14.000 JPY)"
-      }
-    ],
+    "sold": [],
     "offers": 0
   },
-  "priceGuides": []
+  "priceGuides": [
+    {
+      "badge": "Preisführer",
+      "label": "Raw NM market",
+      "source": "scrydex",
+      "price": "78,00 € (13.000 JPY)",
+      "matchesTarget": false
+    }
+  ]
 }
 ```
 
@@ -342,12 +339,12 @@ Gekürzt; vollständige Ausgaben in `docs/display-examples.json` (erzeugt aus de
       "badge": "Preisführer",
       "label": "Raw NM trend",
       "source": "cardmarket",
-      "price": "76,00 €"
+      "price": "76,00 €",
+      "matchesTarget": true
     }
   ]
 }
 ```
-
 
 ## Freigabe-Checkliste (vor gemeinsamem Testlauf/Deployment)
 

@@ -258,33 +258,49 @@ test('Grading: PCA 9,5 wird nicht mit PSA 9, PSA 10, BGS 9,5 oder ungegradeten K
   assert.ok(exact.evidence.every(row => row.grading?.company === 'pca' && row.grading.grade === '9.5'));
   assert.equal(exact.median, 210);
   assert.equal(valuation.excluded.other_grading, 3);
-  assert.ok(valuation.cardBaseValue!.evidence.every(row => row.grading === null), 'Basiswert nur ungegradet');
-  assert.equal(valuation.cardBaseValue!.median, 100);
+  assert.equal(valuation.excluded.raw_not_used_for_graded, 2, 'ungegradete Verkäufe zählen nicht');
   assert.equal(valuation.priceGuides.length, 1);
 });
 
-test('Graded ohne PCA-9,5-Verkäufe → Kartenbasiswert (NM/ohne Zustand), LP und Mint ausgeschlossen, mit Pflichtsatz', async () => {
+test('PCA 9,5 ohne PCA-9,5-Verkäufe: kein Marktwert – PSA 10, Raw und Preisführer (13.000 JPY) ersetzen ihn nicht', async () => {
   const provider = new InMemoryCardDataProvider({
     cards: [card({})],
     evidence: {
       c1: [
-        ev({ price: 90 }),
-        ev({ price: 110 }),
-        ev({ price: 40, condition: 'LP' }),
-        ev({ price: 300, condition: 'MINT' }),
         ev({ grading: { company: 'psa', grade: '10' }, price: 900 }),
+        ev({ grading: { company: 'psa', grade: '10' }, price: 950 }),
+        ev({ price: 12000, currency: 'JPY' }),
+        ev({ price: 14000, currency: 'JPY', condition: 'NM' }),
+        ev({ kind: 'guide', source: 'scrydex', priceType: 'market', price: 13000, currency: 'JPY', condition: 'NM' }),
       ],
     },
   });
   const result = await lookupCardMarket(query(), pca95, { provider, fx, now: () => NOW });
-  assert.equal(result.status, 'priced');
-  assert.equal(result.valuation!.headline.kind, 'card_base');
-  assert.equal(result.valuation!.headline.value!.median, 100);
-  assert.equal(
-    result.valuation!.headline.note,
-    'Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte.'
-  );
-  assert.equal(result.valuation!.excluded.raw_not_nm_for_base, 2);
+  const valuation = result.valuation!;
+  assert.equal(result.status, 'card_identified_insufficient_evidence', 'Karte eindeutig, Verkäufe vorhanden, aber keine PCA 9,5');
+  assert.equal(valuation.headline.kind, 'none');
+  assert.equal(valuation.headline.value, null);
+  assert.equal(valuation.exactValue, null);
+  assert.deepEqual(valuation.segmentEvidence.exact, [], 'weder PSA noch Raw als PCA-Belege');
+  assert.equal(valuation.excluded.other_grading, 2);
+  assert.equal(valuation.excluded.raw_not_used_for_graded, 2);
+  assert.equal(valuation.priceGuides.length, 1);
+  assert.equal(valuation.priceGuides[0].price, 13000);
+  assert.equal(valuation.priceGuides[0].currency, 'JPY');
+  assert.equal(valuation.priceGuides[0].matchesTarget, false, 'Raw-Preisführer passt nicht zu PCA 9,5');
+  assert.match(result.message, /Für PCA 9,5 liegen nicht mindestens 2 passende Marktbelege vor/);
+  assert.equal(result.fallbackAllowed, true, 'Karte eindeutig → ergänzende Suche nach PCA-9,5-Verkäufen erlaubt');
+});
+
+test('PCA 9,5 mit genau einem PCA-9,5-Verkauf: kein Marktwert, der Verkauf bleibt als Beleg sichtbar', async () => {
+  const provider = new InMemoryCardDataProvider({
+    cards: [card({})],
+    evidence: { c1: [ev({ grading: { company: 'pca', grade: '9.5' }, price: 200 }), ev({ price: 95 }), ev({ price: 105 })] },
+  });
+  const result = await lookupCardMarket(query(), pca95, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.valuation!.headline.value, null);
+  assert.equal(result.valuation!.segmentEvidence.exact.length, 1);
 });
 
 test('Nur Angebote (keine Verkäufe) → Wert aus Angeboten, klar gekennzeichnet; einzelner Verkauf nicht eingemischt', async () => {
@@ -495,59 +511,75 @@ test('Scrydex-Adapter: Zugangsdaten nur aus Server-Umgebung, nie ohne Key, nie i
   }
 });
 
-test('Scrydex-Suche früh eingegrenzt: printed_number + exakter Name zuerst, breiter nur ohne exakten Treffer', async () => {
+test('Scrydex-Suche: Kandidaten nur aus Suchen, die nie strenger sind als die eigene Prüfung', async () => {
   const qOf = (call: Call) => decodeURIComponent(new URL(call.url).searchParams.get('q') || '');
-  const japanese = { id: 'sx-9', name: 'リザードン', number: '143', printed_number: '143/S-P', expansion: { id: 'svp' }, language_code: 'ja', variants: [{ name: 'holofoil' }] };
+  const pathOf = (call: Call) => new URL(call.url).pathname;
+  const collect = async (q: CardQuery, respond: (url: string) => unknown = () => ({ data: [] })) => {
+    const calls: Call[] = [];
+    await new ScrydexProvider({ apiKey: 'k', teamId: 't', fetch: mockFetch(respond, calls) }).findCards(q);
+    return calls;
+  };
 
-  // Sprache bekannt (ja): Namensstufen finden nichts (japanischer Name), printed_number trifft → Stopp.
+  // Vollständige gedruckte Nummer → printed_number (namens- und sprachunabhängig), kein !name.
+  const printed = await collect(query({ name: 'Charizard ex', number: '143/S-P', language: 'ja' }), () => ({ data: [{ id: 'x', number: '143', printed_number: '143/S-P' }] }));
+  assert.deepEqual(printed.map(qOf), ['printed_number:"143/S-P"']);
+  assert.equal(pathOf(printed[0]), '/pokemon/v1/cards');
+
+  // printed_number ohne Treffer → Ausweichen auf number (global, da Set unbekannt).
+  const fallback = await collect(query({ name: 'Charizard', number: '143/S-P', language: null }));
+  assert.deepEqual(fallback.map(qOf), ['printed_number:"143/S-P"', 'number:143']);
+
+  // Set-ID bekannt → Set-Endpunkt, printed_number plus number im Set.
+  const scoped = await collect(query({ setId: 'sv3', number: '223/197', name: 'Charizard ex', language: 'en' }));
+  assert.ok(scoped.every(call => pathOf(call) === '/pokemon/v1/expansions/sv3/cards'));
+  assert.deepEqual(scoped.map(qOf), ['printed_number:"223/197"', 'number:223']);
+
+  // Nur Nummer ohne Nenner, Sprache bekannt, kein Set → Name wird von der Prüfung verlangt → name + number.
+  const named = await collect(query({ name: 'Pikachu', number: '25', language: 'en' }));
+  assert.deepEqual(named.map(qOf), ['name:Pikachu number:25']);
+
+  // Nur Nummer, Sprache unbekannt → reine Nummernsuche (Namen unterscheiden sich je Sprache).
+  const unknownLanguage = await collect(query({ name: 'Pikachu', number: '25', language: null }));
+  assert.deepEqual(unknownLanguage.map(qOf), ['number:25']);
+
+  const all = [...printed, ...fallback, ...scoped, ...named, ...unknownLanguage];
+  assert.ok(all.every(call => !qOf(call).includes('!name')), 'keine exakte Namenssuche');
+  assert.ok(all.every(call => !/language/.test(qOf(call))), 'Sprache nicht in q');
+});
+
+test('Frühes Abbrechen verbirgt keine zweite Karte: enge Namenssuche 1 Treffer, breitere Suche 2 → nicht eindeutig', async () => {
+  const cardA = { id: 'base1-4', name: 'Charizard', number: '4', printed_number: '4/102', expansion: { id: 'base1', name: 'Base' }, language_code: 'en', variants: [{ name: 'holofoil' }] };
+  const cardB = { ...cardA, id: 'base1-4-shadowless', name: 'Charizard (Shadowless)' };
   const calls: Call[] = [];
   const provider = new ScrydexProvider({
     apiKey: 'k',
     teamId: 't',
-    fetch: mockFetch(url => (/printed_number/.test(decodeURIComponent(url)) && !/name:/.test(decodeURIComponent(url)) ? { data: [japanese] } : { data: [] }), calls),
+    now: () => NOW,
+    fetch: mockFetch(url => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') || '');
+      if (/\/listings$/.test(new URL(url).pathname)) return { data: [] };
+      // Eine exakte Namenssuche würde nur Karte A liefern; jede namensunabhängige Suche liefert A und B.
+      return q.includes('!name') ? { data: [cardA] } : { data: [cardA, cardB] };
+    }, calls),
   });
-  const found = await provider.findCards(query({ name: 'Charizard ex', number: '143/S-P', language: 'ja' }));
-  assert.deepEqual(found.map(c => c.cardId), ['sx-9']);
-  assert.deepEqual(calls.map(qOf), [
-    '!name:"Charizard ex" printed_number:"143/S-P"',
-    '!name:"Charizard ex" number:143',
-    'name:"Charizard ex" number:143',
-    'printed_number:"143/S-P"',
-  ]);
-  assert.ok(calls.every(call => new URL(call.url).pathname === '/pokemon/v1/cards'), 'allgemeiner Endpunkt, keine en/ja-Pfade');
-  assert.ok(calls.map(qOf).every(q => !/language/.test(q)), 'Sprache nicht in q');
+  const q = query({ name: 'Charizard', number: '4/102', setName: 'Base', language: 'en', variant: null });
+  const result = await lookupCardMarket(q, rawNM, { provider, fx, now: () => NOW });
+  assert.equal(result.status, 'not_unique');
+  assert.equal(result.valuation, null);
+  assert.equal(result.fallbackAllowed, false);
+  assert.deepEqual([...result.debug.remainingCandidates].sort(), ['base1-4', 'base1-4-shadowless']);
+  assert.ok(!calls.some(call => call.url.includes('listings')), 'keine Preisabfrage für mehrdeutige Karte');
 
-  // Exakter Treffer in der ersten Stufe → keine weiteren Anfragen (Sprache bekannt).
-  const early: Call[] = [];
-  const direct = new ScrydexProvider({ apiKey: 'k', teamId: 't', fetch: mockFetch(() => ({ data: [japanese] }), early) });
-  await direct.findCards(query({ name: 'Charizard', number: '143/S-P', language: 'ja' }));
-  assert.equal(early.length, 1);
-
-  // Sprache UNBEKANNT: nach dem Treffer zusätzlich sprachunabhängig suchen (printed_number),
-  // damit eine gleichnummerige Karte anderer Sprache nicht fehlt.
-  const english = { ...japanese, id: 'sx-en', name: 'Charizard', language_code: 'en' };
-  const both: Call[] = [];
-  const unknownLanguage = new ScrydexProvider({
+  // Varianten im selben Kartenobjekt (Reverse Holo/normal, 1st Edition/Unlimited) bei unbekannter Variante:
+  const variants = new ScrydexProvider({
     apiKey: 'k',
     teamId: 't',
-    fetch: mockFetch(url => (/name:/.test(decodeURIComponent(url)) ? { data: [english] } : { data: [english, japanese] }), both),
+    fetch: mockFetch(() => ({ data: [{ ...cardA, variants: [{ name: 'firstEditionHolofoil' }, { name: 'unlimitedHolofoil' }] }] }), []),
   });
-  const candidates = await unknownLanguage.findCards(query({ name: 'Charizard', number: '143/S-P', language: null }));
-  assert.deepEqual(both.map(qOf), ['!name:Charizard printed_number:"143/S-P"', 'printed_number:"143/S-P"']);
-  assert.equal(candidates.length, 2);
-  const result = await lookupCardMarket(query({ name: 'Charizard', number: '143/S-P', language: null }), rawNM, {
-    provider: unknownLanguage,
-    fx,
-    now: () => NOW,
-  });
-  assert.equal(result.status, 'not_unique', 'Sprache unbekannt + zwei Sprachfassungen → nicht eindeutig');
-
-  // Set-ID bekannt → Set-Endpunkt.
-  const setCalls: Call[] = [];
-  const scoped = new ScrydexProvider({ apiKey: 'k', teamId: 't', fetch: mockFetch(() => ({ data: [] }), setCalls) });
-  await scoped.findCards(query({ setId: 'sv3', number: '223/197', name: null, language: 'en' }));
-  assert.ok(setCalls.every(call => new URL(call.url).pathname === '/pokemon/v1/expansions/sv3/cards'));
-  assert.deepEqual(setCalls.map(qOf), ['printed_number:"223/197"', 'number:223']);
+  const byVariant = await lookupCardMarket(q, rawNM, { provider: variants, fx, now: () => NOW });
+  assert.equal(byVariant.status, 'not_unique');
+  assert.equal(byVariant.debug.matchReason, 'variant_unknown_multiple_variants');
+  assert.equal(byVariant.fallbackAllowed, false);
 });
 
 test('Scrydex-Adapter: Einzelkarte nachladen, market/low/mid/high nur Preisführer, Listings nur mit sold_at, Duplikate per id', async () => {

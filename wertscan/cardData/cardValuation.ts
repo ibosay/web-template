@@ -5,6 +5,8 @@
  *  - Verkäufe (sold) haben Vorrang vor aktiven Angeboten (listing). Beide werden nie gemischt.
  *  - Preisführer (guide) fließen NIE in einen Wert ein, sie werden separat ausgewiesen.
  *  - Raw und Graded strikt getrennt; Graded nur bei exakt gleicher Firma UND Note.
+ *  - Fehlen bei Graded ausreichende Verkäufe mit exakt gleicher Firma+Note, gibt es KEINEN Wert.
+ *    Raw-Preise, andere Firmen/Noten und Preisführer ersetzen ihn nie (kein Kartenbasiswert).
  *  - Zustandswerte nur aus Belegen, deren Zustand die Quelle geliefert hat – keine Ableitung,
  *    keine Prozentabschläge, kein Zusammenlegen verschiedener Zustände.
  *  - Mindestens MIN_EVIDENCE Belege, sonst kein Wert.
@@ -41,7 +43,7 @@ export type ValueSummary = {
 export type CardSegment = { type: 'raw'; condition: CardCondition | null } | { type: 'graded'; grading: Grading };
 
 export type CardHeadline = {
-  kind: 'exact_grading' | 'raw_condition' | 'card_base' | 'none';
+  kind: 'exact_grading' | 'raw_condition' | 'none';
   value: ValueSummary | null;
   note: string;
 };
@@ -50,20 +52,17 @@ export type CardValuation = {
   headline: CardHeadline;
   /** Graded: exakt gleiche Firma+Note. Raw: exakt der Zustand des Exemplars. */
   exactValue: ValueSummary | null;
-  /** Nur bei Graded: ungegradete Verkäufe derselben Karte/Variante (NM oder Zustand nicht angegeben). */
-  cardBaseValue: ValueSummary | null;
-  /** Raw-Verkäufe ohne Zustandsangabe der Quelle – nur zur Information, nie als Zustandspreis. */
+  /** Nur Raw: Verkäufe ohne Zustandsangabe der Quelle – nur zur Information, nie als Zustandspreis. */
   rawUnspecifiedValue: ValueSummary | null;
   priceGuides: PriceGuideEntry[];
   excluded: Record<string, number>;
-  /** Verwendbare Markt-Belege (Verkäufe + Angebote) nach Grundfilter – ohne Preisführer. */
+  /** Alle verwendbaren Markt-Belege der Karte (Verkäufe + Angebote, jedes Segment) – ohne Preisführer. */
   marketEvidenceCount: number;
   /**
-   * Alle passenden Markt-Belege je Segment, auch wenn sie für einen Wert nicht reichen
-   * (für die Liste "Vergleichsverkäufe"). exact: gleiche Firma+Note bzw. gleicher Raw-Zustand;
-   * base: ungegradete Belege für den Kartenbasiswert (nur Graded).
+   * Alle Markt-Belege exakt im Segment (gleiche Firma+Note bzw. gleicher Raw-Zustand), auch wenn
+   * sie für einen Wert nicht reichen – für die Liste "Vergleichsverkäufe".
    */
-  segmentEvidence: { exact: PriceEvidence[]; base: PriceEvidence[] };
+  segmentEvidence: { exact: PriceEvidence[] };
   /** Abdeckung der Verkäufe beim Anbieter. */
   sales: { complete: boolean; loaded: number; total: number | null };
   message: string;
@@ -277,8 +276,7 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
   const rawUnspecifiedRows = raw.filter(row => !conditionOf(row));
 
   let exactValue: ValueSummary | null = null;
-  let cardBaseValue: ValueSummary | null = null;
-  const segmentEvidence: { exact: PriceEvidence[]; base: PriceEvidence[] } = { exact: [], base: [] };
+  const segmentEvidence: { exact: PriceEvidence[] } = { exact: [] };
   let headline: CardHeadline = { kind: 'none', value: null, note: '' };
   let message = '';
 
@@ -286,31 +284,16 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
     const label = formatGrading(segment.grading);
     const exactRows = market.filter(row => sameGrading(row.grading, segment.grading));
     market.filter(row => row.grading && !sameGrading(row.grading, segment.grading)).forEach(() => count('other_grading'));
+    raw.forEach(() => count('raw_not_used_for_graded'));
     segmentEvidence.exact = exactRows;
     exactValue = await soldFirst(exactRows, label + '-Belegen', input.fx, cache, excluded);
 
-    // Kartenbasiswert: nur NM oder "Zustand nicht angegeben"; bekannte schlechtere Zustände ausgeschlossen.
-    const baseRows = raw.filter(row => {
-      const condition = conditionOf(row);
-      if (condition && condition !== 'NM') return count('raw_not_nm_for_base'), false;
-      return true;
-    });
-    segmentEvidence.base = baseRows;
-    const nmOnly = baseRows.filter(row => conditionOf(row) === 'NM');
-    cardBaseValue =
-      (await soldFirst(nmOnly, 'ungegradeten NM-Belegen derselben Karte', input.fx, cache, excluded)) ||
-      (await soldFirst(baseRows, 'ungegradeten Belegen derselben Karte (Zustand teils nicht angegeben)', input.fx, cache, excluded));
-
     if (exactValue) {
       headline = { kind: 'exact_grading', value: exactValue, note: 'Direkter Vergleich: nur ' + label + '-Belege derselben Karte und Variante.' };
-    } else if (cardBaseValue) {
-      headline = {
-        kind: 'card_base',
-        value: cardBaseValue,
-        note: 'Für ' + label + ' wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte.',
-      };
     } else {
-      message = 'Keine zuverlässige Bewertung möglich: weder für ' + label + ' noch für die ungegradete Karte liegen mindestens ' + MIN_EVIDENCE + ' passende Marktbelege vor.';
+      message =
+        'Keine zuverlässige Bewertung möglich: Für ' + label + ' liegen nicht mindestens ' + MIN_EVIDENCE +
+        ' passende Marktbelege vor. Ungegradete Preise, andere Grading-Firmen oder -Noten und Preisführer werden dafür nicht verwendet.';
     }
   } else {
     market.filter(row => row.grading).forEach(() => count('graded_vs_raw'));
@@ -337,12 +320,13 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
     }
   }
 
-  const rawUnspecifiedValue = await soldFirst(rawUnspecifiedRows, 'Raw-Belegen ohne Zustandsangabe', input.fx, cache, excluded);
+  const rawUnspecifiedValue =
+    segment.type === 'raw' ? await soldFirst(rawUnspecifiedRows, 'Raw-Belegen ohne Zustandsangabe', input.fx, cache, excluded) : null;
   const sales = input.sales || { complete: true, loaded: market.filter(row => row.kind === 'sold').length, total: null };
   const limitedNote =
     'Eingeschränkte Datenbasis: nur ' + sales.loaded + (sales.total != null ? ' von ' + sales.total : '') + ' Verkäufen beim Anbieter geladen.';
   if (!sales.complete) {
-    [exactValue, cardBaseValue, rawUnspecifiedValue].forEach(value => {
+    [exactValue, rawUnspecifiedValue].forEach(value => {
       if (value && value.basis === 'sold') {
         value.limitedData = true;
         value.description += ' – ' + limitedNote;
@@ -356,7 +340,6 @@ export async function valueCard(input: ValuationInput): Promise<CardValuation> {
   return {
     headline,
     exactValue,
-    cardBaseValue,
     rawUnspecifiedValue,
     priceGuides,
     excluded,

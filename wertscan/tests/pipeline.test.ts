@@ -8,6 +8,7 @@ import { aiCalls, setAi } from './setupGlobals';
 import { liveMarketLookup, marketValuation } from '../marketPricePipeline';
 import { CardCandidate, InMemoryCardDataProvider, PriceEvidence, StaticFxRateProvider } from '../cardData';
 import { buildMarketDisplay } from '../marketDisplay';
+import { ScrydexProvider } from '../cardData/scrydexProvider';
 
 const silent = { log: () => {} };
 
@@ -120,6 +121,12 @@ const charizard = (extra: Record<string, string> = {}) =>
     },
   }) as unknown as Analysis;
 
+const rawNearMint = () => {
+  const analysis = charizard({ gradingCompany: '', grade: '' });
+  (analysis as unknown as { condition: string }).condition = 'Near Mint';
+  return analysis;
+};
+
 const candidate = (overrides: Partial<CardCandidate> = {}): CardCandidate => ({
   providerId: 'test',
   cardId: 'c1',
@@ -157,8 +164,8 @@ const sold = (price: number, overrides: Partial<PriceEvidence> = {}): PriceEvide
 
 const fx = new StaticFxRateProvider({ USD: 0.9 }, 'EZB-Referenzkurs (Test)', '2026-09-24');
 
-test('Karte mit Provider: kein Scraping, Basiswert mit Pflichtsatz, EUR als gekennzeichneter Anzeigewert', async () => {
-  setAi(async () => ({ status: 200, text: '' }), async () => ({ data: { items: [] } }));
+test('Karte mit Provider, PCA 9,5 ohne PCA-Verkäufe: kein Marktwert, PSA/Raw nicht verwendet, Preisführer separat', async () => {
+  setAi(async () => ({ status: 403, text: '' }), async () => ({ data: { items: [] } }));
   const provider = new InMemoryCardDataProvider({
     cards: [candidate()],
     evidence: {
@@ -166,24 +173,49 @@ test('Karte mit Provider: kein Scraping, Basiswert mit Pflichtsatz, EUR als geke
         sold(100),
         sold(120),
         sold(900, { grading: { company: 'psa', grade: '10' } }),
-        sold(5000, { kind: 'guide', source: 'scrydex', priceType: 'market', grading: { company: 'pca', grade: '9.5' } }),
+        sold(13000, { kind: 'guide', source: 'scrydex', priceType: 'market', currency: 'JPY', condition: 'NM', conditionSource: 'provider_field' }),
       ],
     },
   });
   const analysis = charizard({ language: 'Japanisch' });
   const result = await liveMarketLookup(analysis, { ...silent, cardProvider: provider, fxRateProvider: fx });
-  assert.equal(aiCalls.scrape.length, 0, 'kein Scraping bei Provider-Treffer');
-  assert.equal(result.status, 'found');
-  assert.equal(result.headline.kind, 'card_base');
-  assert.deepEqual(result.headline.original, { price: 110, from: 105, to: 115, currency: 'USD' });
-  assert.equal(result.headline.price, 99);
-  assert.match(result.headline.fxNote, /kein Marktpreis der Quelle/);
-  assert.match(result.message, /Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden/);
+  assert.equal(result.status, 'card_identified_insufficient_evidence', 'Anbieterstatus bleibt, auch nach ergänzender Suche ohne Ergebnis');
+  assert.equal(result.headline.kind, 'none');
+  assert.equal(result.headline.price, null);
+  assert.equal(marketValuation(analysis, result), null);
+  assert.equal(result.soldComparables.length, 0, 'weder PSA noch Raw als Vergleichsverkauf');
   assert.equal(result.priceGuides.length, 1);
-  assert.ok(result.soldComparables.every(row => row.rawCardBase && row.originalCurrency === 'USD' && row.eurConversion));
-  const valuation = marketValuation(analysis, result)!;
-  assert.equal(valuation.market, 99);
-  assert.match(valuation.basis, /Umgerechneter Anzeigewert/);
+  assert.equal(result.priceGuides[0].price, 13000);
+  assert.ok(aiCalls.scrape.length > 0, 'erlaubte ergänzende Suche nach PCA-9,5-Verkäufen lief');
+  const display = buildMarketDisplay(result);
+  assert.equal(display.marketValue.state, 'no_value');
+  assert.equal(display.marketValue.value, null);
+  assert.equal(display.priceGuides.items[0].price.original, '13.000 JPY');
+});
+
+test('Karte mit Provider, PCA 9,5 mit zwei PCA-9,5-Verkäufen: Marktwert nur daraus, EUR gekennzeichnet', async () => {
+  setAi(async () => ({ status: 403, text: '' }), async () => ({ data: { items: [] } }));
+  const provider = new InMemoryCardDataProvider({
+    cards: [candidate()],
+    evidence: {
+      c1: [
+        sold(200, { grading: { company: 'pca', grade: '9.5' } }),
+        sold(220, { grading: { company: 'pca', grade: '9.5' } }),
+        sold(100),
+        sold(900, { grading: { company: 'psa', grade: '10' } }),
+      ],
+    },
+  });
+  const analysis = charizard({ language: 'Japanisch' });
+  const result = await liveMarketLookup(analysis, { ...silent, cardProvider: provider, fxRateProvider: fx });
+  assert.equal(aiCalls.scrape.length, 0, 'kein Scraping bei ausreichenden Anbieterdaten');
+  assert.equal(result.status, 'found');
+  assert.equal(result.headline.kind, 'exact_grading');
+  assert.deepEqual(result.headline.original, { price: 210, from: 205, to: 215, currency: 'USD' });
+  assert.equal(result.headline.price, 189);
+  assert.match(result.headline.fxNote, /kein Marktpreis der Quelle/);
+  assert.ok(result.soldComparables.every(row => row.gradingClass === 'exact'));
+  assert.match(marketValuation(analysis, result)!.basis, /Umgerechneter Anzeigewert/);
 });
 
 test('Karte mit Provider, Sprache unbekannt, en+ja vorhanden → nicht eindeutig, kein Preis, kein Scraping', async () => {
@@ -203,7 +235,8 @@ test('Karte mit Provider, Sprache unbekannt, en+ja vorhanden → nicht eindeutig
 
 test('Karte ohne Wechselkurs: Wert nur in Originalwährung, keine EUR-Bewertung', async () => {
   setAi(async () => ({ status: 200, text: '' }), async () => ({ data: { items: [] } }));
-  const provider = new InMemoryCardDataProvider({ cards: [candidate()], evidence: { c1: [sold(100), sold(120)] } });
+  const pca = { grading: { company: 'pca', grade: '9.5' } };
+  const provider = new InMemoryCardDataProvider({ cards: [candidate()], evidence: { c1: [sold(100, pca), sold(120, pca)] } });
   const analysis = charizard({ language: 'ja' });
   const result = await liveMarketLookup(analysis, { ...silent, cardProvider: provider });
   assert.equal(result.headline.price, null);
@@ -244,8 +277,9 @@ test('Karte eindeutig, Anbieter ohne ausreichende Preise → ergänzende Marktpl
   assert.ok(aiCalls.scrape.length > 0);
   assert.ok(result.debug.rejectionReasons.language_mismatch >= 1, 'deutscher Titel verworfen');
   assert.ok(result.debug.rejectionReasons.variant_mismatch >= 1, 'Reverse Holo widerspricht der bestätigten Variante');
-  assert.equal(result.headline.kind, 'card_base');
-  assert.equal(result.headline.price, 100);
+  assert.ok(result.debug.rejectionReasons.raw_not_used_for_graded >= 1, 'ungegradete Titel zählen nicht für PCA 9,5');
+  assert.equal(result.headline.kind, 'none');
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
   assert.match(result.message, /Ergänzende Marktplatzsuche für genau diese Karte/);
 });
 
@@ -255,12 +289,12 @@ test('Scraping: Cardmarket ist Preisführer und fließt nicht in den Wert ein', 
       url.includes('cardmarket')
         ? { status: 200, text: page([{ title: 'Charizard 143/S-P Illustration Grand Prix Promo', price: '500,00 EUR' }, { title: 'Charizard 143/S-P Promo', price: '520,00 EUR' }]) }
         : url.includes('LH_Sold')
-          ? { status: 200, text: page([{ title: 'Charizard 143/S-P Promo', price: '95,00 EUR' }, { title: 'Glurak 143/S-P Promo', price: '105,00 EUR' }]) }
+          ? { status: 200, text: page([{ title: 'Charizard 143/S-P Promo', condition: 'Near Mint', price: '95,00 EUR' }, { title: 'Glurak 143/S-P Promo', condition: 'Near Mint', price: '105,00 EUR' }]) }
           : { status: 403, text: '' },
     async ({ content }) => extractAll(content)
   );
-  const result = await liveMarketLookup(charizard(), silent);
-  assert.equal(result.headline.kind, 'card_base');
+  const result = await liveMarketLookup(rawNearMint(), silent);
+  assert.equal(result.headline.kind, 'condition');
   assert.equal(result.headline.price, 100);
   assert.ok(result.priceGuides.length >= 1);
   assert.ok(result.priceGuides.every(entry => entry.price >= 500));
@@ -272,11 +306,18 @@ test('Scraping: Reverse-Holo-Titel bei unbekannter Variante wird nicht übernomm
   setAi(
     async url =>
       url.includes('LH_Sold')
-        ? { status: 200, text: page([{ title: 'Charizard 143/S-P Reverse Holo', price: '300,00 EUR' }, { title: 'Charizard 143/S-P', price: '95,00 EUR' }, { title: 'Charizard 143/S-P Promo', price: '105,00 EUR' }]) }
+        ? {
+            status: 200,
+            text: page([
+              { title: 'Charizard 143/S-P Reverse Holo', condition: 'Near Mint', price: '300,00 EUR' },
+              { title: 'Charizard 143/S-P', condition: 'Near Mint', price: '95,00 EUR' },
+              { title: 'Charizard 143/S-P Promo', condition: 'Near Mint', price: '105,00 EUR' },
+            ]),
+          }
         : { status: 403, text: '' },
     async ({ content }) => extractAll(content)
   );
-  const result = await liveMarketLookup(charizard(), silent);
+  const result = await liveMarketLookup(rawNearMint(), silent);
   assert.ok(result.debug.rejectionReasons.variant_unverified >= 1);
   assert.equal(result.headline.price, 100);
 });
@@ -323,8 +364,8 @@ test('Anzeige: drei getrennte Bereiche; Preisführer nie als Verkauf, Marktwert 
     cards: [candidate()],
     evidence: {
       c1: [
-        sold(100),
-        sold(120),
+        sold(100, { grading: { company: 'pca', grade: '9.5' } }),
+        sold(120, { grading: { company: 'pca', grade: '9.5' } }),
         sold(5000, { kind: 'guide', source: 'scrydex', priceType: 'market', grading: { company: 'pca', grade: '9.5' } }),
       ],
     },
@@ -344,4 +385,28 @@ test('Anzeige: drei getrennte Bereiche; Preisführer nie als Verkauf, Marktwert 
   assert.equal(empty.marketValue.state, 'no_value');
   assert.equal(empty.marketValue.value, null);
   assert.match(empty.marketValue.noValueReason!, /nicht eindeutig zuordenbar/);
+});
+
+test('Scrydex: zweite Karte gleicher Nummer nur über breitere Suche sichtbar → card_not_unique, kein Marktwert, kein Fallback', async () => {
+  setAi(async () => ({ status: 200, text: page([{ title: 'Charizard 4/102 Base', condition: 'Near Mint', price: '300,00 EUR' }]) }), async ({ content }) => extractAll(content));
+  const cardA = { id: 'base1-4', name: 'Charizard', number: '4', printed_number: '4/102', expansion: { id: 'base1', name: 'Base' }, language_code: 'en', variants: [{ name: 'holofoil' }] };
+  const cardB = { ...cardA, id: 'base1-4-shadowless', name: 'Charizard (Shadowless)' };
+  const provider = new ScrydexProvider({
+    apiKey: 'k',
+    teamId: 't',
+    fetch: async (url: string) => {
+      const q = decodeURIComponent(new URL(url).searchParams.get('q') || '');
+      const body = new URL(url).pathname.endsWith('/listings') ? { data: [] } : q.includes('!name') ? { data: [cardA] } : { data: [cardA, cardB] };
+      return { ok: true, status: 200, json: async () => body };
+    },
+  });
+  const analysis = charizard({ cardName: 'Charizard', cardNumber: '4/102', setName: 'Base', language: 'en', gradingCompany: '', grade: '' });
+  (analysis as unknown as { condition: string }).condition = 'Near Mint';
+  const result = await liveMarketLookup(analysis, { ...silent, cardProvider: provider, fxRateProvider: fx });
+  assert.equal(result.status, 'card_not_unique');
+  assert.equal(result.headline.kind, 'none');
+  assert.equal(marketValuation(analysis, result), null);
+  assert.equal(result.cardMarket!.fallbackAllowed, false);
+  assert.equal(aiCalls.scrape.length, 0, 'kein Marktplatz-Fallback');
+  assert.equal(buildMarketDisplay(result).marketValue.state, 'no_value');
 });

@@ -105,7 +105,7 @@ test('Beispiel 3: nicht eindeutige Karte', async () => {
   assert.equal(result.marketValue.value, null);
 });
 
-test('Beispiel 4: gegradete PCA-Karte ohne passende PCA-Verkäufe', async () => {
+test('Beispiel 4: gegradete PCA-Karte ohne passende PCA-Verkäufe (PSA 10 und Raw vorhanden)', async () => {
   const promo = candidate({ cardId: 'svp-143', name: 'Charizard', number: '143', printedNumber: '143/S-P', expansionId: 'svp', expansionName: 'Promo', languageCode: 'ja', language: 'Japanese' });
   const provider = new InMemoryCardDataProvider({
     cards: [promo],
@@ -114,15 +114,20 @@ test('Beispiel 4: gegradete PCA-Karte ohne passende PCA-Verkäufe', async () => 
         ev(12000, { cardId: 'svp-143', currency: 'JPY', title: 'リザードン 143/S-P' }),
         ev(14000, { cardId: 'svp-143', currency: 'JPY', title: 'リザードン 143/S-P' }),
         ev(900, { cardId: 'svp-143', grading: { company: 'psa', grade: '10' }, title: 'Charizard 143/S-P PSA 10' }),
+        ev(950, { cardId: 'svp-143', grading: { company: 'psa', grade: '10' }, title: 'Charizard 143/S-P PSA 10' }),
+        ev(13000, { cardId: 'svp-143', kind: 'guide', source: 'scrydex', priceType: 'market', currency: 'JPY', title: null, ...nm }),
       ],
     },
   });
   const result = await display(provider, analysis({ cardName: 'Charizard', cardNumber: '143/S P', language: 'ja', gradingCompany: 'PCA', grade: '9,5' }, 'Mint, graded'));
   examples['4_pca_ohne_pca_verkaeufe'] = result;
-  assert.equal(result.marketValue.state, 'value');
-  assert.match(result.marketValue.notes[0], /Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden/);
-  assert.equal(result.marketValue.value!.original, '13.000 JPY');
-  assert.equal(result.soldComparables.sold.length, 2, 'PSA-10-Verkauf erscheint nicht');
+  assert.equal(result.status, 'card_identified_insufficient_evidence');
+  assert.equal(result.marketValue.state, 'no_value');
+  assert.equal(result.marketValue.value, null);
+  assert.match(result.marketValue.noValueReason!, /Für PCA 9,5 liegen nicht mindestens 2 passende Marktbelege vor/);
+  assert.equal(result.soldComparables.sold.length, 0, 'weder PSA 10 noch Raw erscheinen als Vergleich');
+  assert.equal(result.priceGuides.items.length, 1);
+  assert.equal(result.priceGuides.items[0].price.original, '13.000 JPY');
 });
 
 test('Beispiel 5: echte Verkäufe um 20 € plus Preisführer 76 €', async () => {

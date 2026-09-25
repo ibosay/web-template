@@ -172,76 +172,42 @@
   },
   "4_pca_ohne_pca_verkaeufe": {
     "contractVersion": 1,
-    "status": "found",
-    "statusCategory": "value",
-    "message": "Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte.",
+    "status": "card_identified_insufficient_evidence",
+    "statusCategory": "insufficient",
+    "message": "Keine zuverlässige Bewertung möglich: Für PCA 9,5 liegen nicht mindestens 2 passende Marktbelege vor. Ungegradete Preise, andere Grading-Firmen oder -Noten und Preisführer werden dafür nicht verwendet. Preisführer werden separat angezeigt und sind nicht Teil des Marktwerts.",
     "marketValue": {
-      "state": "value",
-      "value": {
-        "eur": "78,00 €",
-        "original": "13.000 JPY",
-        "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
-      },
-      "range": {
-        "from": {
-          "eur": "75,00 €",
-          "original": "12.500 JPY",
-          "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
-        },
-        "to": {
-          "eur": "81,00 €",
-          "original": "13.500 JPY",
-          "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
-        }
-      },
-      "basis": "Median aus ungegradeten Belegen derselben Karte (Zustand teils nicht angegeben) (tatsächlich verkauft)",
-      "notes": [
-        "Für PCA 9,5 wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte."
-      ],
+      "state": "no_value",
+      "value": null,
+      "range": null,
+      "basis": "",
+      "notes": [],
       "limitedData": false,
-      "noValueReason": null
+      "noValueReason": "Keine zuverlässige Bewertung möglich: Für PCA 9,5 liegen nicht mindestens 2 passende Marktbelege vor. Ungegradete Preise, andere Grading-Firmen oder -Noten und Preisführer werden dafür nicht verwendet. Preisführer werden separat angezeigt und sind nicht Teil des Marktwerts."
     },
     "soldComparables": {
-      "sold": [
-        {
-          "variant": "sold",
-          "badge": "Verkauft",
-          "title": "リザードン 143/S-P",
-          "price": {
-            "eur": "72,00 €",
-            "original": "12.000 JPY",
-            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
-          },
-          "sortValueEur": 72,
-          "source": "ebay (scrydex)",
-          "observedAt": "2026-09-20",
-          "fetchedAt": "2026-09-25T09:00:00.000Z",
-          "url": "https://www.ebay.com/itm/example",
-          "grading": null
-        },
-        {
-          "variant": "sold",
-          "badge": "Verkauft",
-          "title": "リザードン 143/S-P",
-          "price": {
-            "eur": "84,00 €",
-            "original": "14.000 JPY",
-            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
-          },
-          "sortValueEur": 84,
-          "source": "ebay (scrydex)",
-          "observedAt": "2026-09-20",
-          "fetchedAt": "2026-09-25T09:00:00.000Z",
-          "url": "https://www.ebay.com/itm/example",
-          "grading": null
-        }
-      ],
+      "sold": [],
       "offers": [],
-      "emptyText": null
+      "emptyText": "Keine passenden Vergleichsverkäufe gefunden."
     },
     "priceGuides": {
       "disclaimer": "Preisführer sind Richtwerte der jeweiligen Plattform, keine tatsächlich verkauften Artikel, und fließen nicht in den Marktwert ein.",
-      "items": []
+      "items": [
+        {
+          "variant": "guide",
+          "badge": "Preisführer",
+          "label": "Raw NM market",
+          "source": "scrydex",
+          "price": {
+            "eur": "78,00 €",
+            "original": "13.000 JPY",
+            "fxNote": "Umgerechneter Anzeigewert, kein Marktpreis der Quelle. Kurs JPY→EUR 0.006 (EZB-Referenzkurs, Stand 2026-09-24)."
+          },
+          "matchesTarget": false,
+          "observedAt": "2026-09-20",
+          "fetchedAt": "2026-09-25T09:00:00.000Z",
+          "expiresAt": "2099-01-01T00:00:00.000Z"
+        }
+      ]
     }
   },
   "5_verkaeufe_20_eur_preisfuehrer_76_eur": {

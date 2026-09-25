@@ -16,10 +16,9 @@
  * Grundsatz: Jeder ausgegebene Preis stammt aus einem externen Marktbeleg, dessen Preistext
  * nachweislich im abgerufenen Quelltext steht. Es gibt keine Seed-, Schätz- oder Offline-Preise.
  *
- * Gegradete Sammelkarten – zwei strikt getrennte Märkte:
- *   A. Kartenbasiswert (cardBaseValue): ungegradete Treffer exakt derselben Karte (Name/Nummer).
- *   B. Grading-Wert (exactGradingValue): nur exakt dieselbe Grading-Firma UND Note.
- *   Fehlt B, wird A mit klarem Hinweis angezeigt. Andere Firmen/Noten zählen für keinen der beiden.
+ * Gegradete Sammelkarten: Marktwert NUR aus Belegen mit exakt gleicher Grading-Firma UND Note.
+ *   Fehlen diese, gibt es keinen Marktwert. Ungegradete Preise, andere Firmen/Noten und
+ *   Preisführer ersetzen ihn nie (es gibt keinen Kartenbasiswert als Ersatz).
  *
  * Diagnose: MarketData.debug zeigt für jeden Schritt, wo Belege verloren gehen
  * (formatMarketDebug(debug) liefert eine lesbare Textfassung).
@@ -177,7 +176,7 @@ export type MarketSearchStatus =
 
 /** Was die Oberfläche als Hauptwert anzeigen soll – statt pauschal "Preisreferenzen fehlen". */
 export type MarketHeadline = {
-  kind: 'condition' | 'exact_grading' | 'card_base' | 'reference' | 'none';
+  kind: 'condition' | 'exact_grading' | 'reference' | 'none';
   price: number | null;
   from: number | null;
   to: number | null;
@@ -1481,7 +1480,13 @@ function validateRow(
 
   let grading: string | undefined;
   let gradingClass: 'exact' | 'raw' | undefined;
-  if (profile.isCard) {
+  // Preisführer werden nie als Wert verwendet: Sie müssen zur Karte passen (Identität, Sprache,
+  // Variante – oben geprüft), aber nicht zu Zustand oder Grading. Sie erscheinen nur separat.
+  const isGuide = meta.kind === 'guide';
+  if (profile.isCard && isGuide) {
+    const found = gradingOf(title + ' ' + (row.conditionText || ''));
+    grading = found && found.grade ? found.company + ' ' + found.grade : 'raw';
+  } else if (profile.isCard) {
     // FIX: Die exakte Kartennummer ist ein deterministischer Identitätsbeweis. Eine niedrige
     //      Modell-Relevanz (z. B. weil der Treffer ungegradet ist) darf ihn nicht mehr aufheben.
     const match = cardIdentityMatch(title, profile);
@@ -1491,10 +1496,9 @@ function validateRow(
     const found = gradingOf(title + ' ' + (row.conditionText || ''));
     if (found && !found.grade) return { reason: 'grading_unclear' };
     if (profile.grading) {
-      if (!found) {
-        gradingClass = 'raw';
-        grading = 'raw';
-      } else if (found.company === profile.grading.company && profile.grading.grade && found.grade === profile.grading.grade) {
+      // Gegradete Karte: ungegradete Treffer sind nie ein Vergleich (auch nicht als Ersatzwert).
+      if (!found) return { reason: 'raw_not_used_for_graded' };
+      if (found.company === profile.grading.company && profile.grading.grade && found.grade === profile.grading.grade) {
         gradingClass = 'exact';
         grading = found.company + ' ' + found.grade;
       } else {
@@ -1514,7 +1518,7 @@ function validateRow(
     conditionGroupFromText(row.conditionText) || llmGroup || conditionGroupFromText(title) || (meta.retailNew ? 'new' : 'used');
   if (gradingClass === 'exact') conditionGroup = 'likeNew';
   if (gradingClass === 'raw' && conditionGroup === 'defective') return { reason: 'raw_card_damaged' };
-  if (profile.isCard && gradingClass !== 'exact') {
+  if (profile.isCard && !isGuide && gradingClass !== 'exact') {
     // Zentrale Karten-Taxonomie, nur aus der Zustandsangabe des Treffers (nie aus dem Titel:
     // "Charizard ex" ist kein Zustand). Mint ≠ Near Mint; keine Umdeutung.
     const cardCondition = normalizeCardCondition(row.conditionText);
@@ -1601,25 +1605,14 @@ function buildHeadline(
   targetKey: ConditionKey,
   grading: Grading | null,
   isCard: boolean,
-  conditionPrices: ConditionPriceSet,
-  cardBaseValue: ConditionMarketPrice | null
+  conditionPrices: ConditionPriceSet
 ): MarketHeadline {
   if (isCard && grading) {
     const label = formatGrading(grading);
     const exact = conditionPrices.likeNew;
     if (exact.price != null) return toHeadline('exact_grading', exact, 'Direkter Vergleich: nur ' + label + '-Belege derselben Karte.');
-    const exactHint =
-      exact.referencePrice != null
-        ? ' Ein einzelner direkter ' + label + '-Beleg liegt bei ' + formatEuro(exact.referencePrice) + ' (zu wenig für einen Marktpreis).'
-        : '';
-    const baseNote =
-      'Für ' + label + ' wurden keine ausreichenden direkten Vergleichsverkäufe gefunden. Der angezeigte Wert ist der Marktwert der zugrunde liegenden Karte.';
-    if (cardBaseValue && cardBaseValue.price != null) return toHeadline('card_base', cardBaseValue, baseNote + exactHint);
     if (exact.referencePrice != null) {
       return toHeadline('reference', exact, 'Nur ein direkter ' + label + '-Beleg – kein verlässlicher Marktpreis.');
-    }
-    if (cardBaseValue && cardBaseValue.referencePrice != null) {
-      return toHeadline('reference', cardBaseValue, baseNote + ' Es liegt nur ein einzelner Beleg der ungegradeten Karte vor – kein verlässlicher Marktpreis.');
     }
     return NO_HEADLINE;
   }
@@ -1961,7 +1954,6 @@ async function runCardProvider(
       }
     };
     await add(valuation.segmentEvidence.exact, segment.type === 'graded' ? 'exact' : 'condition');
-    if (segment.type === 'graded') await add(valuation.segmentEvidence.base, 'raw');
   }
   return { result, status, headline, rows, priceGuides: valuation ? valuation.priceGuides : [] };
 }
@@ -2044,6 +2036,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   const game = isCard ? cardGameOf(analysis) : null;
   let providerMessage = '';
   let providerGuides: PriceGuideEntry[] = [];
+  let providerFallbackStatus: MarketSearchStatus | null = null;
   if (isCard && cardProvider && game && cardProviderGames.includes(game)) {
     const outcome = await runCardProvider(analysis, game, cardProvider, {
       fx: fxRateProvider,
@@ -2079,6 +2072,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     }
     providerMessage = outcome.result.message + ' Ergänzende Marktplatzsuche für genau diese Karte: ';
     providerGuides = outcome.priceGuides;
+    providerFallbackStatus = outcome.status;
     // Vom Anbieter bestätigte Identität gilt nun auch für gescrapte Titel.
     const confirmedLanguage = normalizeLanguage(outcome.result.card?.languageCode || outcome.result.card?.language || '');
     if (confirmedLanguage) profile.cardLanguage = confirmedLanguage;
@@ -2255,7 +2249,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     providerId: 'scrape',
     source: row.source,
     label: row.title,
-    segment: row.gradingClass === 'exact' ? 'graded' : 'raw',
+    segment: row.grading && row.grading !== 'raw' ? 'graded' : 'raw',
     condition: normalizeCardCondition(row.condition),
     grading: null,
     priceType: null,
@@ -2309,20 +2303,13 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     defective: conditionMarketPrice(bucketRows.defective),
   };
 
-  let cardBaseValue: ConditionMarketPrice | null = null;
-  let exactGradingValue: ConditionMarketPrice | null = null;
-  if (isCard && grading) {
-    exactGradingValue = conditionPrices.likeNew;
-    const base = conditionMarketPrice(baseRows);
-    cardBaseValue = {
-      ...base,
-      basis: base.basis + '. Ungegradete Belege exakt derselben Karte – kein direkter ' + formatGrading(grading) + '-Vergleich',
-    };
-  }
+  // Kein Kartenbasiswert: ungegradete Treffer werden bei gegradeten Karten bereits verworfen.
+  const cardBaseValue: ConditionMarketPrice | null = null;
+  const exactGradingValue: ConditionMarketPrice | null = isCard && grading ? conditionPrices.likeNew : null;
   debug.cardBaseValue = cardBaseValue;
   debug.exactGradingValue = exactGradingValue;
 
-  const headline = buildHeadline(targetKey, grading, isCard, conditionPrices, cardBaseValue);
+  const headline = buildHeadline(targetKey, grading, isCard, conditionPrices);
   debug.headline = headline;
 
   // 5) Status ----------------------------------------------------------------------------------
@@ -2337,11 +2324,13 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       .filter(([reason]) => IDENTITY_REASONS.has(reason))
       .reduce((sum, [, count]) => sum + count, 0);
     status = identityRejects >= debug.rejectedListings / 2 ? 'no_exact_matches' : 'filtered_all';
-  } else if (headline.kind === 'condition' || headline.kind === 'exact_grading' || headline.kind === 'card_base') {
+  } else if (headline.kind === 'condition' || headline.kind === 'exact_grading') {
     status = 'found';
   } else {
     status = 'low_sample';
   }
+  // Ergänzende Suche ohne Wert: der Anbieterstatus (Karte eindeutig, zu wenige Belege) bleibt maßgeblich.
+  if (providerFallbackStatus && status !== 'found') status = providerFallbackStatus;
 
   const sold = finalRows.filter(row => row.type === 'sold');
   const offers = finalRows.filter(row => row.type === 'offer');
@@ -2387,16 +2376,13 @@ function marketValuation(analysis: Analysis, market: MarketData): Valuation | nu
   const allRows = [...market.soldComparables, ...market.currentOffers];
   const key = targetConditionKey(analysis);
   const rows =
-    headline.kind === 'card_base'
-      ? allRows.filter(row => row.rawCardBase)
-      : headline.kind === 'exact_grading'
+    headline.kind === 'exact_grading'
         ? allRows.filter(row => row.gradingClass === 'exact')
         : allRows.filter(row => row.conditionGroup === key && !row.rawCardBase);
 
   const relevance = rows.length ? rows.reduce((sum, row) => sum + row.relevance, 0) / rows.length : 0;
-  let quality: 'niedrig' | 'mittel' | 'hoch' =
+  const quality: 'niedrig' | 'mittel' | 'hoch' =
     headline.soldCount >= 4 && headline.sampleCount >= 5 && relevance >= 0.75 ? 'hoch' : headline.sampleCount >= 3 ? 'mittel' : 'niedrig';
-  if (headline.kind === 'card_base' && quality === 'hoch') quality = 'mittel';
 
   const sensitive = ['uhren', 'schmuck', 'gemalde', 'drucke', 'munzen', 'antiquitaten', 'teppiche'].includes(normalize(analysis.category));
 
