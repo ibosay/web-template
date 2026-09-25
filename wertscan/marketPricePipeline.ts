@@ -63,6 +63,8 @@ import {
   decideIdentity as decideObjectIdentity,
   evaluateCandidate as evaluateObjectCandidate,
   objectIdentityFromAnalysis,
+  buildScanGuidanceFromAnalysis,
+  ScanGuidance,
 } from './objectMatching';
 
 // ---------------------------------------------------------------------------
@@ -157,6 +159,8 @@ export type MarketListing = {
     matchedFields: string[];
     explanation: string[];
   } | null;
+  /** Kategorieabhängige Empfehlung für zusätzliche Fotos, wenn Identität noch nicht sicher genug ist. */
+  scanGuidance?: ScanGuidance | null;
 };
 
 type ConditionMarketPrice = {
@@ -2214,6 +2218,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   const grading = profile.grading;
   const targetKey = targetConditionKey(analysis);
   const debug = newDebug(isCard, grading, canonicalCardNumber(known(analysis.cardDetails?.cardNumber)), plan);
+  const scanGuidance = buildScanGuidanceFromAnalysis(analysis);
 
   const finish = (status: MarketSearchStatus, extra: Partial<MarketData> = {}): MarketData => {
     debug.marketSearchStatus = status;
@@ -2245,6 +2250,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
       diagnostics: debug,
       priceGuides: [],
       cardMarket,
+      scanGuidance,
       objectMatch:
         profile.objectDecision && profile.objectDecision.requiredSearchTerms.length >= 2
           ? {
