@@ -2284,10 +2284,12 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   const observedAnalysis = analysis as Analysis & {
     visualText?: unknown[];
     identifiers?: unknown[];
+    photoEvidence?: Array<{ facts?: unknown[] }>;
   };
   const hasDirectPhotoEvidence = Boolean(
     (observedAnalysis.visualText || []).some((value: unknown) => String(value || '').trim()) ||
-    (observedAnalysis.identifiers || []).some((value: unknown) => String(value || '').trim())
+    (observedAnalysis.identifiers || []).some((value: unknown) => String(value || '').trim()) ||
+    (observedAnalysis.photoEvidence || []).some(photo => Array.isArray(photo?.facts) && photo.facts.length > 0)
   );
   if (!isCard && hasDirectPhotoEvidence && !scanGuidance.canSearchNow) {
     return finish('insufficient_identity');
