@@ -377,6 +377,7 @@ const marketRowSchema = {
   properties: {
     sectionId: { type: 'integer', minimum: 0 },
     title: { type: 'string' },
+    identityEvidence: { type: 'string' },
     priceText: { type: 'string' },
     price: { type: 'number' },
     currency: { type: 'string', enum: ['EUR', 'USD', 'GBP', 'CHF', 'OTHER'] },
@@ -389,6 +390,7 @@ const marketRowSchema = {
   required: [
     'sectionId',
     'title',
+    'identityEvidence',
     'priceText',
     'price',
     'currency',
@@ -411,6 +413,7 @@ const marketExtractSchema = {
 type ExtractedMarketRow = {
   sectionId: number;
   title: string;
+  identityEvidence: string;
   priceText: string;
   price: number;
   currency: string;
@@ -630,6 +633,39 @@ function titleGrounded(title: string, haystackTokens: Set<string>) {
   const tokens = looseTokens(title).filter(token => token.length >= 3);
   if (!tokens.length) return true; // z. B. rein japanischer Titel: Preisprüfung trägt allein
   return tokens.filter(token => haystackTokens.has(token)).length / tokens.length >= 0.5;
+}
+
+/**
+ * Identitätsbeleg muss als Tokenfolge im selben Quellabschnitt vorkommen.
+ * Kleine Lücken sind erlaubt, damit Labels wie "Material:" oder Satzzeichen nicht stören.
+ * So darf das Extraktionsmodell keine Merkmale aus Suchanfrage oder Vorwissen einschleusen.
+ */
+function identityEvidenceGrounded(evidence: string, section: ReadableSection) {
+  const expected = looseTokens(evidence).filter(token => token.length >= 2);
+  if (!expected.length) return true;
+  if (expected.length > 32) return false;
+  const source = looseTokens(section.text);
+  for (let start = 0; start < source.length; start++) {
+    if (source[start] !== expected[0]) continue;
+    let cursor = start + 1;
+    let ok = true;
+    for (let i = 1; i < expected.length; i++) {
+      let found = -1;
+      for (let j = cursor; j < Math.min(source.length, cursor + 4); j++) {
+        if (source[j] === expected[i]) {
+          found = j;
+          break;
+        }
+      }
+      if (found < 0) {
+        ok = false;
+        break;
+      }
+      cursor = found + 1;
+    }
+    if (ok) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -1391,6 +1427,7 @@ const EXTRACT_SYSTEM = [
   'Erfinde niemals Produkte, Preise, Zustände oder Daten. Wenn nichts Passendes sichtbar ist, gib eine leere Liste zurück.',
   'Nimm nur Treffer auf, bei denen Titel und Preis zum selben sichtbaren Treffer gehören.',
   'title: der Treffertitel möglichst wörtlich aus dem Text (nicht übersetzen, nichts ergänzen).',
+  'identityEvidence: höchstens 220 Zeichen wörtlich aus DEMSELBEN Trefferabschnitt, nur wenn dort zusätzliche Identitätsmerkmale sichtbar sind, die nicht im Titel stehen. Nie aus Suchanfrage, Vorwissen oder anderen Treffern ergänzen. Sonst leer.',
   'priceText: der Preis exakt so, wie er im Text steht (z. B. "1.234,56 €" oder "EUR 12,50").',
   'Keine Versandkosten, keine Preisspannen, keine durchgestrichenen Ursprungspreise, keine Ratenpreise.',
   'Bei verkauften eBay-Artikeln den tatsächlich erzielten Preis nehmen.',
@@ -1506,6 +1543,7 @@ type CandidateRow = {
   grading: string;
   date: string;
   relevance: number;
+  identityEvidence: string;
   section: ReadableSection | null;
   fetchedAt: string;
 };
@@ -1528,9 +1566,13 @@ function validateRow(
   let price = parsed != null ? parsed : Number(row.price);
   if (!Number.isFinite(price)) return { reason: 'invalid_price' };
 
+  const identityEvidence = String(row.identityEvidence || '').trim().slice(0, 220);
   if (row.section) {
     if (!priceGrounded(priceText, price, row.section.haystack)) return { reason: 'price_not_in_source' };
     if (!titleGrounded(title, row.section.tokens)) return { reason: 'title_not_in_source' };
+    if (identityEvidence && !identityEvidenceGrounded(identityEvidence, row.section)) {
+      return { reason: 'identity_evidence_not_in_source' };
+    }
   }
 
   const currency = currencyOf(priceText, row.currency);
@@ -1545,7 +1587,11 @@ function validateRow(
   }
   if (!(price >= 0.1 && price < 1000000)) return { reason: 'price_out_of_range' };
 
-  const identityReason = identityRejection(title, profile);
+  // Karten bleiben absichtlich titelbasiert: Nummer, Sprache und Grading dürfen nicht aus einem
+  // freien Snippet ergänzt werden. Bei anderen Flohmarktobjekten darf ein nachweislich wörtlicher
+  // Beleg aus demselben Treffer zusätzliche Merkmale bestätigen.
+  const identityText = profile.isCard ? title : [title, identityEvidence].filter(Boolean).join(' ');
+  const identityReason = identityRejection(identityText, profile);
   if (identityReason) return { reason: identityReason };
 
   const relevance = clamp01(row.relevance, 0);
@@ -1612,6 +1658,7 @@ function validateRow(
       sourceKey: row.sourceKey,
       kind: meta.kind === 'guide' ? 'guide' : 'listing',
       title,
+      identityEvidence: identityEvidence || undefined,
       price,
       currency: 'EUR',
       condition: row.conditionText || '',
@@ -2258,7 +2305,21 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
           'Extrahiere ALLE sichtbaren Treffer dieser Karte – ungegradet (raw) UND gegradet mit beliebiger Firma und Note. Filtere NICHT nach Grading oder Zustand.',
           'Treffer mit anderer Kartennummer nicht aufnehmen.',
         ]
-      : ['Gesuchtes Produkt: ' + baseQueries.join(' | ') + '.', 'Ähnliche, aber andere Produkte (andere Generation, Variante, Modellnummer) erhalten relevance unter 0.4.'];
+      : profile.objectDecision && profile.objectDecision.requiredSearchTerms.length >= 2
+        ? profile.objectDecision.mode === 'comparable_object'
+          ? [
+              'Gesuchtes Flohmarktobjekt ist NICHT exakt bis zur Modellreferenz identifiziert.',
+              'Für Vergleichstreffer müssen mehrere dieser direkt beobachteten Merkmale gemeinsam bestätigt sein: ' +
+                profile.objectDecision.requiredSearchTerms.join(', ') + '.',
+              'Extrahiere keine bloß markengleichen oder formähnlichen Produkte, wenn die sichtbaren Kernmerkmale fehlen.',
+              'Wenn ein wichtiges Merkmal nur in Beschreibung oder Snippet steht, kopiere es wörtlich nach identityEvidence.',
+            ]
+          : [
+              'Gesuchtes exakt identifiziertes Produkt: ' + profile.objectDecision.requiredSearchTerms.join(', ') + '.',
+              'Andere Modellnummern, Varianten oder Produktidentitäten erhalten relevance unter 0.4.',
+              'Wenn ein Identitätsmerkmal nur in Beschreibung oder Snippet steht, kopiere es wörtlich nach identityEvidence.',
+            ]
+        : ['Gesuchtes Produkt: ' + baseQueries.join(' | ') + '.', 'Ähnliche, aber andere Produkte (andere Generation, Variante, Modellnummer) erhalten relevance unter 0.4.'];
 
   const candidates: CandidateRow[] = [];
   const groups = new Map<SourceKey, ReadableSection[]>();
@@ -2299,6 +2360,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
         sourceKey: provider.sourceKey,
         url: listing.url,
         title: listing.title,
+        identityEvidence: '',
         priceText: '',
         price: listing.price,
         currency: listing.currency,
