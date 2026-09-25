@@ -145,6 +145,187 @@ test('Flohmarkt Uhr ohne Referenz: nur Vergleichsbereich, kein exakter Marktwert
   assert.match(display.marketValue.noValueReason || '', /keine.*exakt|Exakte Modellreferenz/i);
 });
 
+
+test('Flohmarkt Vergleich darf wörtliche Identitätsmerkmale aus demselben Listing Snippet nutzen', async () => {
+  const watch = {
+    category: 'Uhren',
+    objectType: 'Armbanduhr',
+    brand: 'Aristo',
+    model: 'Nicht erkannt',
+    title: 'Aristo Armbanduhr',
+    material: 'Walzgolddouble',
+    condition: 'gebraucht',
+    confidence: 0.95,
+    categoryConfidence: 0.99,
+    brandConfidence: 0.99,
+    modelConfidence: 0.2,
+    visualText: ['Aristo', 'WALZGOLDDOUBLE 20 MIKRON', 'BODEN EDELSTAHL'],
+    identifiers: [],
+    universalDetails: {
+      manufacturer: 'Aristo',
+      modelName: '',
+      modelNumber: '',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: 'Armbanduhr',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      material: 'Walzgolddouble',
+      visibleMarks: 'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+      primaryColor: 'schwarz',
+      detailConfidence: 0.95,
+    },
+  } as unknown as Analysis;
+
+  const soldPage = [
+    'Navigation',
+    'Aristo Vintage Armbanduhr',
+    'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+    'Gebraucht',
+    '45,00 EUR',
+    '',
+    'Aristo rechteckige Vintage Uhr',
+    'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+    'Gebraucht',
+    '50,00 EUR',
+    '',
+    'Aristo alte Armbanduhr',
+    'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+    'Gebraucht',
+    '55,00 EUR',
+  ].join('\n');
+
+  setAi(
+    async url => (url.includes('LH_Sold') ? { status: 200, text: soldPage } : { status: 403, text: '' }),
+    async ({ content }) => {
+      const id = Number((String(content).match(/=== SECTION (\d+)/) || [])[1] || 0);
+      return {
+        data: {
+          items: [
+            {
+              sectionId: id,
+              title: 'Aristo Vintage Armbanduhr',
+              identityEvidence: 'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+              priceText: '45,00 EUR',
+              price: 45,
+              currency: 'EUR',
+              conditionText: 'Gebraucht',
+              conditionGroup: 'used',
+              grading: 'raw',
+              date: '',
+              relevance: 0.9,
+            },
+            {
+              sectionId: id,
+              title: 'Aristo rechteckige Vintage Uhr',
+              identityEvidence: 'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+              priceText: '50,00 EUR',
+              price: 50,
+              currency: 'EUR',
+              conditionText: 'Gebraucht',
+              conditionGroup: 'used',
+              grading: 'raw',
+              date: '',
+              relevance: 0.9,
+            },
+            {
+              sectionId: id,
+              title: 'Aristo alte Armbanduhr',
+              identityEvidence: 'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+              priceText: '55,00 EUR',
+              price: 55,
+              currency: 'EUR',
+              conditionText: 'Gebraucht',
+              conditionGroup: 'used',
+              grading: 'raw',
+              date: '',
+              relevance: 0.9,
+            },
+          ],
+        },
+      };
+    }
+  );
+
+  const market = await liveMarketLookup(watch, silent);
+  assert.equal(market.status, 'found');
+  assert.equal(market.objectMatch?.mode, 'comparable_object');
+  assert.equal(market.soldComparables.length, 3);
+  assert.ok(market.soldComparables.every(row => /20 MIKRON/.test(row.identityEvidence || '')));
+  assert.equal(marketValuation(watch, market), null);
+
+  const display = buildMarketDisplay(market);
+  assert.equal(display.marketValue.state, 'no_value');
+  assert.equal(display.comparisonRange.state, 'range');
+});
+
+test('Erfundener Identitätsbeleg aus Extraktion wird verworfen', async () => {
+  const watch = {
+    category: 'Uhren',
+    objectType: 'Armbanduhr',
+    brand: 'Aristo',
+    model: 'Nicht erkannt',
+    title: 'Aristo Armbanduhr',
+    material: 'Walzgolddouble',
+    condition: 'gebraucht',
+    confidence: 0.95,
+    categoryConfidence: 0.99,
+    brandConfidence: 0.99,
+    modelConfidence: 0.2,
+    visualText: ['Aristo', 'WALZGOLDDOUBLE 20 MIKRON', 'BODEN EDELSTAHL'],
+    identifiers: [],
+    universalDetails: {
+      manufacturer: 'Aristo',
+      modelName: '',
+      modelNumber: '',
+      skuOrPartNumber: '',
+      barcodeOrEan: '',
+      productFamily: 'Armbanduhr',
+      generation: '',
+      editionOrVariant: '',
+      capacityOrStorage: '',
+      material: 'Walzgolddouble',
+      visibleMarks: 'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+      primaryColor: 'schwarz',
+      detailConfidence: 0.95,
+    },
+  } as unknown as Analysis;
+
+  setAi(
+    async url =>
+      url.includes('LH_Sold')
+        ? { status: 200, text: 'Aristo Vintage Uhr\nGebraucht\n45,00 EUR' }
+        : { status: 403, text: '' },
+    async ({ content }) => {
+      const id = Number((String(content).match(/=== SECTION (\d+)/) || [])[1] || 0);
+      return {
+        data: {
+          items: [
+            {
+              sectionId: id,
+              title: 'Aristo Vintage Uhr',
+              identityEvidence: 'WALZGOLDDOUBLE 20 MIKRON BODEN EDELSTAHL',
+              priceText: '45,00 EUR',
+              price: 45,
+              currency: 'EUR',
+              conditionText: 'Gebraucht',
+              conditionGroup: 'used',
+              grading: 'raw',
+              date: '',
+              relevance: 0.9,
+            },
+          ],
+        },
+      };
+    }
+  );
+
+  const market = await liveMarketLookup(watch, silent);
+  assert.equal(market.soldComparables.length, 0);
+  assert.ok((market.debug.rejectionReasons.identity_evidence_not_in_source || 0) >= 1);
+});
+
 test('Flohmarkt Technik mit sichtbarer Modellnummer bleibt exakter Marktwert', async () => {
   const remote = {
     category: 'Elektronik',
