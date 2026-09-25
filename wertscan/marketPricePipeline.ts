@@ -311,8 +311,10 @@ export type MarketData = {
     label: IdentityDecision['valuationPolicy']['label'];
     marketValueAllowed: boolean;
     comparisonRangeAllowed: boolean;
+    minimumComparableCount: number;
     requiredSearchTerms: string[];
     missingExactFields: string[];
+    explanation: string[];
   } | null;
 };
 
@@ -2104,8 +2106,10 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
             label: profile.objectDecision.valuationPolicy.label,
             marketValueAllowed: profile.objectDecision.valuationPolicy.marketValueAllowed,
             comparisonRangeAllowed: profile.objectDecision.valuationPolicy.comparisonRangeAllowed,
+            minimumComparableCount: profile.objectDecision.valuationPolicy.minimumComparableCount,
             requiredSearchTerms: profile.objectDecision.requiredSearchTerms,
             missingExactFields: profile.objectDecision.missingExactFields,
+            explanation: profile.objectDecision.explanation,
           }
         : null,
       ...extra,
@@ -2472,6 +2476,9 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
 
 function marketValuation(analysis: Analysis, market: MarketData): Valuation | null {
   const headline = market.headline;
+  // Vergleichsobjekte dürfen niemals als exakt identifizierter Marktwert ausgegeben werden.
+  // Die Spanne bleibt in market.headline erhalten und wird vom Anzeigevertrag separat dargestellt.
+  if (market.objectMatch && !market.objectMatch.marketValueAllowed) return null;
   if (!headline || headline.price == null || headline.from == null || headline.to == null) return null;
 
   const allRows = [...market.soldComparables, ...market.currentOffers];
