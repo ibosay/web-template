@@ -2,6 +2,7 @@ import { decideIdentity } from './engine';
 import { objectIdentityFromAnalysis, WertScanAnalysisLike } from './analysisAdapter';
 import { FleaMarketCategory, IdentityDecision, IdentityField, ObjectIdentityInput } from './types';
 import { auditRecognition, RecognitionIssue } from './recognitionAudit';
+import { capturedViewsFromPhotoEvidence } from './photoEvidence';
 
 export type ScanViewId =
   | 'front'
@@ -352,6 +353,7 @@ function uniqueViews(views: ScanView[]) {
 export function buildScanGuidance(
   input: ObjectIdentityInput,
   decision: IdentityDecision = decideIdentity(input),
+  capturedViews: string[] = [],
 ): ScanGuidance {
   const missing = decision.missingExactFields;
   const audit = auditRecognition(input);
@@ -366,8 +368,9 @@ export function buildScanGuidance(
     })
     .sort((a, b) => a.priority - b.priority);
 
+  const captured = new Set(capturedViews.map(view => String(view || '').trim()).filter(Boolean));
   const nextViews = uniqueViews(ranked)
-    .filter(view => view.priority <= 2)
+    .filter(view => view.priority <= 2 && !captured.has(view.id))
     .slice(0, 3);
 
   const canSearchNow = decision.requiredSearchTerms.length >= 2 || decision.mode !== 'comparable_object';
@@ -396,5 +399,11 @@ export function buildScanGuidance(
 
 export function buildScanGuidanceFromAnalysis(analysis: WertScanAnalysisLike): ScanGuidance {
   const input = objectIdentityFromAnalysis(analysis);
-  return buildScanGuidance(input);
+  const capturedViews = Array.from(
+    new Set([
+      ...(analysis.capturedViews || []),
+      ...capturedViewsFromPhotoEvidence(analysis.photoEvidence),
+    ].map(view => String(view || '').trim()).filter(Boolean)),
+  );
+  return buildScanGuidance(input, decideIdentity(input), capturedViews);
 }
