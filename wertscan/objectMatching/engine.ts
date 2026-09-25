@@ -328,16 +328,43 @@ function candidateValues(candidate: CandidateEvidence, field: IdentityField) {
   return values.map(clean).filter(Boolean);
 }
 
-function titleContains(title: string, value: string) {
+const FLEXIBLE_TEXT_FIELDS = new Set<IdentityField>([
+  'material',
+  'shape',
+  'color',
+  'size',
+  'marking',
+  'hallmark',
+  'pattern',
+  'country',
+  'condition',
+]);
+
+function tokenClose(expected: string, actual: string) {
+  if (expected === actual) return true;
+  const shorter = expected.length <= actual.length ? expected : actual;
+  const longer = expected.length <= actual.length ? actual : expected;
+  return shorter.length >= 5 && longer.startsWith(shorter);
+}
+
+function titleContains(title: string, value: string, field?: IdentityField) {
   const haystack = compact(title);
   const needle = compact(value);
-  return needle.length >= 2 && haystack.includes(needle);
+  if (needle.length >= 2 && haystack.includes(needle)) return true;
+  if (!field || !FLEXIBLE_TEXT_FIELDS.has(field)) return false;
+
+  const titleTokens = norm(title).split(' ').filter(Boolean);
+  const expectedTokens = norm(value)
+    .split(' ')
+    .filter(token => token.length >= 2);
+  if (!expectedTokens.length) return false;
+  return expectedTokens.every(expected => titleTokens.some(actual => tokenClose(expected, actual)));
 }
 
 function candidateMatchesFact(candidate: CandidateEvidence, field: IdentityField, value: string) {
   const explicit = candidateValues(candidate, field);
   if (explicit.length) return explicit.some(candidateValue => compact(candidateValue) === compact(value));
-  return titleContains(candidate.title, value);
+  return titleContains(candidate.title, value, field);
 }
 
 function candidateConflictsFact(candidate: CandidateEvidence, field: IdentityField, value: string) {
