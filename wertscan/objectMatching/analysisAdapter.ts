@@ -23,6 +23,13 @@ export type WertScanAnalysisLike = {
   modelCarDetails?: Details | null;
   rugDetails?: Details | null;
   toyDetails?: Details | null;
+  bookDetails?: Details | null;
+  coinDetails?: Details | null;
+  jewelryDetails?: Details | null;
+  porcelainDetails?: Details | null;
+  artDetails?: Details | null;
+  toolDetails?: Details | null;
+  applianceDetails?: Details | null;
 };
 
 function fold(value: unknown) {
@@ -149,6 +156,13 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
   const hw = analysis.hotWheelsDetails;
   const mc = analysis.modelCarDetails;
   const rug = analysis.rugDetails;
+  const book = analysis.bookDetails;
+  const coin = analysis.coinDetails;
+  const jewelry = analysis.jewelryDetails;
+  const porcelain = analysis.porcelainDetails;
+  const art = analysis.artDetails;
+  const tool = analysis.toolDetails;
+  const appliance = analysis.applianceDetails;
 
   const brand = text(analysis.brand);
   if (brand) {
@@ -195,8 +209,11 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
   const sku = valueOf(u, 'skuOrPartNumber');
   if (sku) pushFact(facts, 'sku', sku, 0.96, true, 'visible_text');
 
-  const barcode = valueOf(u, 'barcodeOrEan');
+  const barcode = valueOf(u, 'barcodeOrEan') || valueOf(book, 'ean', 'barcode');
   if (barcode) pushFact(facts, 'gtin', barcode, 0.98, true, 'visible_text');
+
+  const isbn = valueOf(book, 'isbn', 'isbn13', 'isbn10') || (/^(978|979)\d{10}$/.test(barcode.replace(/[^\d]/g, '')) ? barcode : '');
+  if (isbn) pushFact(facts, 'isbn', isbn, 0.99, true, 'visible_text');
 
   const serial = valueOf(u, 'serialOrProductionCode');
   if (serial) pushFact(facts, 'serial', serial, 0.95, true, 'visible_text');
@@ -247,8 +264,26 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
     if (color) pushFact(facts, 'color', color, 0.9, true, 'visible_feature');
   }
 
-  const material = text(analysis.material) || valueOf(u, 'material') || valueOf(rug, 'material');
+  const material =
+    text(analysis.material) ||
+    valueOf(u, 'material') ||
+    valueOf(rug, 'material') ||
+    valueOf(jewelry, 'material', 'metal') ||
+    valueOf(art, 'material') ||
+    valueOf(porcelain, 'material');
   if (material) pushFact(facts, 'material', material, 0.86, true, 'visible_feature');
+
+  const shape =
+    valueOf(u, 'shape', 'form', 'formFactor') ||
+    valueOf(rug, 'shape') ||
+    valueOf(porcelain, 'shape', 'form') ||
+    valueOf(art, 'shape', 'form');
+  if (shape) pushFact(facts, 'shape', shape, 0.86, true, 'visible_feature');
+
+  const movement =
+    valueOf(u, 'movement', 'movementOrCaliber', 'caliber') ||
+    valueOf(analysis.casioDetails, 'movement', 'module');
+  if (movement) pushFact(facts, 'movement', movement, 0.9, true, 'visible_text');
 
   const color =
     valueOf(u, 'primaryColor') ||
@@ -262,25 +297,69 @@ export function objectIdentityFromAnalysis(analysis: WertScanAnalysisLike): Obje
   const marking =
     valueOf(u, 'visibleMarks') ||
     valueOf(rug, 'label', 'marking') ||
-    valueOf(analysis.toyDetails, 'manufacturerMark');
+    valueOf(analysis.toyDetails, 'manufacturerMark') ||
+    valueOf(porcelain, 'backstamp', 'marking', 'bottomMark') ||
+    valueOf(coin, 'inscription', 'marking') ||
+    valueOf(art, 'signature', 'marking');
   if (marking) pushFact(facts, 'marking', marking, 0.94, true, 'visible_text');
 
-  const year = valueOf(u, 'productionYear', 'releaseYear') || valueOf(hw, 'releaseYear') || valueOf(mc, 'year');
+  const hallmark = valueOf(jewelry, 'hallmark', 'purityMark', 'punze') || valueOf(u, 'hallmark');
+  if (hallmark) pushFact(facts, 'hallmark', hallmark, 0.98, true, 'visible_text');
+
+  const year =
+    valueOf(u, 'productionYear', 'releaseYear') ||
+    valueOf(hw, 'releaseYear') ||
+    valueOf(mc, 'year') ||
+    valueOf(book, 'publicationYear', 'year') ||
+    valueOf(coin, 'year') ||
+    valueOf(art, 'year', 'date');
   if (year) pushFact(facts, 'year', year, 0.88, true, 'visible_text');
+
+  const country =
+    valueOf(u, 'countryOfOrigin') ||
+    valueOf(rug, 'origin', 'originStyle', 'country') ||
+    valueOf(coin, 'country') ||
+    valueOf(porcelain, 'country');
+  if (country) pushFact(facts, 'country', country, 0.82, supportedByVisible(country, pool), 'visible_feature');
 
   const edition = valueOf(u, 'editionOrVariant');
   if (edition) pushFact(facts, 'edition', edition, 0.84, true, 'visible_text');
 
   if (category === 'rugs') {
     const pattern = valueOf(rug, 'pattern');
-    const country = valueOf(rug, 'origin', 'originStyle', 'country');
     if (pattern) pushFact(facts, 'pattern', pattern, 0.86, true, 'visible_feature');
-    if (country) pushFact(facts, 'country', country, 0.75, supportedByVisible(country, pool), 'visible_feature');
   }
 
   if (category === 'porcelain_glass') {
-    const pattern = valueOf(u, 'editionOrVariant') || valueOf(analysis.toyDetails, 'series');
+    const pattern =
+      valueOf(porcelain, 'pattern', 'decor', 'series') ||
+      valueOf(u, 'editionOrVariant') ||
+      valueOf(analysis.toyDetails, 'series');
     if (pattern) pushFact(facts, 'pattern', pattern, 0.82, true, 'visible_text');
+  }
+
+  if (category === 'books_media') {
+    const name = valueOf(book, 'title') || text(analysis.title);
+    const edition = valueOf(book, 'edition', 'format') || valueOf(u, 'editionOrVariant');
+    const language = valueOf(book, 'language');
+    if (name) pushFact(facts, 'name', name, 0.95, supportedByVisible(name, pool) || Boolean(isbn), 'visible_text');
+    if (edition) pushFact(facts, 'edition', edition, 0.86, true, 'visible_text');
+    if (language) pushFact(facts, 'language', language, 0.8, true, 'visible_text');
+  }
+
+  if (category === 'jewelry_coins') {
+    const name = valueOf(coin, 'denomination', 'name') || valueOf(jewelry, 'name', 'type');
+    if (name) pushFact(facts, 'name', name, 0.94, true, 'visible_text');
+  }
+
+  if (category === 'tools') {
+    const toolModel = valueOf(tool, 'modelNumber', 'typeNumber');
+    if (toolModel) pushFact(facts, 'modelNumber', toolModel, 0.98, true, 'visible_text');
+  }
+
+  if (category === 'household_appliances') {
+    const applianceModel = valueOf(appliance, 'modelNumber', 'eNumber', 'productCode');
+    if (applianceModel) pushFact(facts, 'modelNumber', applianceModel, 0.98, true, 'visible_text');
   }
 
   if (analysis.condition) pushFact(facts, 'condition', text(analysis.condition), 0.85, true, 'visible_feature');
