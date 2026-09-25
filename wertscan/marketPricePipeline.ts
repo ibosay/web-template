@@ -146,6 +146,17 @@ export type MarketListing = {
   expiresAt?: string;
   /** Nur bei umgerechneten Beträgen: Kurs, Kursquelle, Stand. */
   eurConversion?: EurConversion | null;
+  /**
+   * Warum dieser Treffer zur erkannten Flohmarkt Identität passt.
+   * Nur für Nicht Karten Objekte mit aktivem Kategorieprofil.
+   */
+  identityMatch?: {
+    mode: IdentityDecision['mode'];
+    quality: IdentityDecision['quality'];
+    score: number;
+    matchedFields: string[];
+    explanation: string[];
+  } | null;
 };
 
 type ConditionMarketPrice = {
@@ -1626,6 +1637,14 @@ function validateRow(
   const identityReason = identityRejection(identityText, profile);
   if (identityReason) return { reason: identityReason };
 
+  const objectCandidateMatch =
+    !profile.isCard &&
+    profile.objectIdentity &&
+    profile.objectDecision &&
+    profile.objectDecision.requiredSearchTerms.length >= 2
+      ? evaluateObjectCandidate(profile.objectIdentity, { title: identityText, fields: {} })
+      : null;
+
   const relevance = clamp01(row.relevance, 0);
   const meta = SOURCE_META[row.sourceKey];
 
@@ -1708,6 +1727,16 @@ function validateRow(
       fetchedAt: row.fetchedAt,
       expiresAt: new Date(new Date(row.fetchedAt).getTime() + ttlMs).toISOString(),
       eurConversion: null,
+      identityMatch:
+        objectCandidateMatch && objectCandidateMatch.accepted
+          ? {
+              mode: profile.objectDecision!.mode,
+              quality: objectCandidateMatch.quality,
+              score: objectCandidateMatch.score,
+              matchedFields: objectCandidateMatch.matchedFields,
+              explanation: objectCandidateMatch.explanation,
+            }
+          : null,
     },
   };
 }
