@@ -1213,17 +1213,30 @@ function buildSearchPages(analysis: Analysis, plan: QueryPlanEntry[]): SearchPag
   const d = analysis.universalDetails;
 
   const isCard = isCardAnalysis(analysis);
+  const objectIdentity = !isCard ? objectIdentityFromAnalysis(analysis) : null;
+  const objectDecision = objectIdentity ? decideObjectIdentity(objectIdentity) : null;
+  const hasObjectPolicy = Boolean(objectDecision && objectDecision.requiredSearchTerms.length >= 2);
+  const fleaCategory = objectIdentity?.category || null;
+
   const isLego = category === 'lego' || brand === 'lego' || objectType === 'lego set' || objectType === 'minifigur';
   const isGame = category === 'videospiele' || category === 'konsolen' || objectType === 'videospiel' || objectType === 'spielkonsole';
-  const isWatch =
+  const legacyWatch =
     category === 'uhren' &&
     objectType !== 'smartwatch' &&
     !signals.includes('apple watch') &&
     !signals.includes('galaxy watch') &&
     !isCasioWatch(analysis);
-  const isBook = category === 'bucher' || objectType === 'buch';
+  const isWatch = hasObjectPolicy ? fleaCategory === 'watches' : legacyWatch;
+  const isBook = hasObjectPolicy ? fleaCategory === 'books_media' && !/schallplatte|vinyl/.test(objectType) : category === 'bucher' || objectType === 'buch';
   const isVinyl = category === 'schallplatten' || category === 'vinyl' || objectType === 'schallplatte';
-  const checkRetailNew = !isCard && !NON_RETAIL_CATEGORIES.has(category);
+
+  // Händler Neupreise sind nur dann sinnvoll, wenn eine standardisierte Produktidentität
+  // vorliegt. Alte Uhren, Teppiche, Antiquitäten, Sammlerstücke usw. werden nicht mit
+  // MediaMarkt oder Geizhals Suchläufen belastet.
+  const retailExactCategories = new Set(['electronics', 'tools', 'household_appliances']);
+  const checkRetailNew = hasObjectPolicy
+    ? objectDecision?.mode === 'exact_product' && Boolean(fleaCategory && retailExactCategories.has(fleaCategory))
+    : !isCard && !NON_RETAIL_CATEGORIES.has(category);
 
   const pages: SearchPage[] = [];
   const push = (sourceKey: SourceKey, entry: QueryPlanEntry, query: string, url: string) =>
@@ -1279,7 +1292,12 @@ function buildSearchPages(analysis: Analysis, plan: QueryPlanEntry[]): SearchPag
   }
 
   if (isGame) push('pricecharting_guide', primaryEntry, primary, 'https://www.pricecharting.com/search-products?type=prices&q=' + encodedPrimary);
-  if (isWatch) push('chrono24_offer', primaryEntry, primary, 'https://www.chrono24.de/search/index.htm?query=' + encodedPrimary);
+  // Chrono24 ist bei unbekannten Vintage Referenzen häufig zu breit und zieht teure,
+  // markengleiche aber unpassende Modelle hinein. Deshalb nur bei exakter Uhrenidentität,
+  // Legacy Fälle behalten das bisherige Verhalten.
+  if (isWatch && (!hasObjectPolicy || objectDecision?.mode !== 'comparable_object')) {
+    push('chrono24_offer', primaryEntry, primary, 'https://www.chrono24.de/search/index.htm?query=' + encodedPrimary);
+  }
   if (isBook) {
     const isbn = known(d?.barcodeOrEan);
     const url = isValidIsbn(isbn)
