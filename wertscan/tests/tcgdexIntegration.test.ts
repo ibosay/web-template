@@ -9,7 +9,8 @@ import { aiCalls, setAi } from './setupGlobals';
 import { liveMarketLookup, marketValuation } from '../marketPricePipeline';
 import { buildMarketDisplay } from '../marketDisplay';
 
-const silent = { log: () => {} };
+// Die Tests simulieren eBay-"Verkauft"-Seiten (wie mit Login lesbar), daher ausdrücklich eingeschaltet.
+const silent = { log: () => {}, ebaySoldPages: true };
 const g = globalThis as unknown as { fetch: typeof fetch };
 
 type Route = { match: (url: string) => boolean; body?: unknown; status?: number; fail?: boolean };

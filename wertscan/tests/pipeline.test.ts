@@ -10,7 +10,8 @@ import { CardCandidate, InMemoryCardDataProvider, PriceEvidence, StaticFxRatePro
 import { buildMarketDisplay } from '../marketDisplay';
 import { ScrydexProvider } from '../cardData/scrydexProvider';
 
-const silent = { log: () => {} };
+// Die Tests simulieren eBay-"Verkauft"-Seiten (wie mit Login lesbar), daher ausdrücklich eingeschaltet.
+const silent = { log: () => {}, ebaySoldPages: true };
 
 type Item = { title: string; price: string; condition?: string };
 

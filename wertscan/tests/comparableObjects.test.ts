@@ -10,7 +10,8 @@ import { liveMarketLookup, marketValuation } from '../marketPricePipeline';
 import { buildMarketDisplay } from '../marketDisplay';
 import { pokemonNameForms, titleMentionsName } from '../cardData/pokemonNameAliases';
 
-const silent = { log: () => {}, cardProvider: null };
+// Die Tests simulieren eBay-"Verkauft"-Seiten (wie mit Login lesbar), daher ausdrücklich eingeschaltet.
+const silent = { log: () => {}, cardProvider: null, ebaySoldPages: true };
 
 type Item = {
   title: string;

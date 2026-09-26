@@ -341,6 +341,11 @@ export type MarketLookupOptions = {
   /** Echte, tagesaktuelle Kurse (z. B. EZB). Ohne Kurs werden Nicht-EUR-Preise verworfen, nie geraten. */
   fxRatesToEur?: Record<string, number>;
   providers?: MarketProvider[];
+  /**
+   * eBay-"Verkauft"-Suchseiten abrufen. Standard: false. Seit dem 22.07.2026 leitet eBay diese
+   * Seiten ohne Login auf die Anmeldung um; sie kosten dann nur Zeit und Abrufe.
+   */
+  ebaySoldPages?: boolean;
   scrapeTimeoutMs?: number;
   extractTimeoutMs?: number;
   scrapeConcurrency?: number;
@@ -1321,7 +1326,7 @@ const NON_RETAIL_CATEGORIES = new Set([
   'teppiche',
 ]);
 
-function buildSearchPages(analysis: Analysis, plan: QueryPlanEntry[]): SearchPage[] {
+function buildSearchPages(analysis: Analysis, plan: QueryPlanEntry[], options: { ebaySoldPages?: boolean } = {}): SearchPage[] {
   const category = normalize(analysis.category);
   const objectType = normalize(analysis.objectType);
   const brand = normalize(analysis.brand);
@@ -1350,7 +1355,9 @@ function buildSearchPages(analysis: Analysis, plan: QueryPlanEntry[]): SearchPag
 
   plan.forEach(entry => {
     const q = encodeURIComponent(entry.query);
-    push('ebay_sold', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&LH_Sold=1&LH_Complete=1&rt=nc');
+    if (options.ebaySoldPages) {
+      push('ebay_sold', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&LH_Sold=1&LH_Complete=1&rt=nc');
+    }
     push('ebay_offer', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&rt=nc');
   });
   primaryEntries.slice(0, 2).forEach(entry => {
@@ -2218,6 +2225,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
   const {
     fxRatesToEur = {},
     providers = [],
+    ebaySoldPages = false,
     scrapeTimeoutMs = 30000,
     extractTimeoutMs = 60000,
     scrapeConcurrency = 6,
@@ -2338,7 +2346,10 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     if (outcome.result.variant) profile.cardVariant = variantKey(outcome.result.variant);
   }
 
-  const pages = buildSearchPages(analysis, plan);
+  // Strukturierte Quellen (z. B. eBay-API, Google Lens) sofort parallel zu den Seitenabrufen starten,
+  // nicht erst nach der KI-Auswertung: Die Plattform bricht Anfragen nach 30 s ab.
+  const providerResultsPromise = Promise.allSettled(providers.map(provider => provider.fetch({ analysis, queries: baseQueries })));
+  const pages = buildSearchPages(analysis, plan, { ebaySoldPages });
   const perPage: PageDebug[] = pages.map(page => ({
     sourceKey: page.sourceKey,
     display: SOURCE_META[page.sourceKey].display,
@@ -2454,7 +2465,7 @@ async function liveMarketLookup(analysis: Analysis, options: MarketLookupOptions
     });
   });
 
-  const providerResults = await Promise.allSettled(providers.map(provider => provider.fetch({ analysis, queries: baseQueries })));
+  const providerResults = await providerResultsPromise;
   providerResults.forEach((result, index) => {
     const provider = providers[index];
     if (result.status === 'rejected') {
