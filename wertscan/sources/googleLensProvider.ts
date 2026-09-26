@@ -10,7 +10,7 @@
  * Frontend, in Logs oder im Repository landen. Jeder Lens-Aufruf verbraucht eine Suche des
  * kostenlosen Monatskontingents.
  */
-import type { MarketProvider, MarketProviderListing } from '../marketPricePipeline';
+import type { ProviderListing, StructuredMarketProvider } from './ebayBrowseProvider';
 
 export type LensImage = { data: string; mimeType: string };
 
@@ -50,6 +50,19 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
   }
 }
 
+/**
+ * Der SerpApi-Schlüssel steht in der Abruf-URL. Fehlermeldungen gehen in die Diagnose der App,
+ * deshalb nie die Originalmeldung weitergeben (sie könnte die URL enthalten), nur die Art des Fehlers.
+ */
+async function lensFetch(run: () => Promise<Response>, ms: number, label: string): Promise<Response> {
+  try {
+    return await withTimeout(run(), ms, label);
+  } catch (error) {
+    const timedOut = String(error).includes('timeout:');
+    throw new Error('Lens: ' + (timedOut ? 'Zeitlimit' : 'Netzwerkfehler') + ' (' + label + ')');
+  }
+}
+
 /** Nur eindeutige Währungsangaben; "$" ohne Zusatz wird als USD gelesen, unbekannte bleiben leer. */
 export function lensCurrency(price: LensMatch['price']): string {
   const text = String(price?.currency || price?.value || '').toUpperCase();
@@ -61,7 +74,7 @@ export function lensCurrency(price: LensMatch['price']): string {
 }
 
 /** Liest einen Lens-Treffer; null ohne Preis, Link oder eindeutige Währung. */
-export function listingFromLensMatch(match: LensMatch): MarketProviderListing | null {
+export function listingFromLensMatch(match: LensMatch): ProviderListing | null {
   const title = String(match.title || '').trim();
   const url = String(match.link || '').trim();
   const price = Number(match.price?.extracted_value);
@@ -97,7 +110,7 @@ function toBlob(image: LensImage) {
 }
 
 /** Lädt ein Foto hoch und liefert die Lens-Treffer mit Preis. */
-export async function searchGoogleLens(image: LensImage, options: GoogleLensOptions): Promise<MarketProviderListing[]> {
+export async function searchGoogleLens(image: LensImage, options: GoogleLensOptions): Promise<ProviderListing[]> {
   const fetchFn = options.fetchFn ?? fetch;
   const timeoutMs = options.timeoutMs ?? 12000;
   const mimeType = String(image.mimeType || '').toLowerCase();
@@ -106,8 +119,8 @@ export async function searchGoogleLens(image: LensImage, options: GoogleLensOpti
 
   const form = new FormData();
   form.append('image', toBlob({ data: image.data, mimeType }), 'scan.' + (mimeType.split('/')[1] || 'jpg'));
-  const upload = await withTimeout(
-    fetchFn(UPLOAD_URL + '?api_key=' + encodeURIComponent(options.apiKey), { method: 'POST', body: form }),
+  const upload = await lensFetch(
+    () => fetchFn(UPLOAD_URL + '?api_key=' + encodeURIComponent(options.apiKey), { method: 'POST', body: form }),
     timeoutMs,
     'lens_upload'
   );
@@ -122,12 +135,12 @@ export async function searchGoogleLens(image: LensImage, options: GoogleLensOpti
     '&country=' + encodeURIComponent(options.country || 'at') +
     '&hl=' + encodeURIComponent(options.hl || 'de') +
     '&api_key=' + encodeURIComponent(options.apiKey);
-  const response = await withTimeout(fetchFn(url), timeoutMs, 'lens_search');
+  const response = await lensFetch(() => fetchFn(url), timeoutMs, 'lens_search');
   if (!response.ok) throw new Error('Lens: Suche fehlgeschlagen (HTTP ' + response.status + ')');
   const data = (await response.json()) as { visual_matches?: LensMatch[]; products?: LensMatch[] };
 
   const seen = new Set<string>();
-  const listings: MarketProviderListing[] = [];
+  const listings: ProviderListing[] = [];
   [...(data.visual_matches || []), ...(data.products || [])].forEach(match => {
     const listing = listingFromLensMatch(match);
     if (!listing || seen.has(listing.url)) return;
@@ -141,7 +154,7 @@ export async function searchGoogleLens(image: LensImage, options: GoogleLensOpti
  * Pipeline-Anbindung. Das Foto kommt nicht aus der Analyse, sondern wird pro Anfrage übergeben
  * (z. B. eine verkleinerte Kopie des Hauptfotos aus dem Frontend). Ohne Foto: keine Lens-Suche.
  */
-export function createGoogleLensProvider(options: GoogleLensOptions & { image: LensImage | null }): MarketProvider {
+export function createGoogleLensProvider(options: GoogleLensOptions & { image: LensImage | null }): StructuredMarketProvider {
   return {
     sourceKey: 'web_search',
     async fetch() {

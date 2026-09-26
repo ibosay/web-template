@@ -36,18 +36,15 @@ Fehlt ein Secret, wird die jeweilige Quelle einfach nicht verwendet.
 
 ## Einbau in die Live-App (ein Deploy)
 
-1. `backend/sources/ebayBrowseProvider.ts` und `backend/sources/googleLensProvider.ts` anlegen
-   (Inhalt wie hier; Import der Typen `MarketProvider`/`MarketProviderListing` aus `../index`).
-2. `backend/index.ts`, `buildSearchPages`: die Zeile mit `push('ebay_sold', …LH_Sold=1…)` entfernen.
-3. `backend/index.ts`, `liveMarketLookup`: `Promise.allSettled(providers.map(…fetch…))` direkt nach
-   `buildSearchPages` starten und das Ergebnis erst an der bisherigen Stelle `await`en.
-4. `backend/index.ts`, `buildMarketResult(analysis, lensImage)`: Provider aus den Secrets bauen
-   (`secrets.readSecret(...)`, fehlende Secrets überspringen) und an `liveMarketLookup(analysis, { providers })` geben.
-5. `POST /api/market`: optionales Feld `lensImage: { data, mimeType }` aus dem Body lesen und an
-   `buildMarketResult` weitergeben.
-6. `src/App.tsx`, `runMarketSearch`: vom Hauptfoto eine kleine Kopie mitsenden
-   (`aiImage.resizeIfNeeded(file, { maxDimension: 640, quality: 0.7, mimeType: 'image/jpeg' })`),
-   damit sie unter der SerpApi-Grenze von 500 KB bleibt.
+Fertig und geprüft in `live-patch/` (siehe `live-patch/README.md`):
+
+- `live-patch/diffs.json`: exakte Änderungen an `backend/index.ts` (Importe, eBay-"Verkauft"-Seiten
+  raus, Provider früh und mit Zeitlimit starten, Provider aus den Secrets, `lensImage` in
+  `/api/market`, Diagnose-Reste aus v59 entfernen) und `src/App.tsx` (verkleinertes Hauptfoto,
+  640 px, Qualität 0,7, an `/api/market`).
+- Die beiden Dateien aus `sources/` kommen unverändert nach `backend/sources/`.
+- `node wertscan/live-patch/verify.mjs` prüft das Paket ohne AppDeploy (TypeScript strict, 5 Laufzeittests).
+- `node wertscan/live-patch/build-payload.mjs` gibt das `files[]`-Feld für den einen Deploy aus.
 
 ## Grenzen
 
@@ -57,3 +54,5 @@ Fehlt ein Secret, wird die jeweilige Quelle einfach nicht verwendet.
   unverändert; ein Treffer mit falsch geschriebener Marke im Titel wird weiterhin verworfen.
 - SerpApi-Free-Plan: begrenzte Suchen pro Monat. Ist das Kontingent aufgebraucht, antwortet SerpApi
   mit einem Fehler; die übrigen Quellen laufen normal weiter.
+- Der SerpApi-Schlüssel steht technisch in der Abruf-URL. Fehlermeldungen der Lens-Quelle enthalten
+  deshalb nur die Fehlerart (Zeitlimit/Netzwerk/HTTP-Status), nie die Originalmeldung.

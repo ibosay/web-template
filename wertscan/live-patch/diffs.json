@@ -1,0 +1,58 @@
+{
+  "files": [
+    {
+      "filename": "backend/index.ts",
+      "diffs": [
+        {
+          "from": "import { router, json, error, ai, secrets } from '@appdeploy/sdk';\n",
+          "to": "import { router, json, error, ai, secrets } from '@appdeploy/sdk';\nimport { createEbayBrowseProvider } from './sources/ebayBrowseProvider';\nimport type { StructuredMarketProvider } from './sources/ebayBrowseProvider';\nimport { createGoogleLensProvider } from './sources/googleLensProvider';\nimport type { LensImage } from './sources/googleLensProvider';\n"
+        },
+        {
+          "from": "    push('ebay_sold', entry, entry.query, 'https://www.ebay.de/sch/i.html?_nkw=' + q + '&_sacat=0&LH_Sold=1&LH_Complete=1&rt=nc');\n",
+          "to": "    // eBay-\"Verkauft\"-Seiten leiten seit 22.07.2026 ohne Login auf die Anmeldung um und liefern\n    // nichts mehr. Sie werden nicht mehr abgerufen (spart Zeit im 30-s-Limit und Abrufe).\n"
+        },
+        {
+          "from": "  const pages = buildSearchPages(analysis, plan);\n  const perPage: PageDebug[] = pages.map(page => ({\n",
+          "to": "  // Strukturierte Quellen (eBay-API, Google Lens) sofort und parallel zu den Seitenabrufen starten.\n  // Sie brauchen keine KI-Auswertung und antworten in 1-3 s. Vorher starteten sie erst nach der\n  // Auswertung aller Seiten und fielen damit leicht aus dem 30-s-Limit der Plattform.\n  const providerResultsPromise = Promise.allSettled(\n    providers.map(provider =>\n      withTimeout(\n        provider.fetch({ analysis, queries: baseQueries }),\n        Math.max(MIN_STEP_MS, budgeted(20000, FINALIZE_RESERVE_MS + 1000)),\n        'provider_' + provider.sourceKey\n      )\n    )\n  );\n  const pages = buildSearchPages(analysis, plan);\n  const perPage: PageDebug[] = pages.map(page => ({\n"
+        },
+        {
+          "from": "  const providerResults = await Promise.allSettled(providers.map(provider => provider.fetch({ analysis, queries: baseQueries })));\n",
+          "to": "  const providerResults = await providerResultsPromise;\n"
+        },
+        {
+          "from": "\n    // Kompakte Laufzusammenfassung für die Fehlersuche (erscheint in den Backend-Logs).\n    try {\n      console.warn(\n        '[wertscan:market-summary] ' +\n          JSON.stringify({\n            status,\n            elapsedMs: marketBudgetMs - remainingMs(),\n            budgetMs: marketBudgetMs,\n            query,\n            pagesRequested: debug.pagesRequested.length,\n            pagesReadable: debug.pagesReadable,\n            rawListings: debug.rawListingsExtracted,\n            validated: debug.validatedListings,\n            rejections: debug.rejectionReasons,\n            extractionErrors: debug.extractionErrors.slice(0, 6),\n          })\n      );\n    } catch {\n      // Diagnose darf die Pipeline nie abbrechen.\n    }",
+          "to": ""
+        },
+        {
+          "from": "\n  // Diagnose: misst das Zeitlimit der Plattform für eine Anfrage (wartet ms Millisekunden, max. 120 s).\n  'GET /api/_timeout-probe': [\n    async ({ query }) => {\n      const ms = Math.min(120000, Math.max(0, Number(query.ms) || 0));\n      const started = Date.now();\n      await new Promise(resolve => setTimeout(resolve, ms));\n      return json({ ok: true, requestedMs: ms, sleptMs: Date.now() - started });\n    },\n  ],",
+          "to": ""
+        },
+        {
+          "from": "async function buildMarketResult(analysis: Analysis) {\n  const recognized = analysis.confidence >= 0.55 && analysis.categoryConfidence >= 0.65;\n  if (!recognized) return recognitionResult(analysis);\n  const internetData = await liveMarketLookup(analysis);\n",
+          "to": "async function readOptionalSecret(name: string): Promise<string> {\n  try {\n    return String((await secrets.readSecret(name)) || '').trim();\n  } catch {\n    return '';\n  }\n}\n\n// Der eBay-Provider hält sein OAuth-Token (ca. 2 h gültig) im Speicher. Solange der Container warm\n// ist, wird er wiederverwendet statt pro Anfrage ein neues Token zu holen.\nlet ebayProviderCache: { key: string; provider: StructuredMarketProvider } | null = null;\n\n/**\n * Kostenlose strukturierte Quellen aus den App-Secrets (EBAY_CLIENT_ID + EBAY_CLIENT_SECRET,\n * SERPAPI_API_KEY). Fehlt ein Secret, wird die jeweilige Quelle nicht verwendet und die Marktsuche\n * läuft wie bisher. Schlüssel werden nie geloggt oder an das Frontend gegeben.\n */\nasync function freeMarketProviders(lensImage: LensImage | null): Promise<StructuredMarketProvider[]> {\n  const [ebayClientId, ebayClientSecret, serpApiKey] = await Promise.all([\n    readOptionalSecret('EBAY_CLIENT_ID'),\n    readOptionalSecret('EBAY_CLIENT_SECRET'),\n    readOptionalSecret('SERPAPI_API_KEY'),\n  ]);\n  const providers: StructuredMarketProvider[] = [];\n  if (ebayClientId && ebayClientSecret) {\n    const key = ebayClientId + '\\n' + ebayClientSecret;\n    if (!ebayProviderCache || ebayProviderCache.key !== key) {\n      ebayProviderCache = {\n        key,\n        provider: createEbayBrowseProvider({ clientId: ebayClientId, clientSecret: ebayClientSecret }),\n      };\n    }\n    providers.push(ebayProviderCache.provider);\n  }\n  if (serpApiKey && lensImage) {\n    providers.push(createGoogleLensProvider({ apiKey: serpApiKey, image: lensImage, timeoutMs: 8000 }));\n  }\n  return providers;\n}\n\nasync function buildMarketResult(analysis: Analysis, lensImage: LensImage | null = null) {\n  const recognized = analysis.confidence >= 0.55 && analysis.categoryConfidence >= 0.65;\n  if (!recognized) return recognitionResult(analysis);\n  const providers = await freeMarketProviders(lensImage);\n  const internetData = await liveMarketLookup(analysis, { providers });\n"
+        },
+        {
+          "from": "      const payload = (body || {}) as { analysis?: Analysis };\n      if (!payload.analysis) return error('Analyse fehlt.', 400);\n      const analysis = normalizeAnalysis(payload.analysis);\n      try {\n        return json(await buildMarketResult(analysis));\n",
+          "to": "      const payload = (body || {}) as { analysis?: Analysis; lensImage?: { data?: unknown; mimeType?: unknown } };\n      if (!payload.analysis) return error('Analyse fehlt.', 400);\n      const analysis = normalizeAnalysis(payload.analysis);\n      // Optionales, verkleinertes Hauptfoto für die Bildsuche (Google Lens). Größe und Format prüft\n      // der Lens-Provider (max. 500 KB, JPEG/PNG/WebP); ungültige Angaben werden ignoriert.\n      const lensImage =\n        payload.lensImage && typeof payload.lensImage.data === 'string' && typeof payload.lensImage.mimeType === 'string'\n          ? { data: payload.lensImage.data, mimeType: payload.lensImage.mimeType }\n          : null;\n      try {\n        return json(await buildMarketResult(analysis, lensImage));\n"
+        }
+      ]
+    },
+    {
+      "filename": "src/App.tsx",
+      "diffs": [
+        {
+          "from": "  async function runMarketSearch(analysis: Analysis, requestId: number, successNotice = '') {\n    setMarketLoading(true);\n    const startedAt = Date.now();\n    try {\n      const marketResponse = await api.post('/api/market', { analysis });\n",
+          "to": "  // Kleine Kopie des Hauptfotos für die Bildsuche (Google Lens, max. 500 KB). Klappt das Verkleinern\n  // nicht, läuft die Marktsuche einfach ohne Bildsuche.\n  async function lensImageFor(file: File | null) {\n    if (!file) return null;\n    try {\n      const prepared = await aiImage.resizeIfNeeded(file, {\n        maxDimension: 640,\n        maxPixels: 410000,\n        quality: 0.7,\n        mimeType: 'image/jpeg',\n      });\n      return { data: prepared.data, mimeType: prepared.mimeType };\n    } catch {\n      return null;\n    }\n  }\n\n  async function runMarketSearch(analysis: Analysis, requestId: number, successNotice = '', lensFile: File | null = null) {\n    setMarketLoading(true);\n    const startedAt = Date.now();\n    try {\n      const lensImage = await lensImageFor(lensFile);\n      const marketResponse = await api.post('/api/market', lensImage ? { analysis, lensImage } : { analysis });\n"
+        },
+        {
+          "from": "        void runMarketSearch(recognized.analysis, requestId);\n",
+          "to": "        void runMarketSearch(recognized.analysis, requestId, '', demoId ? null : files[0] || null);\n"
+        },
+        {
+          "from": "    await runMarketSearch(result.analysis, requestId, 'Marktpreise wurden erneut geprüft.');\n",
+          "to": "    await runMarketSearch(result.analysis, requestId, 'Marktpreise wurden erneut geprüft.', files[0] || null);\n"
+        }
+      ]
+    }
+  ]
+}

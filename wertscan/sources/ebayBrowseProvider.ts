@@ -12,7 +12,25 @@
  * Es werden nur Sofortkauf-Angebote (FIXED_PRICE, Standard der API) übernommen. Laufende Auktionen
  * haben keinen Marktpreis (aktuelles Gebot ≠ Verkaufspreis) und werden bewusst nicht gelesen.
  */
-import type { MarketProvider, MarketProviderListing } from '../marketPricePipeline';
+
+/**
+ * Eigene, strukturell passende Typen statt Import aus der Pipeline: Die Datei läuft so unverändert
+ * im Repository (wertscan/sources) und in der Live-App (backend/sources) und ist mit
+ * MarketProvider / MarketProviderListing der Pipeline zuweisungskompatibel.
+ */
+export type ProviderListing = {
+  title: string;
+  price: number;
+  currency: string;
+  conditionText: string;
+  date: string;
+  url: string;
+};
+
+export type StructuredMarketProvider = {
+  sourceKey: 'ebay_offer' | 'web_search';
+  fetch: (ctx: { analysis?: unknown; queries: string[] }) => Promise<ProviderListing[]>;
+};
 
 export type EbayMarketplaceId = 'EBAY_DE' | 'EBAY_AT';
 
@@ -66,7 +84,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 }
 
 /** Liest einen Angebotsdatensatz; null, wenn er keinen verwertbaren Sofortkaufpreis hat. */
-export function listingFromItemSummary(item: EbayItemSummary): MarketProviderListing | null {
+export function listingFromItemSummary(item: EbayItemSummary): ProviderListing | null {
   const title = String(item.title || '').trim();
   const price = Number(item.price?.value);
   const currency = String(item.price?.currency || '').trim().toUpperCase();
@@ -84,7 +102,7 @@ export function listingFromItemSummary(item: EbayItemSummary): MarketProviderLis
   };
 }
 
-export function createEbayBrowseProvider(options: EbayBrowseProviderOptions): MarketProvider {
+export function createEbayBrowseProvider(options: EbayBrowseProviderOptions): StructuredMarketProvider {
   const marketplaces = options.marketplaces?.length ? options.marketplaces : (['EBAY_DE', 'EBAY_AT'] as EbayMarketplaceId[]);
   const maxQueries = Math.max(1, options.maxQueries ?? 2);
   const limit = Math.min(200, Math.max(1, options.limit ?? 50));
@@ -141,7 +159,7 @@ export function createEbayBrowseProvider(options: EbayBrowseProviderOptions): Ma
       const jobs = selected.flatMap(query => marketplaces.map(marketplace => search(query, marketplace, bearer)));
       const results = await Promise.allSettled(jobs);
       const seen = new Set<string>();
-      const listings: MarketProviderListing[] = [];
+      const listings: ProviderListing[] = [];
       results.forEach(result => {
         if (result.status !== 'fulfilled') return;
         result.value.forEach(item => {

@@ -185,4 +185,15 @@ test('Google Lens: Upload, dann Suche mit image_id; nur Treffer mit Preis; Grö�
   const big = { data: btoa('x'.repeat(600 * 1024)), mimeType: 'image/jpeg' };
   await assert.rejects(() => searchGoogleLens(big, { apiKey: 'KEY', fetchFn }), /größer als 500 KB/);
   await assert.rejects(() => searchGoogleLens({ data: 'QUJD', mimeType: 'image/heic' }, { apiKey: 'KEY', fetchFn }), /nicht unterstützt/);
+
+  // Netzwerkfehler mit URL in der Meldung: Der Schlüssel darf nie in der Fehlermeldung (Diagnose) landen.
+  const leaky = (async (input: RequestInfo | URL) => {
+    throw new Error('connect ECONNRESET ' + String(input));
+  }) as typeof fetch;
+  const message = await searchGoogleLens(image, { apiKey: 'GEHEIM123', fetchFn: leaky }).then(
+    () => '',
+    (error: Error) => error.message
+  );
+  assert.equal(message, 'Lens: Netzwerkfehler (lens_upload)');
+  assert.ok(!message.includes('GEHEIM123'));
 });
