@@ -1,79 +1,34 @@
-# Sharetribe Web Template
+# Servano Wien App Vorschau
 
-[![CircleCI](https://circleci.com/gh/sharetribe/web-template.svg?style=svg)](https://circleci.com/gh/sharetribe/web-template)
+Eigenständige mobile Servano Oberfläche. Die bestehende Webversion bleibt unverändert.
 
-This is a template web application for Sharetribe marketplaces. You could create your own unique
-marketplace web app by cloning this repository and then extending and customizing it to your needs.
-This template is bootstrapped with
-[create-react-app](https://github.com/facebookincubator/create-react-app) with some additions,
-namely server side rendering, code-splitting, and a custom CSS setup.
+Die App liest ausschließlich öffentliche Verzeichnis und Detaildaten der bestehenden Servano Vorschau. In dieser Fassung erscheinen Testbetriebe. Sie sind in der Oberfläche deutlich gekennzeichnet. Favoriten liegen lokal auf dem Gerät. Es gibt keinen Besitzerzugang und keine Firmenverwaltung in der App.
 
-## Quick start
+## AppDeploy
 
-### Setup localhost
+Vorschau: https://servano-wien-app-vorschau-o8v1i7.v2.appdeploy.ai/
 
-If you just want to get the app running quickly to test it out, first install
-[Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/), and follow along:
+Die Dateien `src/App.tsx`, `src/index.css`, `backend/index.ts` und `tests/tests.json` sind die Quelländerungen gegenüber der React Vite Vorlage von AppDeploy. Der Server verwendet fest die öffentliche Datenquelle der Servano Vorschau. Vor einer Veröffentlichung mit echten Betrieben muss die öffentliche Servano Seite eine freigegebene Verzeichnis API bereitstellen und die Datenquelle gezielt umgestellt werden.
+
+## iPhone und Android
+
+Die nativen Projekte benutzen Capacitor und öffnen die getrennt bereitgestellte Servano App. Das ist eine technische Vorschau. Für eine Einreichung in Apple App Store und Google Play sind echte Firmendaten, endgültige Icons, Produktkennung, Datenschutzangaben, Geräteprüfung und signierte Release Builds erforderlich. Eine reine Webhülle kann bei der Store Prüfung abgelehnt werden.
+
+Mit Node.js 22 oder neuer:
 
 ```sh
-git clone git@github.com:sharetribe/web-template.git  # clone this repository
-cd web-template/                                      # change to the cloned directory
-yarn install                                          # install dependencies
-yarn run config                                       # add the mandatory env vars to your local config
-yarn run dev                                          # start the dev server, this will open a browser in localhost:3000
+npm install
+npx cap add android
+npx cap add ios
+npx cap sync
+npx cap open android
+npx cap open ios
 ```
 
-> **Note**: If you already have the NODE_ENV environment variable set to "production", you should
-> replace `yarn install` with `yarn install --production=false`.
+Das Android Projekt kann auf Windows, macOS oder Linux mit Android Studio bearbeitet werden. Das iOS Projekt braucht macOS mit Xcode und ein Apple Entwicklerkonto für die Verteilung. Der veröffentlichte AppDeploy Server muss erreichbar bleiben, da die mobile Oberfläche von dort geladen wird.
 
-You can also follow along the
-[Getting started with Sharetribe Web Template](https://www.sharetribe.com/docs/introduction/getting-started-with-web-template/)
-tutorial in the [Sharetribe Developer Docs](https://www.sharetribe.com/docs/).
+Im GitHub Zweig liegen die reproduzierbaren Quelldateien. Die erzeugten `android` und `ios` Ordner entstehen mit den obigen Befehlen. Im vollständigen Archiv sind sie bereits enthalten.
 
-For more information of the configuration, see the
-[Environment configuration variables](https://www.sharetribe.com/docs/template/template-env/)
-reference in Sharetribe Developer Docs.
+## Grenzen
 
-### For Windows users
-
-We strongly recommend installing
-[Windows Subsystem for Linux](https://docs.microsoft.com/en-us/windows/wsl/about), if you are
-developing on Windows. These templates are made for Unix-like web services which is the most common
-environment type on host-services for web apps. Also, the Developer Docs use Unix-like commands in
-articles instead of DOS commands.
-
-## Getting started with your own customization
-
-If you want to build your own Sharetribe marketplace by customizing the template application, see
-the
-[How to Customize the Template](https://www.sharetribe.com/docs/template/how-to-customize-template/)
-guide in Developer Docs.
-
-## Deploying to Heroku
-
-**Note:** Remember to fork the repository before deploying the application. Connecting your own
-Github repository to Heroku will make manual deploys easier.
-
-See the
-[How to deploy this template to production](https://www.sharetribe.com/docs/template/how-to-deploy-template-to-production/)
-guide in Developer Docs for more information.
-
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
-
-## Documentation
-
-See the Sharetribe Developer Docs: [sharetribe.com/docs/](https://www.sharetribe.com/docs/)
-
-## Get help – join Sharetribe Developer Slack channel
-
-If you have any questions about development, the best place to ask them is the Developer Slack
-channel at https://www.sharetribe.com/dev-slack
-
-If you need help with development, you can hire a verified software developer with Sharetribe
-experience from the [Expert Network](https://www.sharetribe.com/experts/).
-
-## License
-
-This project is licensed under the terms of the Apache-2.0 license.
-
-See [LICENSE](LICENSE)
+Die Testbetriebe sind nicht für eine Store Veröffentlichung bestimmt. Die Favoriten werden nicht zwischen Geräten synchronisiert. Die Webversion, ihre Datenbank, die öffentliche Servano Hauptseite und die private Servano Vorschau wurden für dieses Projekt nicht geändert.

@@ -1,1 +1,0 @@
-export { SearchCTA } from './SearchCTA';
