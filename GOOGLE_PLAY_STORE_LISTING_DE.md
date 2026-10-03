@@ -16,7 +16,7 @@ Quiz Arena
 
 ## Kurze Beschreibung
 
-Teste dein Wissen, lerne aus Fehlern und sammle XP in abwechslungsreichen Quizzen.
+Teste dein Wissen, lerne aus Fehlern und sammle XP in spannenden Quizzen.
 
 ## Vollständige Beschreibung
 
