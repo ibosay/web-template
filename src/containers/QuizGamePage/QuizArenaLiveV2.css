@@ -933,3 +933,5 @@
   .statsInsightGrid{grid-template-columns:1fr}
   .resultHeroScore>strong{font-size:50px}
 }
+
+.storeInfoLink{display:block;text-decoration:none}.storeInfoLink:focus-visible{outline:2px solid #35b8ff;outline-offset:2px}
