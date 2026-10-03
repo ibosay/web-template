@@ -105,7 +105,49 @@ jobs:
 
           manifest = manifests[0]
           root = ET.parse(manifest).getroot()
-          android_name = '{http://schemas.android.com/apk/res/android}name'
+          android_ns = 'http://schemas.android.com/apk/res/android'
+          android_name = f'{{{android_ns}}}name'
+
+          application = root.find('application')
+          if application is None:
+              raise SystemExit('Android application element was not found.')
+
+          if application.attrib.get(f'{{{android_ns}}}allowBackup') != 'false':
+              raise SystemExit('Android release must keep allowBackup=false.')
+
+          if application.attrib.get(f'{{{android_ns}}}dataExtractionRules') != '@xml/data_extraction_rules':
+              raise SystemExit('Android release must reference @xml/data_extraction_rules.')
+
+          rules = Path('android/app/src/main/res/xml/data_extraction_rules.xml')
+          rules_root = ET.parse(rules).getroot()
+          required_domains = {
+              'root',
+              'file',
+              'database',
+              'sharedpref',
+              'external',
+              'device_root',
+              'device_file',
+              'device_database',
+              'device_sharedpref',
+          }
+
+          for section_name in ('cloud-backup', 'device-transfer'):
+              section = rules_root.find(section_name)
+              if section is None:
+                  raise SystemExit(f'Missing Android backup section: {section_name}')
+              excluded = {
+                  item.attrib.get('domain')
+                  for item in section.findall('exclude')
+                  if item.attrib.get('path') in {'.', './'}
+              }
+              missing = sorted(required_domains - excluded)
+              if missing:
+                  raise SystemExit(
+                      f'Android backup section {section_name} is missing exclusions for: '
+                      + ', '.join(missing)
+                  )
+
           permissions = sorted({
               element.attrib.get(android_name)
               for element in root
