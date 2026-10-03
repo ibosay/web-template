@@ -137,7 +137,7 @@ describe('Quiz Arena mobile V2', () => {
     expect(joker).toBeEnabled();
     fireEvent.click(joker);
 
-    const remainingAnswers = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false' && /^\d$/.test(button.textContent?.trim().charAt(0) || ''));
+    const remainingAnswers = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false' && /^[A-D]$/.test(button.textContent?.trim().charAt(0) || ''));
     expect(remainingAnswers).toHaveLength(2);
     fireEvent.click(remainingAnswers[0]);
     fireEvent.click(screen.getByRole('button', { name: /Weiter|Ergebnis ansehen/ }));
@@ -153,12 +153,28 @@ describe('Quiz Arena mobile V2', () => {
     fireEvent.click(screen.getByRole('button', { name: /Erster Weltkrieg/ }));
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
 
-    const answer = screen.getAllByRole('button').find(button => button.getAttribute('aria-disabled') === 'false' && /^\d/.test(button.textContent?.trim() || ''));
+    const answer = screen.getAllByRole('button').find(button => button.getAttribute('aria-disabled') === 'false' && /^[A-D]/.test(button.textContent?.trim() || ''));
     expect(answer).toBeDefined();
     fireEvent.click(answer);
 
     expect(screen.getByText(/Lernhinweis:/)).toBeInTheDocument();
     expect(screen.getByText(/Quelle:/)).toBeInTheDocument();
+  });
+
+  it('shows saved mistakes and category learning insights', () => {
+    window.localStorage.setItem('quiz-arena-wrong-questions', JSON.stringify([QUESTIONS[0].id]));
+    window.localStorage.setItem('quiz-arena-category-performance', JSON.stringify({
+      Islam: { correct: 5, wrong: 1 },
+      Geografie: { correct: 1, wrong: 4 },
+    }));
+
+    render(<QuizArenaLiveAppV2 />);
+
+    expect(screen.getByRole('button', { name: /Fehler trainieren \(1\)/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Meine Statistik' }));
+    expect(screen.getByText('STÄRKE')).toBeInTheDocument();
+    expect(screen.getByText('TRAININGSFOKUS')).toBeInTheDocument();
+    expect(screen.getByText('Offene Fehler')).toBeInTheDocument();
   });
 
   it('renders achievement badges with unified SVG icons', () => {
