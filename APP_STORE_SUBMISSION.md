@@ -94,12 +94,13 @@ Use only screenshots from the final native build.
 4. Test the final build on a physical Android device if Android ships with the same release.
 5. Approve final production app icon.
 6. Approve final branded splash artwork.
-7. Configure Apple signing and the App Store Connect app record.
-8. Produce a signed Archive build with the required current Xcode and iOS SDK.
-9. Upload the build to App Store Connect and test it through TestFlight.
-10. Capture final screenshots from the release candidate.
-11. Complete age rating, content rights, privacy answers and all required metadata.
-12. Submit only after the TestFlight candidate has no known release blocking defects.
+7. Add a final public support contact method to the support page.
+8. Configure Apple signing and the App Store Connect app record.
+9. Produce a signed Archive build with the required current Xcode and iOS SDK.
+10. Upload the build to App Store Connect and test it through TestFlight.
+11. Capture final screenshots from the release candidate.
+12. Complete age rating, content rights, privacy answers and all required metadata.
+13. Submit only after the TestFlight candidate has no known release blocking defects.
 
 ## Release rule
 
