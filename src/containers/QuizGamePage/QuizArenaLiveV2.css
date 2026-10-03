@@ -935,3 +935,82 @@
 }
 
 .storeInfoLink{display:block;text-decoration:none}.storeInfoLink:focus-visible{outline:2px solid #35b8ff;outline-offset:2px}
+
+/* Native compatibility for current Quiz Arena V2 markup */
+.gameHome.premiumHome .gameHero {
+  border: 1px solid #1e4762;
+  border-radius: 20px;
+  background: radial-gradient(circle at 88% 14%, #27c7f329, transparent 26%), linear-gradient(145deg, #0a2941, #071827 62%, #071421);
+  box-shadow: inset 0 1px 0 #ffffff10, 0 14px 30px #0004;
+}
+.premiumQuizShell .quizHeader {
+  border: 1px solid #1a4058;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #091e31, #071724);
+  box-shadow: inset 0 1px 0 #ffffff07;
+}
+.premiumQuizShell > .progressTrack {
+  height: 6px;
+  margin: 8px 0 4px;
+  background: #03101b;
+}
+.premiumQuizShell > .progressTrack > div {
+  background: linear-gradient(90deg, var(--qa-accent, #35b8ff), #67dcf6);
+}
+.premiumQuizShell .questionCard {
+  position: relative;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--qa-accent, #35b8ff) 38%, #1a405a);
+  background: radial-gradient(circle at 92% 10%, color-mix(in srgb, var(--qa-accent, #35b8ff) 14%, transparent), transparent 30%), linear-gradient(150deg, color-mix(in srgb, var(--qa-accent, #35b8ff) 8%, #0a2135), #081b2d 72%);
+  box-shadow: inset 0 1px 0 #ffffff0a, 0 12px 24px #0003;
+}
+.premiumQuizShell .questionCard::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--qa-accent, #35b8ff);
+}
+.premiumQuizShell .questionCard > * { position: relative; z-index: 1; }
+.premiumQuizShell .answers { display: grid; gap: 8px; }
+.premiumQuizShell .answer {
+  min-height: 60px;
+  border: 1px solid #1a4058;
+  border-radius: 15px;
+  background: linear-gradient(145deg, #0a2338, #081b2d);
+  box-shadow: inset 0 1px 0 #ffffff08;
+}
+.premiumQuizShell .answer.correct { border-color: #3f9b72; background: linear-gradient(145deg, #10382b, #0a241d); }
+.premiumQuizShell .answer.wrong { border-color: #9c4a5e; background: linear-gradient(145deg, #3a1922, #24131a); }
+.premiumQuizShell .jokerBar {
+  border: 1px solid #554a2d;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #211d14, #121927);
+}
+.achievementSummaryTrophy {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #80672d;
+  border-radius: 15px;
+  color: #ffe184;
+  background: #211b0d;
+}
+.achievementSummaryCopy { min-width: 0; }
+.achievementTrophyMark {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border: 1px solid #80672d;
+  border-radius: 999px;
+  color: #ffe184;
+  background: #211b0d;
+  font-size: 7px;
+  font-weight: 850;
+}
+.achievementCard { position: relative; }
