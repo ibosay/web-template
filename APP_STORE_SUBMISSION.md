@@ -90,6 +90,8 @@ Use only screenshots from the final native build.
 
 The production iOS app icon and launch splash now use the existing Quiz Arena brand mark and dark app palette. Their SVG sources are versioned under store-assets, and the PNG files used by Xcode are generated reproducibly by GitHub Actions.
 
+The Android launcher icons, adaptive icon foregrounds, round icons and portrait and landscape splash resources are now generated from the same Quiz Arena brand sources. The previous Capacitor default Android robot icon is no longer used by the generated launcher PNG assets.
+
 ## Automated readiness verified on 3 October 2026
 
 - Native branch head: `de2be8b70cfb04d1a0a02f807e586b753f13faf3`.
