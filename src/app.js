@@ -292,7 +292,7 @@ export const ClientApp = props => {
       >
         <Provider store={store}>
           <HelmetProvider>
-            <IncludeScripts config={appConfig} initialPathname={window.location.pathname} />
+            {!isNativeQuizApp && <IncludeScripts config={appConfig} initialPathname={window.location.pathname} />}
             <BrowserRouter>
               <Routes logLoadDataCalls={logLoadDataCalls} />
             </BrowserRouter>
