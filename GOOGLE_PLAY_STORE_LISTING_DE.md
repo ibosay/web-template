@@ -53,31 +53,35 @@ Die endgültige Google Play Kategorie wird in Play Console anhand der aktuell ve
 
 ## Store Icon
 
-Google Play benötigt ein separates Store Icon.
+Fertig erzeugt:
 
-Anforderung:
+store-assets/generated/google-play-icon-512.png
+
+Format:
 
 512 x 512 Pixel
 
 PNG
 
-Maximal 1024 KB
+RGB ohne Alpha Kanal
 
-Das Store Icon soll aus derselben Quiz Arena Markenquelle erzeugt werden wie die nativen App Icons.
-
-Es darf keine irreführenden Badges, Preisangaben oder Ranking Aussagen enthalten.
+Das Store Icon wird reproduzierbar aus derselben Quiz Arena Markenquelle erzeugt wie die nativen App Icons.
 
 ## Feature Grafik
 
-Google Play benötigt eine Feature Grafik.
+Fertig erzeugt:
 
-Anforderung:
+store-assets/generated/google-play-feature-1024x500.png
+
+Format:
 
 1024 x 500 Pixel
 
-JPEG oder 24 Bit PNG ohne Alpha Kanal
+PNG
 
-Die Grafik soll die Quiz Arena Marke und den Lern Quiz Charakter zeigen, ohne Funktionen zu versprechen, die Version 1.0.0 nicht enthält.
+RGB ohne Alpha Kanal
+
+Die Grafik verwendet die Quiz Arena Marke und den Text Wissen. Spielen. Lernen. sowie Quiz, Lernen und Fortschritt. Sie verspricht keine Funktion, die Version 1.0.0 nicht enthält.
 
 ## Screenshots
 
@@ -123,10 +127,8 @@ Vor der Veröffentlichung muss dort eine echte öffentliche Kontaktmöglichkeit 
 
 ## Noch offen
 
-1. Google Play Store Icon 512 x 512 erzeugen.
-2. Feature Grafik 1024 x 500 erzeugen.
-3. Final Android Screenshots aufnehmen.
-4. Öffentliche Support Kontaktmöglichkeit ergänzen.
-5. Content Rating abschließen.
-6. Data Safety final gegen den signierten Build prüfen.
-7. App Zugang und Zielgruppe in Play Console bestätigen.
+1. Final Android Screenshots aufnehmen.
+2. Öffentliche Support Kontaktmöglichkeit ergänzen.
+3. Content Rating abschließen.
+4. Data Safety final gegen den signierten Build prüfen.
+5. App Zugang und Zielgruppe in Play Console bestätigen.
