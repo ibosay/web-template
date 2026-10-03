@@ -2002,3 +2002,205 @@
   .statsDetailGrid > div{min-height:70px;padding:9px 10px}
   .categoryProgressRow{min-height:68px;padding:9px 10px}
 }
+
+
+/* Native achievements page parity */
+.achievementSummary {
+  margin:0 0 11px;
+  padding:13px;
+  display:grid;
+  grid-template-columns:50px minmax(0,1fr);
+  gap:11px;
+  align-items:center;
+  border:1px solid #6d592d;
+  border-radius:19px;
+  background:
+    radial-gradient(circle at 90% 12%,#f6cd5d17,transparent 32%),
+    linear-gradient(145deg,#211d12,#0c1a26);
+  box-shadow:inset 0 1px 0 #fff0a914,0 10px 22px #0003;
+}
+.achievementSummaryTrophy {
+  width:50px;
+  height:50px;
+  border-color:#8d7130 !important;
+  border-radius:16px !important;
+  color:#ffe17b !important;
+  background:radial-gradient(circle at 35% 28%,#554217,#211b0d 72%) !important;
+  box-shadow:inset 0 0 0 1px #ffe18418,0 7px 16px #0004;
+}
+.achievementSummaryCopy strong,
+.achievementSummaryCopy span { display:block; }
+.achievementSummaryCopy strong {
+  color:#fff3bf;
+  font-size:25px;
+  line-height:1;
+}
+.achievementSummaryCopy span {
+  margin-top:4px;
+  color:#b4a36d;
+  font-size:9px;
+}
+.achievementSummary > .miniProgress {
+  grid-column:1/-1;
+  height:6px;
+  overflow:hidden;
+  border:1px solid #4c4124;
+  border-radius:999px;
+  background:#0b1318;
+}
+.achievementSummary > .miniProgress i {
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#b88925,#f2d368);
+  box-shadow:0 0 11px #dcb94955;
+}
+
+.achievementList {
+  display:grid;
+  gap:8px;
+  padding-bottom:74px;
+}
+.achievementCard {
+  position:relative;
+  min-height:104px;
+  padding:10px;
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr);
+  gap:10px;
+  align-items:start;
+  border:1px solid #20394b;
+  border-radius:18px;
+  background:linear-gradient(145deg,#091c2c,#071521);
+  box-shadow:inset 0 1px 0 #ffffff06;
+}
+.achievementCard.locked {
+  opacity:.72;
+  filter:saturate(.68);
+}
+.achievementCard.unlocked {
+  border-color:#80672f;
+  background:
+    radial-gradient(circle at 88% 12%,#f3cf6819,transparent 30%),
+    linear-gradient(145deg,#29220e,#111a22 68%);
+  box-shadow:inset 0 1px 0 #ffe18417,0 9px 20px #0003;
+}
+
+.achievementIcon {
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  border:1px solid #29465a;
+  border-radius:14px;
+  color:#60798a;
+  background:#071827;
+}
+.achievementIcon svg {
+  width:24px !important;
+  height:24px !important;
+}
+.achievementCard.unlocked .achievementIcon {
+  color:#ffe17b;
+  border-color:#816a32;
+  background:linear-gradient(145deg,#3b3013,#201b0d);
+  box-shadow:inset 0 1px 0 #fff0a91c;
+}
+.achievementCopy {
+  min-width:0;
+  padding-right:58px;
+}
+.achievementCopy > div:first-child {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+}
+.achievementCopy strong {
+  overflow:hidden;
+  color:#ecf3f8;
+  font-size:11px;
+  line-height:1.2;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.achievementCard.unlocked .achievementCopy strong { color:#fff2bf; }
+.achievementCopy p {
+  margin:4px 0 7px;
+  color:#7891a4;
+  font-size:8px;
+  line-height:1.35;
+}
+.achievementCard.unlocked .achievementCopy p { color:#aa9d71; }
+
+.achievementTier {
+  flex:0 0 auto;
+  padding:3px 6px;
+  border:1px solid #2e4c60;
+  border-radius:999px;
+  color:#8ea6b7;
+  background:#071827;
+  font-size:7px;
+  font-style:normal;
+  font-weight:850;
+  text-transform:uppercase;
+}
+.achievementCard.unlocked .achievementTier {
+  border-color:#6e592b;
+  color:#dbc36f;
+  background:#211b0d;
+}
+.achievementCounter {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:5px;
+}
+.achievementCounter span {
+  color:#728b9d;
+  font-size:8px;
+  font-weight:750;
+}
+.achievementCard.unlocked .achievementCounter span {
+  color:#d6bd6b;
+}
+.achievementCard .miniProgress {
+  height:5px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#061421;
+}
+.achievementCard .miniProgress i {
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:#315875;
+}
+.achievementCard.unlocked .miniProgress i {
+  background:linear-gradient(90deg,#ae8123,#efd064);
+}
+
+.achievementTrophyMark {
+  top:8px !important;
+  right:8px !important;
+  min-height:24px;
+  padding:4px 7px !important;
+  border-color:#8c7130 !important;
+  color:#ffe17b !important;
+  background:#241d0c !important;
+  box-shadow:0 4px 10px #0004;
+}
+.achievementTrophyMark svg {
+  width:13px;
+  height:13px;
+}
+
+@media(max-width:430px){
+  .achievementSummary{grid-template-columns:46px minmax(0,1fr);padding:11px}
+  .achievementSummaryTrophy{width:46px;height:46px;border-radius:14px !important}
+  .achievementSummaryCopy strong{font-size:23px}
+  .achievementCard{min-height:100px;padding:9px;grid-template-columns:40px minmax(0,1fr);gap:9px}
+  .achievementIcon{width:40px;height:40px;border-radius:13px}
+  .achievementCopy{padding-right:52px}
+  .achievementTrophyMark{top:7px !important;right:7px !important;padding:3px 6px !important}
+}
