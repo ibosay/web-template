@@ -30,8 +30,9 @@ describe('Quiz Arena mobile V2', () => {
     expect(getQuizCategoryTheme('Staatsbürgerschaft Wien')).toBe('citizenship');
   });
 
-  it('requires a category choice and explains XP with simple controls', () => {
+  it('separates the lobby from category choice and explains XP with simple controls', () => {
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByRole('button', {name:/Fragen spielen/}));
     const start = screen.getByRole('button', {name:'Spiel starten'});
     expect(start).toBeDisabled();
     expect(document.querySelector('.categoryRow.active')).toBeNull();
@@ -46,6 +47,7 @@ describe('Quiz Arena mobile V2', () => {
 
   it('keeps the selected category world across home, rows and quiz', () => {
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByRole('button', {name:/Fragen spielen/}));
     const islamButton = screen.getByText('Islam Fragen').closest('button');
     expect(islamButton).toHaveAttribute('data-category-theme', 'islam');
 
@@ -74,6 +76,7 @@ describe('Quiz Arena mobile V2', () => {
     }));
 
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByRole('button', {name:/Fragen spielen/}));
 
     expect(screen.getByText('Noch 500 XP bis Level 5')).toBeInTheDocument();
     expect(screen.getByText('Belohnung: +3 Wissenssterne + Levelkiste')).toBeInTheDocument();
@@ -103,6 +106,7 @@ describe('Quiz Arena mobile V2', () => {
 
   it('shows the four History subtopics with the requested easy counts', () => {
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByRole('button', {name:/Fragen spielen/}));
     fireEvent.click(screen.getByRole('button', { name: /Geschichte/ }));
 
     expect(screen.getAllByText('Erster Weltkrieg').length).toBeGreaterThanOrEqual(1);
@@ -130,6 +134,7 @@ describe('Quiz Arena mobile V2', () => {
     }));
 
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByRole('button', {name:/Fragen spielen/}));
     fireEvent.click(screen.getByText('Islam Fragen').closest('button'));
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
 
@@ -149,6 +154,7 @@ describe('Quiz Arena mobile V2', () => {
   it('shows learning context and a source after answering a History question', () => {
     window.localStorage.setItem('quiz-arena-round-size', '5');
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByRole('button', {name:/Fragen spielen/}));
     fireEvent.click(screen.getByRole('button', { name: /Geschichte/ }));
     fireEvent.click(screen.getByRole('button', { name: /Erster Weltkrieg/ }));
     fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
@@ -170,8 +176,8 @@ describe('Quiz Arena mobile V2', () => {
 
     render(<QuizArenaLiveAppV2 />);
 
-    expect(screen.getByRole('button', { name: /Fehler trainieren \(1\)/ })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Meine Statistik' }));
+    expect(screen.getByRole('button', { name: /Fehler trainieren/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Statistik' }));
     expect(screen.getByText('STÄRKE')).toBeInTheDocument();
     expect(screen.getByText('TRAININGSFOKUS')).toBeInTheDocument();
     expect(screen.getByText('Offene Fehler')).toBeInTheDocument();
@@ -179,8 +185,7 @@ describe('Quiz Arena mobile V2', () => {
 
   it('renders achievement badges with unified SVG icons', () => {
     render(<QuizArenaLiveAppV2 />);
-    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
-    fireEvent.click(screen.getByRole('button', { name: /Erfolge/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Erfolge' }));
 
     const icons = document.querySelectorAll('.achievementIcon svg');
     expect(icons.length).toBeGreaterThan(10);
