@@ -118,6 +118,23 @@ jobs:
               'android.permission.VIBRATE',
               'android.permission.ACCESS_NETWORK_STATE',
           }
+
+          internal_receiver_permission = 'at.ibosay.quiz.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+          declared_signature_permissions = {
+              element.attrib.get(android_name)
+              for element in root
+              if element.tag == 'permission'
+              and element.attrib.get(
+                  '{http://schemas.android.com/apk/res/android}protectionLevel'
+              ) == 'signature'
+          }
+
+          if (
+              internal_receiver_permission in permissions
+              and internal_receiver_permission in declared_signature_permissions
+          ):
+              allowed.add(internal_receiver_permission)
+
           unexpected = [permission for permission in permissions if permission not in allowed]
 
           print('Merged release manifest:', manifest)
