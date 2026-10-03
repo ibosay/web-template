@@ -92,6 +92,43 @@ jobs:
         working-directory: android
         run: ./gradlew bundleRelease --stacktrace
 
+      - name: Verify merged Android release permissions
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          manifests = list(Path('android/app/build/intermediates/merged_manifests/release').rglob('AndroidManifest.xml'))
+          if not manifests:
+              raise SystemExit('Merged Android release manifest was not found.')
+
+          manifest = manifests[0]
+          root = ET.parse(manifest).getroot()
+          android_name = '{http://schemas.android.com/apk/res/android}name'
+          permissions = sorted({
+              element.attrib.get(android_name)
+              for element in root
+              if element.tag in {'uses-permission', 'uses-permission-sdk-23'}
+              and element.attrib.get(android_name)
+          })
+
+          allowed = {
+              'android.permission.INTERNET',
+              'android.permission.VIBRATE',
+              'android.permission.ACCESS_NETWORK_STATE',
+          }
+          unexpected = [permission for permission in permissions if permission not in allowed]
+
+          print('Merged release manifest:', manifest)
+          print('Permissions:', ', '.join(permissions) if permissions else 'none')
+
+          if unexpected:
+              raise SystemExit(
+                  'Unexpected Android release permissions: ' + ', '.join(unexpected)
+              )
+          PY
+
   ios:
     name: iOS sync, build, simulator
     needs: web-android
