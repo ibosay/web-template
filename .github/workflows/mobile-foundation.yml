@@ -104,6 +104,13 @@ jobs:
             echo "App Store uploads require Xcode 26 or newer."
             exit 1
           fi
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+          IOS_SDK_MAJOR="${IOS_SDK%%.*}"
+          echo "iPhoneOS SDK: $IOS_SDK"
+          if [ -z "$IOS_SDK_MAJOR" ] || [ "$IOS_SDK_MAJOR" -lt 26 ]; then
+            echo "App Store uploads require the iOS 26 SDK or newer."
+            exit 1
+          fi
 
       - name: Install Yarn 1
         run: npm install --global yarn@1.22.22
@@ -153,6 +160,17 @@ jobs:
             echo "The App Store icon must not contain an alpha channel."
             exit 1
           fi
+
+      - name: Build unsigned iPhoneOS Release app
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Release
+          -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          CODE_SIGNING_ALLOWED=NO
+          build
 
       - name: Build iOS Release Simulator app
         run: >
