@@ -55,4 +55,5 @@ jobs:
           git add android/app/src/main/res/drawable-port-*/splash.png
           git add android/app/src/main/res/drawable-land-*/splash.png
           git commit -m "Generate Quiz Arena mobile store assets"
+          git pull --rebase origin app/quiz-capacitor
           git push origin HEAD:app/quiz-capacitor
