@@ -74,9 +74,23 @@ jobs:
       - name: Inspect Capacitor Android plugins
         run: npx cap ls android
 
+      - name: Verify Android store configuration
+        shell: bash
+        run: |
+          grep -q 'applicationId "at.ibosay.quiz"' android/app/build.gradle
+          grep -q 'versionCode 1' android/app/build.gradle
+          grep -q 'versionName "1.0.0"' android/app/build.gradle
+          grep -q "targetSdkVersion = 36" android/variables.gradle
+          grep -q "compileSdkVersion = 36" android/variables.gradle
+          grep -q "minSdkVersion = 24" android/variables.gradle
+
       - name: Build Android debug app
         working-directory: android
         run: ./gradlew assembleDebug --stacktrace
+
+      - name: Build Android release app bundle
+        working-directory: android
+        run: ./gradlew bundleRelease --stacktrace
 
   ios:
     name: iOS sync, build, simulator
