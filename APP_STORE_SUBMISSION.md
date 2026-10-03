@@ -90,6 +90,20 @@ Use only screenshots from the final native build.
 
 The production iOS app icon and launch splash now use the existing Quiz Arena brand mark and dark app palette. Their SVG sources are versioned under store-assets, and the PNG files used by Xcode are generated reproducibly by GitHub Actions.
 
+## Automated readiness verified on 3 October 2026
+
+- Native branch head: `de2be8b70cfb04d1a0a02f807e586b753f13faf3`.
+- GitHub Actions Mobile Foundation Verify Run 98 completed successfully.
+- Production web tests and build pass.
+- Android Capacitor sync and debug build pass.
+- iOS Capacitor sync, unsigned device Release build, Simulator Release build and Simulator launch smoke test pass.
+- Bundle identifier is `at.ibosay.quiz`, marketing version `1.0.0`, build number `1`.
+- iOS Privacy Manifest declares tracking disabled and no collected data types for the current app-owned implementation.
+- App icon validation in CI checks 1024 x 1024 and rejects an alpha channel.
+- Privacy policy and support pages are public and linked from inside the app.
+- Current Quiz Arena functionality includes persistent mistake review, per-category learning statistics, XP and level progress, streak feedback and local-only player progress.
+- Final App Store privacy answers must still be checked against the exact signed TestFlight build and all bundled third-party code. The repository contains inherited Sentry packages, but no Sentry initialization or capture usage was found in the current source audit.
+
 ## Release blockers
 
 1. Complete a full round on a physical iPhone.
