@@ -143,6 +143,9 @@ jobs:
           grep -q 'MARKETING_VERSION = 1.0.0;' ios/App/App.xcodeproj/project.pbxproj
           grep -q 'CURRENT_PROJECT_VERSION = 1;' ios/App/App.xcodeproj/project.pbxproj
           grep -Eq 'IPHONEOS_DEPLOYMENT_TARGET = (1[3-9]|2[0-9])\.' ios/App/App.xcodeproj/project.pbxproj
+          INFO_PLIST='ios/App/App/Info.plist'
+          plutil -lint "$INFO_PLIST"
+          test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$INFO_PLIST")" = 'false'
           PRIVACY_MANIFEST='ios/App/App/PrivacyInfo.xcprivacy'
           test -f "$PRIVACY_MANIFEST"
           grep -q 'PrivacyInfo.xcprivacy in Resources' ios/App/App.xcodeproj/project.pbxproj
