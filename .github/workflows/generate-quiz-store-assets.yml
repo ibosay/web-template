@@ -32,13 +32,13 @@ jobs:
       - name: Install render dependencies
         run: python -m pip install --disable-pip-version-check cairosvg==2.8.2 pillow==11.3.0
 
-      - name: Generate iOS assets
+      - name: Generate iOS and Android assets
         run: python scripts/generate_quiz_store_assets.py
 
       - name: Commit generated binaries
         shell: bash
         run: |
-          if git diff --quiet -- ios/App/App/Assets.xcassets; then
+          if git diff --quiet -- ios/App/App/Assets.xcassets android/app/src/main/res; then
             echo "Store assets already match their SVG sources."
             exit 0
           fi
@@ -48,5 +48,11 @@ jobs:
           git add ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png
           git add ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png
           git add ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png
-          git commit -m "Generate Quiz Arena iOS store assets"
+          git add android/app/src/main/res/mipmap-*/ic_launcher.png
+          git add android/app/src/main/res/mipmap-*/ic_launcher_round.png
+          git add android/app/src/main/res/mipmap-*/ic_launcher_foreground.png
+          git add android/app/src/main/res/drawable/splash.png
+          git add android/app/src/main/res/drawable-port-*/splash.png
+          git add android/app/src/main/res/drawable-land-*/splash.png
+          git commit -m "Generate Quiz Arena mobile store assets"
           git push origin HEAD:app/quiz-capacitor
