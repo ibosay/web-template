@@ -1,8 +1,45 @@
 apply plugin: 'com.android.application'
 
+def releaseSigningValue = { String name ->
+    def envValue = System.getenv(name)
+    if (envValue) {
+        return envValue
+    }
+    def propertyValue = project.findProperty(name)
+    return propertyValue ? propertyValue.toString() : null
+}
+
+def releaseKeystorePath = releaseSigningValue('QUIZ_ARENA_UPLOAD_KEYSTORE')
+def releaseStorePassword = releaseSigningValue('QUIZ_ARENA_UPLOAD_STORE_PASSWORD')
+def releaseKeyAlias = releaseSigningValue('QUIZ_ARENA_UPLOAD_KEY_ALIAS')
+def releaseKeyPassword = releaseSigningValue('QUIZ_ARENA_UPLOAD_KEY_PASSWORD')
+
+def hasReleaseSigning = [
+    releaseKeystorePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+].every { value -> value != null && !value.trim().isEmpty() }
+
+if (!hasReleaseSigning) {
+    logger.lifecycle('Quiz Arena release signing is not configured. Release bundles will be unsigned.')
+}
+
 android {
     namespace = "at.ibosay.quiz"
     compileSdk = rootProject.ext.compileSdkVersion
+
+    if (hasReleaseSigning) {
+        signingConfigs {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
     defaultConfig {
         applicationId "at.ibosay.quiz"
         minSdkVersion rootProject.ext.minSdkVersion
@@ -18,6 +55,9 @@ android {
     }
     buildTypes {
         release {
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
