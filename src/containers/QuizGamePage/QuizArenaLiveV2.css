@@ -1300,3 +1300,192 @@
   .home-view-home .lobbyAction.questionsPrimary{min-height:78px}
   .home-view-home .homeQuestionShortcut{min-height:58px}
 }
+
+
+/* Native category page parity */
+.home-view-categories .premiumHomeHero,
+.home-view-categories .premiumXpGuide { display:none !important; }
+
+.home-view-categories .categoryScreenHeader {
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  margin:4px 0 12px;
+  padding:8px 2px 13px;
+  border-bottom:1px solid #17364c;
+}
+.home-view-categories .categoryScreenHeader > button {
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid #214b66;
+  border-radius:13px;
+  color:#fff;
+  background:#081d30;
+  box-shadow:inset 0 1px 0 #ffffff09;
+}
+.home-view-categories .categoryScreenHeader span {
+  display:block;
+  color:#59cfee;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.14em;
+}
+.home-view-categories .categoryScreenHeader h1 {
+  margin:1px 0 0;
+  color:#fff;
+  font-size:27px;
+  letter-spacing:-.025em;
+}
+.home-view-categories .categoryScreenHeader p {
+  margin:2px 0 0;
+  color:#8da3b5;
+  font-size:10px;
+}
+
+.home-view-categories .premiumCategoryPanel {
+  padding:0 !important;
+  border:0 !important;
+  border-radius:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+}
+.home-view-categories .categoryHeading {
+  display:flex;
+  justify-content:flex-end;
+  align-items:center;
+  margin:0 0 10px !important;
+}
+.home-view-categories .categoryHeading > div { display:none; }
+
+.home-view-categories .difficultyQuickSwitch {
+  min-width:170px;
+  padding:4px !important;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  border:1px solid #21475f !important;
+  border-radius:14px !important;
+  background:#061421 !important;
+}
+.home-view-categories .difficultyQuickSwitch span {
+  min-width:76px;
+  padding:8px 12px;
+  border-radius:10px;
+  color:#7891a4;
+  text-align:center;
+  font-size:10px;
+  font-weight:800;
+}
+.home-view-categories .difficultyQuickSwitch span.active {
+  color:#fff !important;
+  background:linear-gradient(135deg,#176ca7,#249dd0) !important;
+  box-shadow:0 5px 14px #062d4866 !important;
+}
+.home-view-categories .difficultyQuickSwitch.hard span.active {
+  background:linear-gradient(135deg,#803246,#b74b60) !important;
+  box-shadow:0 5px 14px #5a1e3066 !important;
+}
+
+.home-view-categories .categoryList {
+  display:grid;
+  gap:8px !important;
+}
+.home-view-categories .categoryRow {
+  position:relative;
+  overflow:hidden;
+  min-height:82px !important;
+  padding:10px 11px !important;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr) auto auto;
+  align-items:center;
+  gap:8px;
+  border:1px solid color-mix(in srgb,var(--row-accent,#3765a5) 42%,#17364e) !important;
+  border-radius:18px !important;
+  color:#f6fafd;
+  text-align:left;
+  background:
+    radial-gradient(circle at 90% 14%,color-mix(in srgb,var(--row-accent,#3765a5) 15%,transparent),transparent 34%),
+    linear-gradient(150deg,color-mix(in srgb,var(--row-accent,#3765a5) 18%,#091d30),#071522 72%) !important;
+  box-shadow:inset 0 1px 0 #ffffff08,0 8px 18px #0003 !important;
+}
+.home-view-categories .categoryRow > * { position:relative; z-index:1; }
+.home-view-categories .categoryIcon {
+  width:42px !important;
+  height:42px !important;
+  display:grid;
+  place-items:center;
+  border:1px solid color-mix(in srgb,var(--row-accent,#3765a5) 42%,transparent) !important;
+  border-radius:13px !important;
+  color:color-mix(in srgb,var(--row-accent,#35b8ff) 72%,#fff) !important;
+  background:color-mix(in srgb,var(--row-accent,#3765a5) 16%,#071421) !important;
+}
+.home-view-categories .categoryName {
+  min-width:0;
+  color:#f6f9fd !important;
+  font-size:13px !important;
+  font-weight:780;
+}
+.home-view-categories .categoryCount {
+  padding:3px 7px !important;
+  border:1px solid color-mix(in srgb,var(--row-accent,#3765a5) 28%,transparent);
+  border-radius:999px;
+  color:color-mix(in srgb,var(--row-accent,#35b8ff) 72%,#fff) !important;
+  background:#06142199;
+  font-size:9px !important;
+  font-weight:800;
+}
+.home-view-categories .categoryMark {
+  color:#6f879a !important;
+  font-size:16px;
+}
+.home-view-categories .categoryRow.active {
+  border-color:color-mix(in srgb,var(--row-accent,#35b8ff) 75%,#fff) !important;
+  background:linear-gradient(
+    145deg,
+    color-mix(in srgb,var(--row-accent,#35b8ff) 43%,#0a1b31),
+    color-mix(in srgb,var(--row-accent,#35b8ff) 18%,#071528)
+  ) !important;
+  box-shadow:0 0 0 1px color-mix(in srgb,var(--row-accent,#35b8ff) 20%,transparent),0 12px 26px #0004 !important;
+}
+.home-view-categories .categoryRow.active .categoryMark { color:#8de1ff !important; }
+
+.home-view-categories .citizenshipBack {
+  min-height:64px !important;
+  grid-template-columns:42px minmax(0,1fr) auto auto;
+}
+.home-view-categories .categoryThemePreview {
+  margin-top:10px !important;
+  border-color:#1a4058 !important;
+  border-radius:18px !important;
+  background:linear-gradient(145deg,#091e31,#071724) !important;
+  box-shadow:inset 0 1px 0 #ffffff07 !important;
+}
+.home-view-categories .playButton {
+  min-height:54px !important;
+  margin-top:10px !important;
+  border-radius:16px !important;
+  color:#fff !important;
+  border:1px solid #3ebee8 !important;
+  background:linear-gradient(135deg,#1683bd,#2aa6cf) !important;
+  box-shadow:0 10px 22px #096c9433,inset 0 1px 0 #ffffff1f !important;
+}
+.home-view-categories .statsButton,
+.home-view-categories .reviewButton {
+  min-height:48px !important;
+  border-radius:15px !important;
+  border:1px solid #1a4058 !important;
+  color:#dceaf3 !important;
+  background:#071724 !important;
+}
+
+@media(max-width:430px){
+  .home-view-categories .categoryScreenHeader h1{font-size:25px}
+  .home-view-categories .difficultyQuickSwitch{min-width:156px}
+  .home-view-categories .difficultyQuickSwitch span{min-width:68px;padding:7px 10px}
+  .home-view-categories .categoryRow{min-height:78px !important;padding:9px 10px !important}
+  .home-view-categories .categoryIcon{width:40px !important;height:40px !important}
+}
