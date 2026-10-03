@@ -86,21 +86,23 @@ Prepare clean iPhone screenshots that show:
 
 Use only screenshots from the final native build.
 
+## Native store assets completed
+
+The production iOS app icon and launch splash now use the existing Quiz Arena brand mark and dark app palette. Their SVG sources are versioned under store-assets, and the PNG files used by Xcode are generated reproducibly by GitHub Actions.
+
 ## Release blockers
 
 1. Complete a full round on a physical iPhone.
 2. Verify safe areas in portrait and landscape on a physical iPhone.
 3. Verify background and resume behavior on a physical iPhone.
 4. Test the final build on a physical Android device if Android ships with the same release.
-5. Approve final production app icon.
-6. Approve final branded splash artwork.
-7. Add a final public support contact method to the support page.
-8. Configure Apple signing and the App Store Connect app record.
-9. Produce a signed Archive build with the required current Xcode and iOS SDK.
-10. Upload the build to App Store Connect and test it through TestFlight.
-11. Capture final screenshots from the release candidate.
-12. Complete age rating, content rights, privacy answers and all required metadata.
-13. Submit only after the TestFlight candidate has no known release blocking defects.
+5. Add a final public support contact method to the support page.
+6. Configure Apple signing and the App Store Connect app record.
+7. Produce a signed Archive build with the required current Xcode and iOS SDK.
+8. Upload the build to App Store Connect and test it through TestFlight.
+9. Capture final screenshots from the release candidate.
+10. Complete age rating, content rights, privacy answers and all required metadata.
+11. Submit only after the TestFlight candidate has no known release blocking defects.
 
 ## Release rule
 
