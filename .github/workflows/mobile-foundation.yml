@@ -136,6 +136,12 @@ jobs:
           grep -q 'MARKETING_VERSION = 1.0.0;' ios/App/App.xcodeproj/project.pbxproj
           grep -q 'CURRENT_PROJECT_VERSION = 1;' ios/App/App.xcodeproj/project.pbxproj
           grep -Eq 'IPHONEOS_DEPLOYMENT_TARGET = (1[3-9]|2[0-9])\.' ios/App/App.xcodeproj/project.pbxproj
+          PRIVACY_MANIFEST='ios/App/App/PrivacyInfo.xcprivacy'
+          test -f "$PRIVACY_MANIFEST"
+          grep -q 'PrivacyInfo.xcprivacy in Resources' ios/App/App.xcodeproj/project.pbxproj
+          plutil -lint "$PRIVACY_MANIFEST"
+          grep -q '<key>NSPrivacyTracking</key>' "$PRIVACY_MANIFEST"
+          grep -q '<false/>' "$PRIVACY_MANIFEST"
           ICON='ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
           test -f "$ICON"
           WIDTH="$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/{print $2}')"
