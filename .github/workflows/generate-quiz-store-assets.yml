@@ -7,6 +7,7 @@ on:
     paths:
       - store-assets/quiz-arena-app-icon.svg
       - store-assets/quiz-arena-splash.svg
+      - store-assets/quiz-arena-google-play-feature.svg
       - scripts/generate_quiz_store_assets.py
       - .github/workflows/generate-quiz-store-assets.yml
 
@@ -38,7 +39,7 @@ jobs:
       - name: Commit generated binaries
         shell: bash
         run: |
-          if git diff --quiet -- ios/App/App/Assets.xcassets android/app/src/main/res; then
+          if git diff --quiet -- ios/App/App/Assets.xcassets android/app/src/main/res store-assets/generated; then
             echo "Store assets already match their SVG sources."
             exit 0
           fi
@@ -54,6 +55,8 @@ jobs:
           git add android/app/src/main/res/drawable/splash.png
           git add android/app/src/main/res/drawable-port-*/splash.png
           git add android/app/src/main/res/drawable-land-*/splash.png
+          git add store-assets/generated/google-play-icon-512.png
+          git add store-assets/generated/google-play-feature-1024x500.png
           git commit -m "Generate Quiz Arena mobile store assets"
           git pull --rebase origin app/quiz-capacitor
           git push origin HEAD:app/quiz-capacitor
