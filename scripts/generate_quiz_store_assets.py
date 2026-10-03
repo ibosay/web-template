@@ -54,6 +54,8 @@ def render_center_crop(source: Path, output: Path, width: int, height: int) -> N
 
 icon_source = ROOT / 'store-assets' / 'quiz-arena-app-icon.svg'
 splash_source = ROOT / 'store-assets' / 'quiz-arena-splash.svg'
+google_play_feature_source = ROOT / 'store-assets' / 'quiz-arena-google-play-feature.svg'
+google_play_output = ROOT / 'store-assets' / 'generated'
 
 render_square(
     icon_source,
@@ -134,7 +136,26 @@ icon = Image.open(ROOT / 'ios' / 'App' / 'App' / 'Assets.xcassets' / 'AppIcon.ap
 assert icon.size == (1024, 1024)
 assert icon.mode == 'RGB'
 
+render_square(
+    icon_source,
+    google_play_output / 'google-play-icon-512.png',
+    512,
+)
+
+save_image(
+    svg_to_image(google_play_feature_source, 1024, 500, 'RGB'),
+    google_play_output / 'google-play-feature-1024x500.png',
+)
+
 android_icon = Image.open(ROOT / 'android' / 'app' / 'src' / 'main' / 'res' / 'mipmap-xxxhdpi' / 'ic_launcher.png')
 assert android_icon.size == (192, 192)
 
-print('Quiz Arena iOS and Android store assets generated successfully.')
+google_play_icon = Image.open(google_play_output / 'google-play-icon-512.png')
+assert google_play_icon.size == (512, 512)
+assert google_play_icon.mode == 'RGB'
+
+google_play_feature = Image.open(google_play_output / 'google-play-feature-1024x500.png')
+assert google_play_feature.size == (1024, 500)
+assert google_play_feature.mode == 'RGB'
+
+print('Quiz Arena iOS, Android and Google Play store assets generated successfully.')
