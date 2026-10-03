@@ -47,6 +47,7 @@ describe('Mobile learning expansion', () => {
     window.localStorage.setItem('quiz-arena-sound','off');
     window.localStorage.setItem('quiz-arena-haptics','off');
     render(<QuizArenaLiveAppV2 />);
+    fireEvent.click(screen.getByRole('button',{name:/Fragen spielen/}));
     fireEvent.click(screen.getByText('Mathe').closest('button'));
     expect(screen.getByText('Alle Matheaufgaben · gemischt')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button',{name:/Spiel starten/}));
