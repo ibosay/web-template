@@ -1014,3 +1014,25 @@
   font-weight: 850;
 }
 .achievementCard { position: relative; }
+
+/* Native five-tab lobby parity */
+.gameHome.premiumHome { padding-bottom: calc(82px + env(safe-area-inset-bottom)) !important; }
+.homeBottomNav { grid-template-columns: repeat(5,1fr) !important; }
+.profileAward { position: relative; }
+.profileAwardTrophy {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #80672d;
+  border-radius: 999px;
+  color: #ffe184;
+  background: #211b0d;
+  box-shadow: 0 3px 8px #0006;
+}
+@media (max-width:430px){
+  .gameHome.premiumHome { padding-bottom: calc(74px + env(safe-area-inset-bottom)) !important; }
+}
