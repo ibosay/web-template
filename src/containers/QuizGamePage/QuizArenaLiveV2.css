@@ -1054,3 +1054,249 @@
   padding-top: max(12px, env(safe-area-inset-top)) !important;
   padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
 }
+
+
+/* Native start page parity */
+.home-view-home .premiumHomeHero {
+  position: relative;
+  overflow: hidden;
+  min-height: 104px !important;
+  margin: 4px 0 12px !important;
+  padding: 14px !important;
+  gap: 12px !important;
+  border: 1px solid #1e4762 !important;
+  border-radius: 18px !important;
+  background: radial-gradient(circle at 88% 14%, #27c7f329, transparent 26%), linear-gradient(145deg, #0a2941, #071827 62%, #071421) !important;
+  box-shadow: inset 0 1px 0 #ffffff10, 0 14px 30px #0004 !important;
+}
+.home-view-home .premiumHomeHero::before {
+  content:'';
+  position:absolute;
+  right:-34px;
+  bottom:-52px;
+  width:150px;
+  height:150px;
+  border:1px solid #4ed2fa18;
+  border-radius:50%;
+  box-shadow:0 0 0 24px #4ed2fa08,0 0 0 48px #4ed2fa05;
+}
+.home-view-home .premiumHomeHero > * { position:relative; z-index:1; }
+.home-view-home .premiumHomeHero .brandLogoHome {
+  width:48px !important;
+  height:48px !important;
+  padding:7px;
+  border:1px solid #4bcdf25c;
+  border-radius:16px;
+  background:#061827b8;
+  box-shadow:0 9px 22px #0005;
+  filter:none !important;
+}
+.home-view-home .premiumHomeHero h1 {
+  margin:0;
+  font-size:clamp(29px,7vw,38px) !important;
+  letter-spacing:-.035em;
+}
+.home-view-home .premiumHomeHero h1 em { color:#35c7f4 !important; }
+.home-view-home .premiumHomeHero p {
+  margin-top:3px !important;
+  color:#98aec0 !important;
+  font-size:12px !important;
+}
+
+.home-view-home .lobbyActionStack {
+  display:grid;
+  gap:9px;
+  margin:0 0 15px;
+}
+.home-view-home .lobbyAction {
+  min-height:66px;
+  padding:10px 12px;
+  display:grid;
+  grid-template-columns:44px minmax(0,1fr) auto;
+  align-items:center;
+  gap:10px;
+  border:1px solid #173b55;
+  border-radius:17px;
+  color:#f6fafd;
+  text-align:left;
+  background:#091f33;
+  box-shadow:inset 0 1px 0 #ffffff08;
+}
+.home-view-home .lobbyAction.questionsPrimary {
+  min-height:82px;
+  border-color:#27c2f3;
+  background:radial-gradient(circle at 88% 18%,#72e3ff2f,transparent 30%),linear-gradient(135deg,#0d4d74,#092d49);
+  box-shadow:inset 0 1px 0 #ffffff17,0 12px 28px #0a7ba533;
+}
+.home-view-home .lobbyAction.quickPlay {
+  border-color:#244961;
+  background:linear-gradient(145deg,#0a2236,#071827);
+}
+.home-view-home .lobbyAction.mistakeTrainingAction {
+  border-color:#72582a;
+  background:linear-gradient(145deg,#261f12,#151915);
+}
+.home-view-home .lobbyActionIcon {
+  width:44px;
+  height:44px;
+  display:grid;
+  place-items:center;
+  border:1px solid #1d4d6b;
+  border-radius:13px;
+  color:#67d8fb;
+  background:#0d2d47;
+}
+.home-view-home .questionsPrimary .lobbyActionIcon {
+  width:48px;
+  height:48px;
+  color:#f7fbff;
+  border-color:#2d94ba;
+  background:#0f4165;
+}
+.home-view-home .lobbyAction span:nth-child(2){min-width:0}
+.home-view-home .lobbyAction strong,
+.home-view-home .lobbyAction small{display:block}
+.home-view-home .lobbyAction strong{font-size:15px}
+.home-view-home .lobbyAction small{
+  margin-top:3px;
+  color:#8fa8bc;
+  font-size:10px;
+  line-height:1.35;
+}
+
+.home-view-home .homeQuestionSection {
+  margin:0 0 12px;
+  padding:13px;
+  border:1px solid #1a405a;
+  border-radius:20px;
+  background:linear-gradient(155deg,#091f32,#071827);
+  box-shadow:inset 0 1px 0 #ffffff08;
+}
+.home-view-home .homeQuestionSectionHead {
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.home-view-home .homeQuestionSectionHead span {
+  display:block;
+  color:#65d7fb;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.14em;
+}
+.home-view-home .homeQuestionSectionHead h2 {
+  margin:2px 0 0;
+  color:#f6fafd;
+  font-size:17px;
+  letter-spacing:-.02em;
+}
+.home-view-home .homeQuestionSectionHead button {
+  min-height:34px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  border:0;
+  color:#66cff2;
+  background:transparent;
+  font-size:10px;
+  font-weight:750;
+}
+.home-view-home .homeQuestionGrid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:7px;
+}
+.home-view-home .homeQuestionShortcut {
+  position:relative;
+  overflow:hidden;
+  min-width:0;
+  min-height:62px;
+  padding:9px;
+  display:grid;
+  grid-template-columns:36px minmax(0,1fr) 16px;
+  align-items:center;
+  gap:8px;
+  border:1px solid #173d58;
+  border-radius:15px;
+  color:#f6fafd;
+  text-align:left;
+  background:#0a2237;
+}
+.home-view-home .homeQuestionShortcut::before {
+  content:'';
+  position:absolute;
+  inset:0 auto 0 0;
+  width:3px;
+  background:var(--qa-accent,#35b8ff);
+}
+.home-view-home .homeQuestionShortcut > * { position:relative; z-index:1; }
+.home-view-home .homeQuestionShortcutIcon {
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border:1px solid #1d4d6b;
+  border-radius:11px;
+  color:var(--qa-accent,#35b8ff);
+  background:#0d2d47;
+}
+.home-view-home .homeQuestionShortcutIcon svg { width:19px; height:19px; }
+.home-view-home .homeQuestionShortcut strong,
+.home-view-home .homeQuestionShortcut small { display:block; min-width:0; }
+.home-view-home .homeQuestionShortcut strong {
+  overflow:hidden;
+  color:#f6fafd;
+  font-size:11px;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.home-view-home .homeQuestionShortcut small {
+  margin-top:2px;
+  color:#7f99ad;
+  font-size:8px;
+}
+
+.homeBottomNav {
+  position:fixed;
+  left:50%;
+  bottom:max(4px,env(safe-area-inset-bottom));
+  z-index:15;
+  transform:translateX(-50%);
+  width:min(calc(100% - 20px),550px);
+  min-height:56px;
+  padding:5px 8px;
+  display:grid;
+  grid-template-columns:repeat(5,1fr) !important;
+  gap:4px;
+  border:1px solid #16374e;
+  border-radius:18px;
+  background:#061523f2;
+  box-shadow:0 8px 24px #0007,inset 0 1px 0 #ffffff0a;
+  backdrop-filter:blur(18px);
+}
+.homeBottomNav button {
+  min-width:0;
+  min-height:44px;
+  padding:3px 2px;
+  display:grid;
+  place-items:center;
+  gap:2px;
+  border:0;
+  border-radius:14px;
+  color:#6f8499;
+  background:transparent;
+}
+.homeBottomNav button.active {
+  color:#6edbff;
+  background:#0d2d47;
+}
+.homeBottomNav small { font-size:8px; }
+.homeBottomNav svg { width:18px; height:18px; }
+
+@media(max-width:430px){
+  .home-view-home .lobbyAction.questionsPrimary{min-height:78px}
+  .home-view-home .homeQuestionShortcut{min-height:58px}
+}
