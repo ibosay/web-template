@@ -864,3 +864,72 @@
   .categoryRow[data-category-theme]::before{background-size:auto 150%}
   .appRoot.result[data-quiz-category-theme]{background-size:cover,auto 100%,cover}
 }
+
+
+/* Store readiness parity: mistakes, stats and round feedback */
+.reviewButton{
+  width:100%;
+  min-height:48px;
+  margin-top:10px;
+  border:1px solid #704f29;
+  border-radius:16px;
+  color:#f2cf75;
+  background:#211a12;
+  font-weight:800;
+}
+.resultHeroScore{text-align:center;margin:4px 0 10px}
+.resultHeroScore>strong{display:block;color:#fff;font-size:58px;line-height:1;letter-spacing:-.05em}
+.resultHeroScore h1{margin:8px 0 3px;color:#f7fbff;font-size:28px}
+.resultHeroScore p{margin:0;color:#91a8bc;font-size:12px;font-weight:700}
+.levelUpBanner{
+  margin:10px 0;
+  padding:12px 14px;
+  border:1px solid #5a4b26;
+  border-radius:16px;
+  color:#efd277;
+  background:#211f16;
+}
+.levelUpBanner strong,.levelUpBanner span{display:block}
+.levelUpBanner span{margin-top:3px;color:#ab9b6c;font-size:10px}
+.resultLevelPanel{border:1px solid #15364e!important;border-radius:17px;padding:14px!important;background:#081b2d!important}
+.levelBenefit{margin:9px 0 0;color:#7891a7;font-size:10px;line-height:1.4}
+.reviewSuccess{margin:10px 0;padding:11px;border:1px solid #285844;border-radius:14px;color:#91d9b8;background:#0d261e;text-align:center;font-size:10px}
+.statsNextLevel,.statsInsights{margin:8px 0;padding:11px;border:1px solid #173b55;border-radius:16px;background:#071827}
+.statsNextLevel{display:grid;grid-template-columns:1fr auto;gap:5px 10px}
+.statsNextLevel span,.statsNextLevel strong{display:block}
+.statsNextLevel span{color:#65cfee;font-size:8px;font-weight:850;letter-spacing:.1em}
+.statsNextLevel strong{margin-top:2px;color:#f4f8fd;font-size:12px}
+.statsNextLevel>.miniProgress{grid-column:1/-1}
+.statsInsightGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.statsInsightCard{padding:10px;border:1px solid #15364e;border-radius:14px;background:#081b2d}
+.statsInsightCard small,.statsInsightCard strong,.statsInsightCard span{display:block}
+.statsInsightCard small{font-size:7px;font-weight:850;letter-spacing:.08em}
+.statsInsightCard strong{margin-top:3px;color:#fff;font-size:12px}
+.statsInsightCard span{margin-top:3px;color:#7891a7;font-size:8px;line-height:1.3}
+.statsInsightCard.strength{border-color:#285844;background:#0b211b}
+.statsInsightCard.strength small{color:#7bd6aa}
+.statsInsightCard.focus{border-color:#664d2a;background:#211a12}
+.statsInsightCard.focus small{color:#f0c66b}
+.statsReviewButton{
+  width:100%;
+  min-height:40px;
+  margin-top:8px;
+  border:1px solid #704f29;
+  border-radius:13px;
+  color:#f2cf75;
+  background:#211a12;
+  font-size:10px;
+  font-weight:800;
+}
+.quizProgressMeta{display:flex;justify-content:space-between;margin:5px 3px 8px;color:#6f879b;font-size:9px}
+.quizProgressMeta strong{color:#9fb7c9}
+.streakBanner{display:flex;align-items:center;gap:8px;margin:0 0 8px;padding:7px 10px;border:1px solid #664d2a;border-radius:13px;color:#f0c66b;background:#211a12}
+.streakBanner span{margin-left:auto;color:#a98d57;font-size:8px}
+.roundRuleStrip{display:flex;justify-content:space-between;gap:10px;margin:0 0 10px;padding:8px 10px;border:1px solid #15364e;border-radius:13px;color:#d8e8f3;background:#071827;font-size:9px}
+.roundRuleStrip span{color:#7e98ac;text-align:right}
+.mistakeSavedNote{margin:10px 0;padding:9px 11px;border:1px solid #5c2835;border-radius:13px;color:#d79aa8;background:#24131a;font-size:9px;font-weight:700}
+.streak.activeStreak{border-color:#664d2a;color:#f0c66b;background:#211a12}
+@media(max-width:430px){
+  .statsInsightGrid{grid-template-columns:1fr}
+  .resultHeroScore>strong{font-size:50px}
+}
