@@ -92,6 +92,10 @@ jobs:
         working-directory: android
         run: ./gradlew bundleRelease --stacktrace
 
+      - name: Run Android release lint
+        working-directory: android
+        run: ./gradlew lintRelease --stacktrace
+
       - name: Verify merged Android release permissions
         shell: bash
         run: |
