@@ -1036,3 +1036,21 @@
 @media (max-width:430px){
   .gameHome.premiumHome { padding-bottom: calc(74px + env(safe-area-inset-bottom)) !important; }
 }
+
+/* Native iOS safe-area guard */
+.gameHome.premiumHome {
+  padding-top: max(12px, env(safe-area-inset-top)) !important;
+}
+.premiumQuizShell {
+  padding-top: max(10px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(10px, env(safe-area-inset-bottom)) !important;
+}
+.answerResultScreen,
+.appRoot.result {
+  padding-top: max(28px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(20px, env(safe-area-inset-bottom)) !important;
+}
+.drawerLayer .drawer {
+  padding-top: max(12px, env(safe-area-inset-top)) !important;
+  padding-bottom: max(14px, env(safe-area-inset-bottom)) !important;
+}
