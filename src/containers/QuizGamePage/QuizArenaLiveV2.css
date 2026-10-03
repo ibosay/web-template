@@ -1489,3 +1489,280 @@
   .home-view-categories .categoryRow{min-height:78px !important;padding:9px 10px !important}
   .home-view-categories .categoryIcon{width:40px !important;height:40px !important}
 }
+
+
+/* Native profile page parity */
+.profileDetail {
+  display:grid;
+  gap:12px;
+  padding-bottom:74px;
+}
+.profileDetailNav {
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+  padding:2px 0 10px;
+  border-bottom:1px solid #17364c;
+}
+.profileDetailNav > button {
+  width:40px;
+  height:40px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:1px solid #214b66;
+  border-radius:13px;
+  color:#fff;
+  background:#081d30;
+  box-shadow:inset 0 1px 0 #ffffff09;
+}
+.profileDetailNav small {
+  display:block;
+  color:#59cfee;
+  font-size:8px;
+  font-weight:850;
+  letter-spacing:.14em;
+}
+.profileDetailNav h2 {
+  margin:1px 0 0;
+  color:#fff;
+  font-size:25px;
+  letter-spacing:-.025em;
+}
+
+.profileHero {
+  position:relative;
+  overflow:hidden;
+  min-height:126px;
+  padding:16px;
+  display:grid;
+  grid-template-columns:64px minmax(0,1fr);
+  gap:14px;
+  align-items:center;
+  border:1px solid #2c5d79;
+  border-radius:21px;
+  background:
+    radial-gradient(circle at 86% 14%,#41d4ff2b,transparent 31%),
+    linear-gradient(145deg,#0b3552,#081d31 64%,#071522);
+  box-shadow:inset 0 1px 0 #ffffff12,0 14px 30px #0004;
+}
+.profileHero::after {
+  content:'';
+  position:absolute;
+  right:-48px;
+  top:-54px;
+  width:150px;
+  height:150px;
+  border:1px solid #5bd8fa1b;
+  border-radius:50%;
+  box-shadow:0 0 0 25px #5bd8fa08,0 0 0 50px #5bd8fa05;
+}
+.profileHero > * { position:relative; z-index:1; }
+.profileCrown {
+  width:64px;
+  height:64px;
+  display:grid;
+  place-items:center;
+  border:1px solid #a98235;
+  border-radius:19px;
+  color:#ffe17e;
+  background:linear-gradient(145deg,#3b2d0f,#1b1f18);
+  box-shadow:0 10px 22px #0005,inset 0 1px 0 #fff3a52b;
+}
+.profileHeroCopy {
+  min-width:0;
+}
+.profileHeroCopy small {
+  display:block;
+  color:#67d9fb;
+  font-size:9px;
+  font-weight:850;
+  letter-spacing:.12em;
+}
+.profileHeroCopy strong {
+  display:block;
+  margin:2px 0 5px;
+  overflow:hidden;
+  color:#fff;
+  font-size:24px;
+  letter-spacing:-.025em;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+}
+.profileHeroCopy > span {
+  display:block;
+  margin-bottom:7px;
+  color:#9fb4c4;
+  font-size:10px;
+}
+.profileHero .miniProgress,
+.profileMilestone .miniProgress {
+  height:6px;
+  overflow:hidden;
+  border:1px solid #20435a;
+  border-radius:999px;
+  background:#061421;
+}
+.profileHero .miniProgress i,
+.profileMilestone .miniProgress i {
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg,#25aadd,#64ddfb);
+  box-shadow:0 0 12px #35c7f466;
+}
+
+.profileStatsGrid {
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:8px;
+}
+.profileStatsGrid > div {
+  min-width:0;
+  min-height:92px;
+  padding:11px 7px;
+  display:grid;
+  justify-items:center;
+  align-content:center;
+  gap:3px;
+  border:1px solid #193c54;
+  border-radius:17px;
+  color:#dfeaf3;
+  text-align:center;
+  background:linear-gradient(150deg,#0a2033,#071724);
+  box-shadow:inset 0 1px 0 #ffffff07;
+}
+.profileStatsGrid > div > span:first-child,
+.profileStatsGrid > div > svg {
+  color:#6edbff;
+  font-size:18px;
+}
+.profileStatsGrid > div:nth-child(1) > span:first-child { color:#ffe177; }
+.profileStatsGrid strong {
+  color:#fff;
+  font-size:19px;
+}
+.profileStatsGrid > div > span:last-child {
+  max-width:88px;
+  color:#8098aa;
+  font-size:8px;
+  line-height:1.25;
+}
+
+.profileAwards {
+  padding:13px;
+  border:1px solid #1a4058;
+  border-radius:19px;
+  background:linear-gradient(150deg,#091f32,#071724);
+  box-shadow:inset 0 1px 0 #ffffff08;
+}
+.profileSectionHead {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+.profileSectionHead h3 {
+  margin:0;
+  color:#f6fafd;
+  font-size:14px;
+}
+.profileSectionHead > span {
+  padding:3px 7px;
+  border:1px solid #28516a;
+  border-radius:999px;
+  color:#73d9f7;
+  background:#071827;
+  font-size:9px;
+  font-weight:800;
+}
+.profileAwardRow {
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+}
+.profileAward {
+  position:relative;
+  aspect-ratio:1;
+  min-width:0;
+  display:grid;
+  place-items:center;
+  border:1px solid #243848;
+  border-radius:15px;
+  color:#435767;
+  background:#071522;
+  opacity:.62;
+}
+.profileAward svg {
+  width:25px;
+  height:25px;
+}
+.profileAward.unlocked {
+  color:#ffe178;
+  border-color:#7c6531;
+  background:
+    radial-gradient(circle at 50% 30%,#ffdb6e22,transparent 46%),
+    linear-gradient(145deg,#2d260f,#111b1d);
+  opacity:1;
+  box-shadow:inset 0 1px 0 #fff6b52e,0 7px 16px #0003;
+}
+.profileAwardTrophy {
+  right:-4px !important;
+  bottom:-4px !important;
+  width:20px !important;
+  height:20px !important;
+  border-color:#a48234 !important;
+  color:#ffe17d !important;
+  background:#2a210d !important;
+}
+
+.profileMilestone {
+  min-height:74px;
+  padding:12px 13px;
+  display:grid;
+  grid-template-columns:42px minmax(0,1fr);
+  gap:11px;
+  align-items:center;
+  border:1px solid #5e4d25;
+  border-radius:18px;
+  color:#ffe07a;
+  background:
+    radial-gradient(circle at 92% 8%,#f7c94c17,transparent 34%),
+    linear-gradient(145deg,#211c0e,#0d1a20);
+  box-shadow:inset 0 1px 0 #fff3ae12;
+}
+.profileMilestone > svg {
+  width:42px;
+  height:42px;
+  padding:9px;
+  border:1px solid #725c2b;
+  border-radius:13px;
+  background:#241e0d;
+}
+.profileMilestone > div {
+  min-width:0;
+}
+.profileMilestone strong,
+.profileMilestone span {
+  display:block;
+}
+.profileMilestone strong {
+  color:#fff3bf;
+  font-size:12px;
+}
+.profileMilestone span {
+  margin:2px 0 7px;
+  color:#b9a76d;
+  font-size:9px;
+}
+
+@media(max-width:430px){
+  .profileHero{min-height:118px;padding:14px;grid-template-columns:58px minmax(0,1fr)}
+  .profileCrown{width:58px;height:58px;border-radius:17px}
+  .profileHeroCopy strong{font-size:22px}
+  .profileStatsGrid{gap:6px}
+  .profileStatsGrid > div{min-height:88px;padding:9px 5px}
+  .profileAwardRow{gap:6px}
+}
