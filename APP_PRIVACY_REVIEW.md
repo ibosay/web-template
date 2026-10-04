@@ -82,6 +82,18 @@ Opening an external website can cause the third party website or browser to proc
 
 The Quiz Arena privacy policy should continue to make this distinction clear.
 
+## Verification record, 4 October 2026
+
+1. Mobile Foundation Verify Run 156 completed successfully for commit e12bd1e44d1473b4c78a7d7ff6b8f762e380e5e2.
+2. The deployed Quiz Arena application source was checked for direct Sentry initialization and none was found.
+3. No direct fetch call was found in the deployed application source.
+4. No Axios use was found in the deployed application source.
+5. No XMLHttpRequest use was found in the deployed application source.
+6. No analytics or gtag initialization was found in the deployed application source.
+7. Local storage use remains present and is consistent with local player progress.
+8. The verified Android release manifest contains INTERNET, VIBRATE and the app internal signature protected dynamic receiver permission.
+9. This source and manifest review does not replace inspection of the exact signed TestFlight and Google Play release candidates.
+
 ## Submission gate
 
 Do not finalize App Store privacy answers until:
