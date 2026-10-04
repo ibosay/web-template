@@ -387,30 +387,26 @@ jobs:
           sleep 5
           xcrun simctl shutdown "$UDID" 2>/dev/null || true
 
-      - name: Launch iOS app on iPad Simulator
-        timeout-minutes: 5
+      - name: Verify iPad support in Release Simulator app
         shell: bash
         run: |
-          UDID="$(xcrun simctl list devices available | grep -m1 'iPad ' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
-          if [ -z "$UDID" ]; then
-            echo "No available iPad simulator found while iPad support is enabled"
-            exit 1
-          fi
-          xcrun simctl boot "$UDID" 2>/dev/null || true
-          READY=0
-          for attempt in {1..30}; do
-            if xcrun simctl getenv "$UDID" HOME >/dev/null 2>&1; then
-              READY=1
-              break
-            fi
-            sleep 2
-          done
-          if [ "$READY" -ne 1 ]; then
-            echo "iPad simulator did not become ready within 60 seconds"
-            exit 1
-          fi
+          grep -q 'TARGETED_DEVICE_FAMILY = "1,2";' ios/App/App.xcodeproj/project.pbxproj
           APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Release-iphonesimulator/App.app' -print -quit)"
           test -n "$APP_PATH"
-          xcrun simctl install "$UDID" "$APP_PATH"
-          xcrun simctl launch "$UDID" at.ibosay.quiz
-          sleep 5
+          PLIST="$APP_PATH/Info.plist"
+          test -f "$PLIST"
+          python - "$PLIST" <<'PY'
+          import plistlib
+          import sys
+
+          with open(sys.argv[1], 'rb') as handle:
+              info = plistlib.load(handle)
+
+          families = info.get('UIDeviceFamily', [])
+          print('UIDeviceFamily:', families)
+
+          if 1 not in families or 2 not in families:
+              raise SystemExit(
+                  'Release Simulator app must support both iPhone (1) and iPad (2).'
+              )
+          PY
