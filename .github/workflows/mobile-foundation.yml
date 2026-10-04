@@ -337,3 +337,30 @@ jobs:
           xcrun simctl install "$UDID" "$APP_PATH"
           xcrun simctl launch "$UDID" at.ibosay.quiz
           sleep 5
+
+      - name: Launch iOS app on iPad Simulator
+        shell: bash
+        run: |
+          UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPad .*(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          if [ -z "$UDID" ]; then
+            echo "No available iPad simulator found while iPad support is enabled"
+            exit 1
+          fi
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          READY=0
+          for attempt in {1..30}; do
+            if xcrun simctl getenv "$UDID" HOME >/dev/null 2>&1; then
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "iPad simulator did not become ready within 60 seconds"
+            exit 1
+          fi
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Release-iphonesimulator/App.app' -print -quit)"
+          test -n "$APP_PATH"
+          xcrun simctl install "$UDID" "$APP_PATH"
+          xcrun simctl launch "$UDID" at.ibosay.quiz
+          sleep 5
