@@ -21,12 +21,13 @@ Cloud player profile: No
 1. Quiz Arena does not require registration or login.
 2. Quiz progress and settings are stored locally on the device.
 3. Local on-device player state is not intended to leave the device.
-4. The current Android manifest requests only INTERNET permission.
-5. No advertising SDK is intentionally used by Quiz Arena.
-6. No analytics or telemetry initialization is intentionally used by Quiz Arena.
-7. No cloud player profile is used.
-8. No location, contacts, camera, microphone, photos, health or payment data are required for gameplay.
-9. External source links can open third party websites.
+4. The verified Android release manifest currently contains INTERNET and VIBRATE, plus the app internal signature protected dynamic receiver permission generated for at.ibosay.quiz.
+5. The current CI rejects unexpected release permissions before the build is accepted.
+6. No advertising SDK is intentionally used by Quiz Arena.
+7. No analytics or telemetry initialization is intentionally used by Quiz Arena.
+8. No cloud player profile is used.
+9. No location, contacts, camera, microphone, photos, health or payment data are required for gameplay.
+10. External source links can open third party websites.
 
 ## Important SDK review requirement
 
@@ -125,3 +126,15 @@ Do not submit the Data safety form as final until:
 3. Runtime network behavior has been inspected.
 4. Third party SDK behavior has been reviewed.
 5. Data safety answers and privacy policy are consistent.
+
+## Verification record
+
+On 4 October 2026, Mobile Foundation Verify Run 156 completed successfully for commit e12bd1e44d1473b4c78a7d7ff6b8f762e380e5e2.
+
+The merged Android release manifest reported these permissions:
+
+1. android.permission.INTERNET
+2. android.permission.VIBRATE
+3. at.ibosay.quiz.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
+
+The third permission is declared by the app as an internal signature protected permission. The CI release permission check passed with no unexpected permissions.
