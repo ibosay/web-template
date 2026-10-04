@@ -289,6 +289,17 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
           build
 
+      - name: Analyze iOS Release app
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Release
+          -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          CODE_SIGNING_ALLOWED=NO
+          analyze
+
       - name: Build iOS Release Simulator app
         run: >
           xcodebuild
