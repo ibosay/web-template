@@ -58,7 +58,12 @@
     "sitemap": "^9.0.1",
     "smoothscroll-polyfill": "^0.4.0",
     "source-map-support": "^0.5.21",
-    "unified": "^9.2.2"
+    "unified": "^9.2.2",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/haptics": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/share": "^8.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -143,7 +148,10 @@
     "webpack-dev-server": "^5.2.3",
     "webpack-manifest-plugin": "^5.0.0",
     "webpack-node-externals": "^3.0.0",
-    "workbox-webpack-plugin": "^7.4.0"
+    "workbox-webpack-plugin": "^7.4.0",
+    "@capacitor/cli": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/ios": "^8.0.0"
   },
   "resolutions": {
     "moment": "^2.30.1"
@@ -225,7 +233,15 @@
     "test-server": "jest --roots ./server --testMatch='**/server/**/*.test.js' --testEnvironment=node",
     "heroku-postbuild": "yarn run build",
     "postinstall": "patch-package",
-    "translate": "node scripts/translations.js"
+    "translate": "node scripts/translations.js",
+    "app:sync": "npx cap sync",
+    "app:android": "npx cap open android",
+    "app:ios": "npx cap open ios",
+    "app:prepare": "yarn build-web && npx cap sync",
+    "app:add:android": "npx cap add android",
+    "app:add:ios": "npx cap add ios",
+    "app:run:android": "npx cap run android",
+    "app:run:ios": "npx cap run ios"
   },
   "browserslist": {
     "production": [

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1600" fill="none">
+<defs><linearGradient id="sea" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#2DD4BF"/><stop offset="1" stop-color="#54C978"/></linearGradient></defs>
+<g opacity=".22" fill="url(#sea)">
+       <path d="M105 300c80-80 185-95 270-48 40 22 75 14 120-22 64-50 136-39 188 21 43 49 63 111 21 158-35 39-112 25-146 68-35 45-25 118-86 150-48 25-104-7-130-50-28-47-31-96-97-105-61-8-124-19-154-75-18-34-9-70 14-97Z"/>
+       <path d="M610 760c65-48 151-25 181 41 31 68-19 112-68 143-46 29-62 88-119 100-72 16-135-58-111-126 21-60 70-122 117-158Z"/>
+     </g>
+     <g stroke="#2DD4BF" stroke-opacity=".15" stroke-width="2" fill="none">
+       <ellipse cx="450" cy="520" rx="330" ry="250"/><ellipse cx="450" cy="520" rx="250" ry="250"/><ellipse cx="450" cy="520" rx="150" ry="250"/>
+       <path d="M120 520h660M145 420h610M145 620h610"/>
+     </g>
+     <g stroke="#54C978" stroke-opacity=".25" fill="none">
+       <circle cx="700" cy="210" r="72" stroke-width="3"/><path d="m700 138 20 52 52 20-52 20-20 52-20-52-52-20 52-20 20-52Z" stroke-width="3"/>
+     </g>
+     <path d="M60 1180 215 960l95 125 120-180 120 165 95-115 195 225H60Z" fill="#54C978" fill-opacity=".14" stroke="#2DD4BF" stroke-opacity=".22" stroke-width="3"/>
+     <g stroke="#2DD4BF" stroke-opacity=".1" fill="none"><path d="M60 1300c160-120 250 90 420-30s260 50 360-50"/><path d="M40 1370c170-110 280 80 430-40s260 55 390-35"/></g>
+</svg>
