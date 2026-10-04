@@ -319,6 +319,24 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
           build
 
+      - name: Verify final iOS release identity
+        shell: bash
+        run: |
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Release-iphoneos/App.app' -print -quit)"
+          test -n "$APP_PATH"
+          PLIST="$APP_PATH/Info.plist"
+          test -f "$PLIST"
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")"
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
+          BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
+
+          test "$BUNDLE_ID" = 'at.ibosay.quiz'
+          test "$VERSION" = '1.0.0'
+          test "$BUILD" = '1'
+
+          echo "Verified iOS release identity: $BUNDLE_ID $VERSION ($BUILD)"
+
       - name: Analyze iOS Release app
         run: >
           xcodebuild
