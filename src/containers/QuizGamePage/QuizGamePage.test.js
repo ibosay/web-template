@@ -1,194 +1,296 @@
-import React, { act } from 'react';
+import React from 'react';
 import '@testing-library/jest-dom';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 
-import { renderWithProviders as render, testingLibrary } from '../../util/testHelpers';
+import QuizArenaLiveApp, {
+  CATEGORIES,
+  HARD_QUESTION_IDS,
+  QUESTIONS,
+  QUESTION_TRANSLATIONS,
+} from './QuizArenaLiveApp';
 
-import { QUESTIONS_PER_ROUND, QUIZ_QUESTIONS, questionOptionId } from './quizQuestions';
-import { SECONDS_PER_QUESTION } from './quizScoring';
-import { QuizGamePageComponent } from './QuizGamePage';
-
-const { fireEvent, screen, userEvent } = testingLibrary;
-
-// By default, the test setup renders translation keys as such. Here we add real messages for the
-// ones that take values, so that the tests can check the formatted content.
-const messages = {
-  'QuizGamePage.progress': 'Question {current} of {totalQuestions}',
-  'QuizGamePage.feedbackCorrect': 'Correct! +{points}',
-  'QuizGamePage.feedbackIncorrect': 'The correct answer is {correctAnswer}',
-  'QuizGamePage.feedbackTimeout': 'Time is up. The correct answer is {correctAnswer}',
-  'QuizGamePage.resultCorrectCount': '{correctCount} of {totalQuestions} correct',
-  'QuizGamePage.highScore': 'Best score {points}',
-  'QuizGamePage.newHighScore': 'New best score in {category}',
-};
-
-const renderQuizGamePage = () =>
-  render(<QuizGamePageComponent scrollingDisabled={false} />, { messages });
-
-// The questions of a round are drawn at random, so the tests read the current question from the
-// heading and look up the correct option from the question bank.
-const getCurrentQuestion = () => {
-  const heading = screen.getByRole('heading', { level: 2 });
-  const questionId = heading.textContent.replace('QuizGamePage.question.', '').replace('.text', '');
-  return QUIZ_QUESTIONS.find(question => question.id === questionId);
-};
-
-const optionName = (question, optionIndex) => questionOptionId(question.id, optionIndex);
-const correctOptionName = question => optionName(question, question.correctOptionIndex);
-const incorrectOptionName = question => optionName(question, (question.correctOptionIndex + 1) % 4);
-
-const startGame = () =>
-  userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.startGame' }));
-
-const answerAndContinue = async (isLastQuestion, pickCorrect = true) => {
-  const question = getCurrentQuestion();
-  const name = pickCorrect ? correctOptionName(question) : incorrectOptionName(question);
-  await userEvent.click(screen.getByRole('button', { name }));
-  await userEvent.click(
-    screen.getByRole('button', {
-      name: isLastQuestion ? 'QuizGamePage.showResult' : 'QuizGamePage.nextQuestion',
-    })
-  );
-};
-
-describe('QuizGamePageComponent', () => {
+describe('current Quiz Arena experience', () => {
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it('starts on the start screen with the category options', async () => {
-    await act(async () => {
-      renderQuizGamePage();
-    });
+  it('contains the complete current question bank with valid answers and English copy', () => {
+    expect(QUESTIONS).toHaveLength(399);
+    expect(new Set(QUESTIONS.map(question => question.id)).size).toBe(399);
+    expect(CATEGORIES).toEqual([
+      'Alle',
+      'Islam',
+      'Allgemeinwissen',
+      'Geografie',
+      'Wissenschaft',
+      'Geschichte',
+      'EU',
+      'Staatsbürgerschaft',
+    ]);
 
-    expect(screen.getByText('QuizGamePage.startHeading')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'QuizGamePage.category.all' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
-    expect(
-      screen.getByRole('button', { name: 'QuizGamePage.category.history' })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'QuizGamePage.startGame' })).toBeInTheDocument();
-  });
-
-  it('shows a question with 4 answer options after starting', async () => {
-    await act(async () => {
-      renderQuizGamePage();
-    });
-    await startGame();
-
-    expect(screen.getByText(`Question 1 of ${QUESTIONS_PER_ROUND}`)).toBeInTheDocument();
-
-    const question = getCurrentQuestion();
-    [0, 1, 2, 3].forEach(optionIndex => {
-      expect(screen.getByRole('button', { name: optionName(question, optionIndex) })).toBeEnabled();
-    });
-  });
-
-  it('gives feedback and locks the options when the answer is correct', async () => {
-    await act(async () => {
-      renderQuizGamePage();
-    });
-    await startGame();
-
-    const question = getCurrentQuestion();
-    await userEvent.click(screen.getByRole('button', { name: correctOptionName(question) }));
-
-    expect(screen.getByText(/^Correct! \+\d+$/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: correctOptionName(question) })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'QuizGamePage.nextQuestion' })).toBeInTheDocument();
-  });
-
-  it('reveals the correct answer when the answer is wrong', async () => {
-    await act(async () => {
-      renderQuizGamePage();
-    });
-    await startGame();
-
-    const question = getCurrentQuestion();
-    await userEvent.click(screen.getByRole('button', { name: incorrectOptionName(question) }));
-
-    expect(
-      screen.getByText(`The correct answer is ${correctOptionName(question)}`)
-    ).toBeInTheDocument();
-  });
-
-  it('answers with the number keys', async () => {
-    await act(async () => {
-      renderQuizGamePage();
-    });
-    await startGame();
-
-    const question = getCurrentQuestion();
-    await act(async () => {
-      fireEvent.keyDown(window, { key: String(question.correctOptionIndex + 1) });
-    });
-
-    expect(screen.getByText(/^Correct! \+\d+$/)).toBeInTheDocument();
-  });
-
-  it('counts a question as wrong when the time runs out', async () => {
-    jest.useFakeTimers();
-    try {
-      await act(async () => {
-        renderQuizGamePage();
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByRole('button', { name: 'QuizGamePage.startGame' }));
-      });
-
-      const question = getCurrentQuestion();
-      // The countdown schedules the next tick on every render, so the timers are advanced one
-      // second at a time to let React render in between.
-      for (let second = 0; second <= SECONDS_PER_QUESTION; second++) {
-        await act(async () => {
-          jest.advanceTimersByTime(1000);
-        });
+    QUESTIONS.forEach(question => {
+      expect(question.answers).toHaveLength(4);
+      expect(question.correct).toBeGreaterThanOrEqual(0);
+      expect(question.correct).toBeLessThan(4);
+      if (!question.category.startsWith('Staatsbürgerschaft')) {
+        expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
+        expect(QUESTION_TRANSLATIONS.EN?.[question.id].answers).toHaveLength(4);
       }
+    });
 
-      expect(
-        screen.getByText(`Time is up. The correct answer is ${correctOptionName(question)}`)
-      ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: correctOptionName(question) })).toBeDisabled();
-    } finally {
-      jest.useRealTimers();
-    }
+    expect(HARD_QUESTION_IDS.size).toBeGreaterThan(0);
+
+    const islamQuestions = QUESTIONS.filter(question => question.category === 'Islam');
+    expect(islamQuestions).toHaveLength(60);
+    expect(islamQuestions.filter(question => HARD_QUESTION_IDS.has(question.id))).toHaveLength(10);
+    expect(islamQuestions.filter(question => !HARD_QUESTION_IDS.has(question.id))).toHaveLength(50);
+    islamQuestions.forEach(question => {
+      expect(question.source).toBeTruthy();
+      expect(QUESTION_TRANSLATIONS.EN?.[question.id]).toBeDefined();
+    });
+    expect(islamQuestions.some(question => question.question.includes('Schahada'))).toBe(true);
+    const islamCopy = islamQuestions.flatMap(question => [question.question, ...question.answers]).join(' ');
+    expect(islamCopy).not.toMatch(/hanafi|maliki|schafi|hanbali|rechtsschule|madhhab/i);
+    const austriaCitizenshipQuestions = QUESTIONS.filter(question => question.category === 'Staatsbürgerschaft Österreich');
+    const viennaCitizenshipQuestions = QUESTIONS.filter(question => question.category === 'Staatsbürgerschaft Wien');
+    expect(austriaCitizenshipQuestions).toHaveLength(97);
+    expect(viennaCitizenshipQuestions).toHaveLength(62);
+    const sourceNumbers = austriaCitizenshipQuestions
+      .map(question => Number(question.source.split('10-')[1]))
+      .sort((a, b) => a - b);
+    expect(sourceNumbers).toEqual(Array.from({ length: 97 }, (_, index) => index + 1));
+    austriaCitizenshipQuestions.forEach(question => {
+      expect(question.source).toMatch(/^Geschichte Österreichs, 10-\d{3}$/);
+    });
+    expect(viennaCitizenshipQuestions[0].source).toBe('Wien, 39-001');
+    expect(viennaCitizenshipQuestions[61].source).toBe('Wien, 39-062');
   });
 
-  it('shows the result and stores a high score after the last question', async () => {
-    await act(async () => {
-      renderQuizGamePage();
-    });
-    await startGame();
+  it('shows the same main categories and controls as the live app', () => {
+    render(<QuizArenaLiveApp />);
 
-    for (let i = 0; i < QUESTIONS_PER_ROUND; i++) {
-      await answerAndContinue(i === QUESTIONS_PER_ROUND - 1);
-    }
-
-    expect(screen.getByText('QuizGamePage.resultTitle')).toBeInTheDocument();
-    expect(
-      screen.getByText(`${QUESTIONS_PER_ROUND} of ${QUESTIONS_PER_ROUND} correct`)
-    ).toBeInTheDocument();
-    expect(screen.getByText('New best score in QuizGamePage.category.all')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'QuizGamePage.playAgain' })).toBeInTheDocument();
-
-    const storedHighScores = JSON.parse(window.localStorage.getItem('quizGameHighScores'));
-    expect(storedHighScores.all).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Quiz Arena' })).toBeInTheDocument();
+    expect(screen.getByText('Allgemeinwissen')).toBeInTheDocument();
+    expect(screen.getByText('EU')).toBeInTheDocument();
+    expect(screen.getByText('Staatsbürgerschaft')).toBeInTheDocument();
+    expect(screen.getByText('Islam Fragen')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Spiel starten/ })).toBeInTheDocument();
   });
 
-  it('returns to the start screen from the result screen', async () => {
-    await act(async () => {
-      renderQuizGamePage();
-    });
-    await startGame();
+  it('switches the visible experience from German to English', () => {
+    render(<QuizArenaLiveApp />);
 
-    for (let i = 0; i < QUESTIONS_PER_ROUND; i++) {
-      await answerAndContinue(i === QUESTIONS_PER_ROUND - 1, false);
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByText('English').closest('button'));
+
+    expect(screen.getByRole('button', { name: /Start game/ })).toBeInTheDocument();
+    expect(screen.getByText('Choose a category')).toBeInTheDocument();
+  });
+
+  it('starts a ten question round and protects leaving the round', () => {
+    render(<QuizArenaLiveApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    expect(screen.getByText('FRAGE 1/10')).toBeInTheDocument();
+    expect(screen.getByText(/20s/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Runde verlassen' }));
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText('Runde verlassen?')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Weiterspielen' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('FRAGE 1/10')).toBeInTheDocument();
+  });
+
+  it('offers a Max round size that uses the full selected category pool', () => {
+    render(<QuizArenaLiveApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Max' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Menü schließen' }));
+
+    expect(screen.getByText('Islam Fragen').closest('button')).toHaveTextContent('60');
+    expect(screen.getByText('Staatsbürgerschaft').closest('button')).toHaveTextContent('159');
+
+    fireEvent.click(screen.getByText('Staatsbürgerschaft').closest('button'));
+    expect(screen.getByText('Geschichte Österreichs').closest('button')).toHaveTextContent('97');
+    expect(screen.getByText('Wien').closest('button')).toHaveTextContent('62');
+
+    fireEvent.click(screen.getByText('Wien').closest('button'));
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    expect(screen.getByText('FRAGE 1/62')).toBeInTheDocument();
+  });
+
+  it('keeps the second hard-mode mistake visible until the player continues', () => {
+    jest.useFakeTimers();
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+    window.localStorage.setItem('quiz-arena-difficulty', 'hard');
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    const hardIslam = QUESTIONS.filter(question => question.category === 'Islam' && HARD_QUESTION_IDS.has(question.id));
+
+    let answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    fireEvent.click(answerButtons[hardIslam[0].correct === 0 ? 1 : 0]);
+    expect(screen.getByLabelText('Falsch')).toBeInTheDocument();
+    expect(screen.getByLabelText('Richtig')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+
+    answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    fireEvent.click(answerButtons[hardIslam[1].correct === 0 ? 1 : 0]);
+    expect(screen.getByLabelText('Falsch')).toBeInTheDocument();
+    expect(screen.getByLabelText('Richtig')).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    expect(screen.getByText('FRAGE 2/10')).toBeInTheDocument();
+    expect(screen.queryByText('Du hast im schweren Modus zweimal falsch geantwortet.')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Weiter' }));
+    expect(screen.getByText('Du hast im schweren Modus zweimal falsch geantwortet.')).toBeInTheDocument();
+
+    randomSpy.mockRestore();
+    jest.useRealTimers();
+  });
+
+  it('does not repeat answered questions in the next round', () => {
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    const seenIds = new Set();
+
+    for (let step = 0; step < 10; step += 1) {
+      const current = QUESTIONS.find(question => screen.queryByText(question.question));
+      expect(current).toBeDefined();
+      seenIds.add(current.id);
+
+      const answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+      fireEvent.click(answerButtons[current.correct]);
+      fireEvent.click(screen.getByRole('button', { name: step === 9 ? 'Ergebnis ansehen' : 'Weiter' }));
     }
 
-    expect(screen.getByText(`0 of ${QUESTIONS_PER_ROUND} correct`)).toBeInTheDocument();
+    expect(screen.getByText('RUNDE BEENDET')).toBeInTheDocument();
+    expect(JSON.parse(window.localStorage.getItem('quiz-arena-mastery'))['Islam:easy'].seen).toHaveLength(10);
 
-    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.backToStart' }));
-    expect(screen.getByText('QuizGamePage.startHeading')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Noch eine Runde' }));
+
+    const nextQuestion = QUESTIONS.find(question => screen.queryByText(question.question));
+    expect(nextQuestion).toBeDefined();
+    expect(seenIds.has(nextQuestion.id)).toBe(false);
+
+    randomSpy.mockRestore();
+  });
+
+  it('awards a golden knowledge chest for a perfect complete pool', () => {
+    window.localStorage.setItem('quiz-arena-difficulty', 'hard');
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.5);
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+
+    for (let step = 0; step < 10; step += 1) {
+      const current = QUESTIONS.find(question => screen.queryByText(question.question));
+      expect(current).toBeDefined();
+
+      const answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+      fireEvent.click(answerButtons[current.correct]);
+      fireEvent.click(screen.getByRole('button', { name: step === 9 ? 'Ergebnis ansehen' : 'Weiter' }));
+    }
+
+    expect(screen.getByText('Goldene Wissenskiste')).toBeInTheDocument();
+    expect(screen.getByText('+500 XP · +2 ★')).toBeInTheDocument();
+
+    const storedProgress = JSON.parse(window.localStorage.getItem('quiz-arena-progress'));
+    expect(storedProgress.gifts).toBe(1);
+    expect(storedProgress.stars).toBeGreaterThanOrEqual(2);
+
+    randomSpy.mockRestore();
+  });
+
+  it('uses earned knowledge stars for a 50:50 joker', () => {
+    window.localStorage.setItem('quiz-arena-time-enabled', 'off');
+    window.localStorage.setItem('quiz-arena-progress', JSON.stringify({
+      xp: 2000,
+      rounds: 0,
+      correct: 0,
+      bestStreak: 0,
+      gifts: 0,
+      stars: 1,
+      levelChests: 0,
+    }));
+
+    render(<QuizArenaLiveApp />);
+    expect(screen.getByText('Kenner')).toBeInTheDocument();
+    expect(screen.getByText('★ 1')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+    const joker = screen.getByRole('button', { name: '50:50 · 1 ★' });
+    expect(joker).toBeEnabled();
+
+    fireEvent.click(joker);
+
+    const availableAnswers = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    expect(availableAnswers).toHaveLength(2);
+
+    const storedProgress = JSON.parse(window.localStorage.getItem('quiz-arena-progress'));
+    expect(storedProgress.stars).toBe(0);
+  });
+
+  it('opens statistics and achievements detail pages from the menu', () => {
+    window.localStorage.setItem('quiz-arena-progress', JSON.stringify({
+      xp: 2000,
+      rounds: 9,
+      correct: 88,
+      bestStreak: 5,
+      gifts: 1,
+      stars: 3,
+      levelChests: 1,
+      wrong: 12,
+      jokerUses: 2,
+    }));
+
+    render(<QuizArenaLiveApp />);
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Statistiken/ }));
+    expect(screen.getByRole('heading', { name: 'Statistiken' })).toBeInTheDocument();
+    expect(screen.getByText('Joker genutzt')).toBeInTheDocument();
+    expect(screen.getByText('Fortschritt pro Kategorie')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zurück' }));
+    fireEvent.click(screen.getByRole('button', { name: /Erfolge/ }));
+
+    expect(screen.getByRole('heading', { name: 'Erfolge' })).toBeInTheDocument();
+    expect(screen.getByText('Erster Joker')).toBeInTheDocument();
+    expect(screen.getByText('Erste Wissenskiste')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zurück' }));
+    expect(screen.getByRole('button', { name: /Statistiken/ })).toBeInTheDocument();
+  });
+
+  it('shows animated correct and wrong status marks and allows disabling the timer', () => {
+    render(<QuizArenaLiveApp />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Aus' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Menü schließen' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Spiel starten/ }));
+    expect(screen.getByLabelText('Zeitlimit aus')).toHaveTextContent('∞');
+
+    const answerButtons = screen.getAllByRole('button').filter(button => button.getAttribute('aria-disabled') === 'false');
+    fireEvent.click(answerButtons[0]);
+    expect(screen.queryByLabelText('Richtig') || screen.queryByLabelText('Falsch')).toBeTruthy();
   });
 });

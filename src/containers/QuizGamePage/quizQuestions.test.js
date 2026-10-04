@@ -63,5 +63,21 @@ describe('quizQuestions', () => {
       const ids = drawQuestions(CATEGORY_ALL).map(question => question.id);
       expect(new Set(ids).size).toEqual(ids.length);
     });
+
+    it('falls back to all categories for an unknown category', () => {
+      const questions = drawQuestions('unknown-category', 3);
+      expect(questions).toHaveLength(3);
+      questions.forEach(question => {
+        expect(QUIZ_QUESTIONS).toContainEqual(question);
+      });
+    });
+
+    it('handles invalid question counts safely', () => {
+      expect(drawQuestions(CATEGORY_ALL, -5)).toHaveLength(0);
+      expect(drawQuestions(CATEGORY_ALL, NaN)).toHaveLength(QUESTIONS_PER_ROUND);
+      expect(drawQuestions(CATEGORY_GEOGRAPHY, 999)).toHaveLength(
+        QUIZ_QUESTIONS.filter(question => question.category === CATEGORY_GEOGRAPHY).length
+      );
+    });
   });
 });

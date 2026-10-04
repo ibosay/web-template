@@ -1,0 +1,413 @@
+name: Mobile Foundation Verify
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-foundation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-android:
+    name: Web tests, build, Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 22.22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: yarn
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Yarn 1
+        run: npm install --global yarn@1.22.22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --network-timeout 600000
+
+      - name: Run quiz test suite
+        env:
+          CI: 'true'
+        run: >
+          yarn test --runInBand --watchAll=false
+          src/containers/QuizGamePage/QuizGamePage.test.js
+          src/containers/QuizGamePage/QuizArenaLiveAppV2.test.js
+          src/containers/QuizGamePage/learningExpansion.test.js
+          src/containers/QuizGamePage/quizScoring.test.js
+          src/containers/QuizGamePage/quizQuestions.test.js
+          src/containers/QuizGamePage/quizProgression.test.js
+          src/containers/QuizGamePage/quizAchievements.test.js
+          src/containers/QuizGamePage/quizSettings.test.js
+
+      - name: Build production web bundle
+        env:
+          CI: 'true'
+          NODE_ENV: production
+        run: yarn build-web
+
+      - name: Verify Android project is committed
+        run: test -d android
+
+      - name: Sync Capacitor Android plugins
+        run: npx cap sync android
+
+      - name: Verify Android project is reproducible
+        run: git diff --exit-code -- android
+
+      - name: Inspect Capacitor Android plugins
+        run: npx cap ls android
+
+      - name: Verify Android store configuration
+        shell: bash
+        run: |
+          grep -q 'applicationId "at.ibosay.quiz"' android/app/build.gradle
+          grep -q 'versionCode 1' android/app/build.gradle
+          grep -q 'versionName "1.0.0"' android/app/build.gradle
+          grep -q "targetSdkVersion = 36" android/variables.gradle
+          grep -q "compileSdkVersion = 36" android/variables.gradle
+          grep -q "minSdkVersion = 24" android/variables.gradle
+
+      - name: Build Android debug app
+        working-directory: android
+        run: ./gradlew assembleDebug --stacktrace
+
+      - name: Build Android release app bundle
+        working-directory: android
+        run: ./gradlew bundleRelease --stacktrace
+
+      - name: Verify Android release app bundle
+        shell: bash
+        run: |
+          AAB='android/app/build/outputs/bundle/release/app-release.aab'
+          test -s "$AAB"
+          unzip -t "$AAB" >/dev/null
+          unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
+          unzip -l "$AAB" | grep -q 'base/resources.pb'
+          unzip -l "$AAB" | grep -q 'base/dex/classes.dex'
+          echo "Verified Android App Bundle: $AAB"
+          ls -lh "$AAB"
+
+      - name: Run Android release lint
+        working-directory: android
+        run: ./gradlew lintRelease --stacktrace
+
+      - name: Verify merged Android release permissions
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          manifests = list(Path('android/app/build/intermediates/merged_manifests/release').rglob('AndroidManifest.xml'))
+          if not manifests:
+              raise SystemExit('Merged Android release manifest was not found.')
+
+          manifest = manifests[0]
+          root = ET.parse(manifest).getroot()
+          android_ns = 'http://schemas.android.com/apk/res/android'
+          android_name = f'{{{android_ns}}}name'
+
+          if root.attrib.get('package') != 'at.ibosay.quiz':
+              raise SystemExit(
+                  'Unexpected Android release package: '
+                  + str(root.attrib.get('package'))
+              )
+
+          if root.attrib.get(f'{{{android_ns}}}versionCode') != '1':
+              raise SystemExit(
+                  'Unexpected Android release versionCode: '
+                  + str(root.attrib.get(f'{{{android_ns}}}versionCode'))
+              )
+
+          if root.attrib.get(f'{{{android_ns}}}versionName') != '1.0.0':
+              raise SystemExit(
+                  'Unexpected Android release versionName: '
+                  + str(root.attrib.get(f'{{{android_ns}}}versionName'))
+              )
+
+          application = root.find('application')
+          if application is None:
+              raise SystemExit('Android application element was not found.')
+
+          if application.attrib.get(f'{{{android_ns}}}allowBackup') != 'false':
+              raise SystemExit('Android release must keep allowBackup=false.')
+
+          if application.attrib.get(f'{{{android_ns}}}dataExtractionRules') != '@xml/data_extraction_rules':
+              raise SystemExit('Android release must reference @xml/data_extraction_rules.')
+
+          rules = Path('android/app/src/main/res/xml/data_extraction_rules.xml')
+          rules_root = ET.parse(rules).getroot()
+          required_domains = {
+              'root',
+              'file',
+              'database',
+              'sharedpref',
+              'external',
+              'device_root',
+              'device_file',
+              'device_database',
+              'device_sharedpref',
+          }
+
+          for section_name in ('cloud-backup', 'device-transfer'):
+              section = rules_root.find(section_name)
+              if section is None:
+                  raise SystemExit(f'Missing Android backup section: {section_name}')
+              excluded = {
+                  item.attrib.get('domain')
+                  for item in section.findall('exclude')
+                  if item.attrib.get('path') in {'.', './'}
+              }
+              missing = sorted(required_domains - excluded)
+              if missing:
+                  raise SystemExit(
+                      f'Android backup section {section_name} is missing exclusions for: '
+                      + ', '.join(missing)
+                  )
+
+          permissions = sorted({
+              element.attrib.get(android_name)
+              for element in root
+              if element.tag in {'uses-permission', 'uses-permission-sdk-23'}
+              and element.attrib.get(android_name)
+          })
+
+          allowed = {
+              'android.permission.INTERNET',
+              'android.permission.VIBRATE',
+              'android.permission.ACCESS_NETWORK_STATE',
+          }
+
+          internal_receiver_permission = 'at.ibosay.quiz.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION'
+          declared_signature_permissions = {
+              element.attrib.get(android_name)
+              for element in root
+              if element.tag == 'permission'
+              and element.attrib.get(
+                  '{http://schemas.android.com/apk/res/android}protectionLevel'
+              ) == 'signature'
+          }
+
+          if (
+              internal_receiver_permission in permissions
+              and internal_receiver_permission in declared_signature_permissions
+          ):
+              allowed.add(internal_receiver_permission)
+
+          unexpected = [permission for permission in permissions if permission not in allowed]
+
+          print('Merged release manifest:', manifest)
+          print('Permissions:', ', '.join(permissions) if permissions else 'none')
+
+          if unexpected:
+              raise SystemExit(
+                  'Unexpected Android release permissions: ' + ', '.join(unexpected)
+              )
+          PY
+
+  ios:
+    name: iOS sync, build, simulator
+    needs: web-android
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 22.22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.0
+          cache: yarn
+
+      - name: Verify App Store Xcode toolchain
+        shell: bash
+        run: |
+          xcodebuild -version
+          XCODE_MAJOR="$(xcodebuild -version | awk '/Xcode/{split($2,v,"."); print v[1]}')"
+          if [ -z "$XCODE_MAJOR" ] || [ "$XCODE_MAJOR" -lt 26 ]; then
+            echo "App Store uploads require Xcode 26 or newer."
+            exit 1
+          fi
+          IOS_SDK="$(xcrun --sdk iphoneos --show-sdk-version)"
+          IOS_SDK_MAJOR="${IOS_SDK%%.*}"
+          echo "iPhoneOS SDK: $IOS_SDK"
+          if [ -z "$IOS_SDK_MAJOR" ] || [ "$IOS_SDK_MAJOR" -lt 26 ]; then
+            echo "App Store uploads require the iOS 26 SDK or newer."
+            exit 1
+          fi
+
+      - name: Install Yarn 1
+        run: npm install --global yarn@1.22.22
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --network-timeout 600000
+
+      - name: Build production web bundle
+        env:
+          CI: 'true'
+          NODE_ENV: production
+        run: yarn build-web
+
+      - name: Verify iOS project is committed
+        run: test -d ios
+
+      - name: Sync Capacitor iOS plugins
+        run: npx cap sync ios
+
+      - name: Verify iOS project is reproducible
+        run: git diff --exit-code -- ios
+
+      - name: Inspect Capacitor iOS plugins
+        run: npx cap ls ios
+
+      - name: Verify iOS store configuration
+        shell: bash
+        run: |
+          grep -q 'PRODUCT_BUNDLE_IDENTIFIER = at.ibosay.quiz;' ios/App/App.xcodeproj/project.pbxproj
+          grep -q 'MARKETING_VERSION = 1.0.0;' ios/App/App.xcodeproj/project.pbxproj
+          grep -q 'CURRENT_PROJECT_VERSION = 1;' ios/App/App.xcodeproj/project.pbxproj
+          grep -Eq 'IPHONEOS_DEPLOYMENT_TARGET = (1[3-9]|2[0-9])\.' ios/App/App.xcodeproj/project.pbxproj
+          INFO_PLIST='ios/App/App/Info.plist'
+          plutil -lint "$INFO_PLIST"
+          test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$INFO_PLIST")" = 'false'
+          test "$(plutil -extract UIRequiredDeviceCapabilities.0 raw "$INFO_PLIST")" = 'arm64'
+          PRIVACY_MANIFEST='ios/App/App/PrivacyInfo.xcprivacy'
+          test -f "$PRIVACY_MANIFEST"
+          grep -q 'PrivacyInfo.xcprivacy in Resources' ios/App/App.xcodeproj/project.pbxproj
+          plutil -lint "$PRIVACY_MANIFEST"
+          grep -q '<key>NSPrivacyTracking</key>' "$PRIVACY_MANIFEST"
+          grep -q '<false/>' "$PRIVACY_MANIFEST"
+          ICON='ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png'
+          test -f "$ICON"
+          WIDTH="$(sips -g pixelWidth "$ICON" | awk '/pixelWidth/{print $2}')"
+          HEIGHT="$(sips -g pixelHeight "$ICON" | awk '/pixelHeight/{print $2}')"
+          ALPHA="$(sips -g hasAlpha "$ICON" | awk '/hasAlpha/{print $2}')"
+          test "$WIDTH" = '1024'
+          test "$HEIGHT" = '1024'
+          if [ "$ALPHA" = 'yes' ]; then
+            echo "The App Store icon must not contain an alpha channel."
+            exit 1
+          fi
+
+      - name: Build unsigned iPhoneOS Release app
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Release
+          -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Verify final iOS release identity
+        shell: bash
+        run: |
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Release-iphoneos/App.app' -print -quit)"
+          test -n "$APP_PATH"
+          PLIST="$APP_PATH/Info.plist"
+          test -f "$PLIST"
+
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$PLIST")"
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$PLIST")"
+          BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$PLIST")"
+
+          test "$BUNDLE_ID" = 'at.ibosay.quiz'
+          test "$VERSION" = '1.0.0'
+          test "$BUILD" = '1'
+
+          echo "Verified iOS release identity: $BUNDLE_ID $VERSION ($BUILD)"
+
+      - name: Analyze iOS Release app
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Release
+          -sdk iphoneos
+          -destination 'generic/platform=iOS'
+          CODE_SIGNING_ALLOWED=NO
+          analyze
+
+      - name: Build iOS Release Simulator app
+        run: >
+          xcodebuild
+          -project ios/App/App.xcodeproj
+          -scheme App
+          -configuration Release
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          CODE_SIGNING_ALLOWED=NO
+          build
+
+      - name: Launch iOS app in Simulator
+        shell: bash
+        run: |
+          UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPhone .*\(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          if [ -z "$UDID" ]; then
+            echo "No available iPhone simulator found"
+            exit 1
+          fi
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          READY=0
+          for attempt in {1..30}; do
+            if xcrun simctl getenv "$UDID" HOME >/dev/null 2>&1; then
+              READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$READY" -ne 1 ]; then
+            echo "Simulator did not become ready within 60 seconds"
+            exit 1
+          fi
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Release-iphonesimulator/App.app' -print -quit)"
+          test -n "$APP_PATH"
+          xcrun simctl install "$UDID" "$APP_PATH"
+          xcrun simctl launch "$UDID" at.ibosay.quiz
+          sleep 5
+          xcrun simctl shutdown "$UDID" 2>/dev/null || true
+
+      - name: Verify iPad support in Release Simulator app
+        shell: bash
+        run: |
+          grep -q 'TARGETED_DEVICE_FAMILY = "1,2";' ios/App/App.xcodeproj/project.pbxproj
+          APP_PATH="$(find "$HOME/Library/Developer/Xcode/DerivedData" -path '*/Build/Products/Release-iphonesimulator/App.app' -print -quit)"
+          test -n "$APP_PATH"
+          PLIST="$APP_PATH/Info.plist"
+          test -f "$PLIST"
+          python - "$PLIST" <<'PY'
+          import plistlib
+          import sys
+
+          with open(sys.argv[1], 'rb') as handle:
+              info = plistlib.load(handle)
+
+          families = info.get('UIDeviceFamily', [])
+          print('UIDeviceFamily:', families)
+
+          if 1 not in families or 2 not in families:
+              raise SystemExit(
+                  'Release Simulator app must support both iPhone (1) and iPad (2).'
+              )
+          PY

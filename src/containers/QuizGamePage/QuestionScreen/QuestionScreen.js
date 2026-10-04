@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle, NotificationType } from '@capacitor/haptics';
+import { App } from '@capacitor/app';
 
 // Contexts, configs, and util modules
 import { useIntl } from '../../../util/reactIntl';
@@ -10,12 +13,28 @@ import { H2, IconCheckmark, IconClose, PrimaryButton } from '../../../components
 // Modules from parent directory
 import { OPTIONS_PER_QUESTION, questionOptionId, questionTextId } from '../quizQuestions';
 import { SECONDS_PER_QUESTION } from '../quizScoring';
+import { playQuizSound } from '../quizSounds';
 
 // Modules from the same directory
 import css from './QuestionScreen.module.css';
 
 // When fewer seconds than this are left, the countdown is highlighted.
 const LOW_TIME_SECONDS = 5;
+
+const nativeHaptic = async (type, isCorrect = false, enabled = true) => {
+  if (!enabled || !Capacitor.isNativePlatform()) return;
+  try {
+    if (type === 'answer') {
+      await Haptics.notification({
+        type: isCorrect ? NotificationType.Success : NotificationType.Error,
+      });
+    } else {
+      await Haptics.impact({ style: ImpactStyle.Light });
+    }
+  } catch (e) {
+    // Haptics are optional and should never interrupt gameplay.
+  }
+};
 
 /**
  * A single answer option. After the player has answered, the correct option is always highlighted
@@ -31,7 +50,16 @@ const LOW_TIME_SECONDS = 5;
  * @returns {JSX.Element} answer option button
  */
 const AnswerOption = props => {
-  const { optionIndex, label, isSelected, isCorrect, hasAnswered, onSelect } = props;
+  const {
+    optionIndex,
+    label,
+    isSelected,
+    isCorrect,
+    hasAnswered,
+    onSelect,
+    hapticsEnabled,
+    soundEnabled,
+  } = props;
 
   const showAsCorrect = hasAnswered && isCorrect;
   const showAsIncorrect = hasAnswered && isSelected && !isCorrect;
@@ -49,7 +77,11 @@ const AnswerOption = props => {
         type="button"
         disabled={hasAnswered}
         aria-pressed={isSelected}
-        onClick={onSelect}
+        onClick={() => {
+          nativeHaptic('tap', false, hapticsEnabled);
+          playQuizSound('tap', soundEnabled);
+          onSelect();
+        }}
       >
         <span className={css.optionKey} aria-hidden="true">
           {optionIndex + 1}
@@ -82,6 +114,7 @@ const AnswerOption = props => {
  * @param {Function} props.onAnswer - Called with the picked option index and the remaining seconds
  * @param {Function} props.onTimeout - Called when the time runs out
  * @param {Function} props.onNext - Called when the player moves on
+ * @param {Function} props.onQuit - Called when the player wants to leave the round
  * @returns {JSX.Element} question screen
  */
 const QuestionScreen = props => {
@@ -99,9 +132,16 @@ const QuestionScreen = props => {
     onAnswer,
     onTimeout,
     onNext,
+    onQuit,
+    hapticsEnabled = true,
+    soundEnabled = true,
+    interactionBlocked = false,
   } = props;
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
+  const [isAppActive, setIsAppActive] = useState(true);
+  const wasInactiveRef = useRef(false);
+  const answeredRef = useRef(false);
 
   const hasAnswered = selectedOptionIndex !== null || isTimedOut;
   const isCorrect = selectedOptionIndex === question.correctOptionIndex;
@@ -113,9 +153,38 @@ const QuestionScreen = props => {
     callbacksRef.current = { onAnswer, onTimeout, onNext };
   });
 
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return undefined;
+    let listener;
+    let disposed = false;
+    App.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) {
+        wasInactiveRef.current = true;
+      }
+      setIsAppActive(isActive);
+    }).then(handle => {
+      if (disposed) {
+        handle.remove();
+      } else {
+        listener = handle;
+      }
+    });
+    return () => {
+      disposed = true;
+      if (listener) listener.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isAppActive && wasInactiveRef.current) {
+      wasInactiveRef.current = false;
+      setSecondsLeft(previous => Math.max(0, previous));
+    }
+  }, [isAppActive]);
+
   // Countdown: tick once a second until the question is answered or the time runs out.
   useEffect(() => {
-    if (hasAnswered) {
+    if (hasAnswered || !isAppActive || interactionBlocked) {
       return undefined;
     }
     if (secondsLeft <= 0) {
@@ -124,11 +193,12 @@ const QuestionScreen = props => {
     }
     const timeoutId = setTimeout(() => setSecondsLeft(seconds => seconds - 1), 1000);
     return () => clearTimeout(timeoutId);
-  }, [secondsLeft, hasAnswered]);
+  }, [secondsLeft, hasAnswered, isAppActive, interactionBlocked]);
 
   // Keyboard shortcuts: 1–4 pick an answer, Enter moves on.
   useEffect(() => {
     const handleKeyDown = event => {
+      if (interactionBlocked) return;
       if (event.key === 'Enter' && hasAnswered) {
         callbacksRef.current.onNext();
         return;
@@ -136,18 +206,28 @@ const QuestionScreen = props => {
       const optionIndex = Number(event.key) - 1;
       const isOptionKey =
         Number.isInteger(optionIndex) && optionIndex >= 0 && optionIndex < OPTIONS_PER_QUESTION;
-      if (isOptionKey && !hasAnswered) {
+      if (isOptionKey && !hasAnswered && !answeredRef.current) {
+        answeredRef.current = true;
+        nativeHaptic('tap', false, hapticsEnabled);
+        playQuizSound('tap', soundEnabled);
         callbacksRef.current.onAnswer(optionIndex, secondsLeft);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasAnswered, secondsLeft]);
+  }, [hasAnswered, secondsLeft, hapticsEnabled, soundEnabled, interactionBlocked]);
 
   const correctAnswer = intl.formatMessage({
     id: questionOptionId(question.id, question.correctOptionIndex),
   });
+
+  useEffect(() => {
+    if (hasAnswered) {
+      nativeHaptic('answer', isCorrect, hapticsEnabled);
+      playQuizSound(isTimedOut ? 'timeout' : isCorrect ? 'correct' : 'incorrect', soundEnabled);
+    }
+  }, [hasAnswered, isCorrect, isTimedOut, hapticsEnabled, soundEnabled]);
 
   const feedback = !hasAnswered ? null : isCorrect ? (
     <span className={css.feedbackCorrect}>
@@ -166,6 +246,12 @@ const QuestionScreen = props => {
 
   return (
     <section className={css.root}>
+      <div className={css.topActions}>
+        <button className={css.quitButton} type="button" onClick={onQuit}>
+          <span aria-hidden="true">×</span>
+          <span>{intl.formatMessage({ id: 'QuizGamePage.leaveRound' })}</span>
+        </button>
+      </div>
       <div className={css.statusRow}>
         <span className={css.progress}>
           {intl.formatMessage(
@@ -207,7 +293,13 @@ const QuestionScreen = props => {
             isSelected={selectedOptionIndex === optionIndex}
             isCorrect={question.correctOptionIndex === optionIndex}
             hasAnswered={hasAnswered}
-            onSelect={() => onAnswer(optionIndex, secondsLeft)}
+            hapticsEnabled={hapticsEnabled}
+            soundEnabled={soundEnabled}
+            onSelect={() => {
+              if (answeredRef.current || hasAnswered) return;
+              answeredRef.current = true;
+              onAnswer(optionIndex, secondsLeft);
+            }}
           />
         ))}
       </ul>
@@ -217,7 +309,12 @@ const QuestionScreen = props => {
       </div>
 
       {hasAnswered ? (
-        <PrimaryButton className={css.nextButton} type="button" onClick={onNext}>
+        <PrimaryButton
+          className={css.nextButton}
+          type="button"
+          onClick={onNext}
+          disabled={interactionBlocked}
+        >
           {isLastQuestion
             ? intl.formatMessage({ id: 'QuizGamePage.showResult' })
             : intl.formatMessage({ id: 'QuizGamePage.nextQuestion' })}

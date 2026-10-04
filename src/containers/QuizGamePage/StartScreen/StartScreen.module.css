@@ -1,28 +1,55 @@
 @import '../../../styles/customMediaQueries.css';
 
 .root {
-  padding: 24px;
-  border: solid 1px var(--colorGrey100);
-  border-radius: var(--borderRadiusMedium);
-  background-color: var(--colorWhite);
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 28px;
+  background: linear-gradient(160deg, #18213f 0%, #0d1328 100%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+  color: #fff;
 
   @media (--viewportMedium) {
     padding: 32px;
   }
 }
 
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.logoMark {
+  display: grid;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #7c5cff, #28c6ff);
+  box-shadow: 0 12px 30px rgba(70, 110, 255, 0.35);
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: #8ea3d7;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
 .heading {
   margin: 0;
+  color: #fff;
 }
 
 .rules {
   composes: p from global;
-  margin: 6px 0 24px 0;
-  color: var(--colorGrey700);
-
-  @media (--viewportMedium) {
-    margin: 8px 0 32px 0;
-  }
+  margin: 18px 0 24px;
+  color: #aab8d8;
 }
 
 .categories {
@@ -32,76 +59,155 @@
 }
 
 .categoriesLegend {
-  composes: marketplaceTinyFontStyles from global;
-  margin: 0 0 6px 0;
+  margin: 0 0 10px;
   padding: 0;
-  color: var(--colorGrey700);
-
-  @media (--viewportMedium) {
-    margin: 0 0 8px 0;
-  }
+  color: #8ea3d7;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .categoryButtons {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-
-  @media (--viewportMedium) {
-    gap: 8px;
-  }
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .categoryButton {
-  composes: marketplaceDefaultFontStyles from global;
-  min-height: 36px;
+  min-height: 72px;
   margin: 0;
-  padding: 6px 12px;
-  border: solid 1px var(--colorGrey100);
-  border-radius: var(--borderRadiusMedium);
-  background-color: var(--colorWhite);
-  color: var(--colorGrey700);
+  padding: 12px;
+  border: 1px solid #2b3659;
+  border-radius: 18px;
+  background: #141d38;
+  color: #c6d2ee;
   cursor: pointer;
-  transition: all var(--transitionStyleButton);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
 
-  &:hover,
-  &:focus {
-    border-color: var(--marketplaceColor);
-    outline: none;
-  }
+.categoryButton:first-child {
+  grid-column: 1 / -1;
+}
 
-  @media (--viewportMedium) {
-    min-height: 40px;
-    padding: 8px 16px;
-  }
+.categoryButton:active {
+  transform: scale(0.98);
 }
 
 .categoryButtonSelected {
-  border-color: var(--marketplaceColor);
-  background-color: var(--marketplaceColor);
-  color: var(--colorWhite);
-
-  &:hover,
-  &:focus {
-    background-color: var(--marketplaceColorDark);
-    border-color: var(--marketplaceColorDark);
-  }
+  border-color: #6f7dff;
+  background: linear-gradient(135deg, rgba(105, 84, 255, 0.32), rgba(35, 180, 255, 0.18));
+  color: #fff;
 }
 
-.highScore {
-  composes: marketplaceTinyFontStyles from global;
-  margin: 18px 0 0 0;
-  color: var(--colorGrey700);
+.categoryIcon {
+  display: block;
+  margin-bottom: 4px;
+  color: #7ed8ff;
+  font-size: 22px;
+}
 
-  @media (--viewportMedium) {
-    margin: 24px 0 0 0;
-  }
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 20px;
+  padding: 12px;
+  border: 1px solid #263250;
+  border-radius: 18px;
+  background: rgba(6, 11, 27, 0.48);
+  text-align: center;
+}
+
+.statLabel {
+  display: block;
+  color: #7486ad;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.statValue {
+  display: block;
+  margin-top: 2px;
+  color: #fff;
+  font-size: 18px;
 }
 
 .startButton {
-  margin-top: 24px;
+  width: 100%;
+  min-height: 56px;
+  margin-top: 18px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #755cff, #2aafff);
+  box-shadow: 0 12px 28px rgba(65, 102, 255, 0.3);
+}
 
-  @media (--viewportMedium) {
-    margin-top: 32px;
-  }
+.playerCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 12px;
+  border: 1px solid #303d66;
+  border-radius: 18px;
+  background: rgba(8, 14, 31, 0.52);
+}
+
+.playerLevel {
+  display: grid;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #755cff, #2aafff);
+  color: #fff;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.playerProgress { flex: 1; min-width: 0; }
+.playerProgressTop { display: flex; justify-content: space-between; color: #fff; font-size: 11px; }
+.playerProgressTop span { color: #8ea3d7; }
+.xpTrack { height: 6px; margin-top: 7px; overflow: hidden; border-radius: 99px; background: #273352; }
+.xpFill { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #755cff, #2aafff); }
+.playerMeta { display: block; margin-top: 7px; color: #7183aa; font-size: 9px; line-height: 1.35; }
+
+.languagePicker { display: flex; justify-content: flex-end; gap: 5px; margin-bottom: 12px; }
+.languageButton { min-width: 34px; padding: 6px 7px; border: 1px solid #2b3659; border-radius: 9px; background: #111a33; color: #7f91b9; font-size: 10px; font-weight: 800; cursor: pointer; }
+.languageButtonActive { border-color: #6f7dff; background: rgba(111, 125, 255, 0.2); color: #fff; }
+
+.achievements { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 10px; }
+.achievement { padding: 8px 3px; border: 1px solid #283452; border-radius: 12px; background: rgba(8,14,31,.35); color: #4c5c7f; text-align: center; opacity: .55; }
+.achievement span { display: block; font-size: 16px; }
+.achievement small { display: block; margin-top: 3px; font-size: 7px; line-height: 1.2; }
+.achievementUnlocked { border-color: #6f7dff; color: #dce4ff; opacity: 1; background: rgba(111,125,255,.12); }
+
+.settingsRow {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0 18px;
+  flex-wrap: wrap;
+}
+
+.settingsRow label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 11px;
+  border: 1px solid #2c385b;
+  border-radius: 999px;
+  background: rgba(20, 29, 56, 0.8);
+  color: #aebde0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settingsRow input {
+  accent-color: #735cff;
 }
