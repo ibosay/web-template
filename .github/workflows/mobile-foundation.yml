@@ -92,6 +92,18 @@ jobs:
         working-directory: android
         run: ./gradlew bundleRelease --stacktrace
 
+      - name: Verify Android release app bundle
+        shell: bash
+        run: |
+          AAB='android/app/build/outputs/bundle/release/app-release.aab'
+          test -s "$AAB"
+          unzip -t "$AAB" >/dev/null
+          unzip -l "$AAB" | grep -q 'base/manifest/AndroidManifest.xml'
+          unzip -l "$AAB" | grep -q 'base/resources.pb'
+          unzip -l "$AAB" | grep -q 'base/dex/classes.dex'
+          echo "Verified Android App Bundle: $AAB"
+          ls -lh "$AAB"
+
       - name: Run Android release lint
         working-directory: android
         run: ./gradlew lintRelease --stacktrace
