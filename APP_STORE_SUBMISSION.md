@@ -92,19 +92,26 @@ The production iOS app icon and launch splash now use the existing Quiz Arena br
 
 The Android launcher icons, adaptive icon foregrounds, round icons and portrait and landscape splash resources are now generated from the same Quiz Arena brand sources. The previous Capacitor default Android robot icon is no longer used by the generated launcher PNG assets.
 
-## Automated readiness verified on 3 October 2026
+## Automated readiness verified on 4 October 2026
 
-- Native branch head: `de2be8b70cfb04d1a0a02f807e586b753f13faf3`.
-- GitHub Actions Mobile Foundation Verify Run 98 completed successfully.
-- Production web tests and build pass.
-- Android Capacitor sync and debug build pass.
-- iOS Capacitor sync, unsigned device Release build, Simulator Release build and Simulator launch smoke test pass.
-- Bundle identifier is `at.ibosay.quiz`, marketing version `1.0.0`, build number `1`.
-- iOS Privacy Manifest declares tracking disabled and no collected data types for the current app-owned implementation.
-- App icon validation in CI checks 1024 x 1024 and rejects an alpha channel.
-- Privacy policy and support pages are public and linked from inside the app.
-- Current Quiz Arena functionality includes persistent mistake review, per-category learning statistics, XP and level progress, streak feedback and local-only player progress.
-- Final App Store privacy answers must still be checked against the exact signed TestFlight build and all bundled third-party code. The repository contains inherited Sentry packages, but no Sentry initialization or capture usage was found in the current source audit.
+1. Native branch verification commit: e12bd1e44d1473b4c78a7d7ff6b8f762e380e5e2.
+2. GitHub Actions Mobile Foundation Verify Run 156 completed successfully.
+3. Quiz test suite and production web build pass.
+4. Android Capacitor sync and reproducibility pass.
+5. Android debug build and release App Bundle build pass.
+6. Android release bundle structure, lint and merged permission verification pass.
+7. iOS Capacitor sync and reproducibility pass.
+8. iOS store configuration validation passes.
+9. Unsigned iPhoneOS Release build and static analysis pass.
+10. Final iOS release identity is verified as at.ibosay.quiz, version 1.0.0, build 1.
+11. iOS Release Simulator build passes.
+12. The app launches successfully in an iPhone Simulator.
+13. The built Release Simulator app is verified to support both iPhone and iPad through UIDeviceFamily values 1 and 2.
+14. The iOS Privacy Manifest declares tracking disabled and no collected data types for the current app owned implementation.
+15. App icon validation checks 1024 by 1024 pixels and rejects an alpha channel.
+16. Privacy policy and support pages are present in the deployed Quiz Arena site.
+17. The deployed Quiz Arena application source currently contains no Sentry initialization, fetch call, Axios use, XMLHttpRequest use or analytics initialization.
+18. Final App Store privacy answers must still be checked against the exact signed TestFlight build and all bundled third party code.
 
 ## Release blockers
 
