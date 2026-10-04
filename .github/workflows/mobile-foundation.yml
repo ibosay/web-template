@@ -385,8 +385,10 @@ jobs:
           xcrun simctl install "$UDID" "$APP_PATH"
           xcrun simctl launch "$UDID" at.ibosay.quiz
           sleep 5
+          xcrun simctl shutdown "$UDID" 2>/dev/null || true
 
       - name: Launch iOS app on iPad Simulator
+        timeout-minutes: 5
         shell: bash
         run: |
           UDID="$(xcrun simctl list devices available | grep -m1 'iPad ' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
