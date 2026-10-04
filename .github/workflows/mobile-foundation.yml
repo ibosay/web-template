@@ -389,7 +389,7 @@ jobs:
       - name: Launch iOS app on iPad Simulator
         shell: bash
         run: |
-          UDID="$(xcrun simctl list devices available | grep -m1 -E 'iPad .*(' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
+          UDID="$(xcrun simctl list devices available | grep -m1 'iPad ' | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')"
           if [ -z "$UDID" ]; then
             echo "No available iPad simulator found while iPad support is enabled"
             exit 1
