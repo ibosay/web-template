@@ -124,6 +124,24 @@ jobs:
           android_ns = 'http://schemas.android.com/apk/res/android'
           android_name = f'{{{android_ns}}}name'
 
+          if root.attrib.get('package') != 'at.ibosay.quiz':
+              raise SystemExit(
+                  'Unexpected Android release package: '
+                  + str(root.attrib.get('package'))
+              )
+
+          if root.attrib.get(f'{{{android_ns}}}versionCode') != '1':
+              raise SystemExit(
+                  'Unexpected Android release versionCode: '
+                  + str(root.attrib.get(f'{{{android_ns}}}versionCode'))
+              )
+
+          if root.attrib.get(f'{{{android_ns}}}versionName') != '1.0.0':
+              raise SystemExit(
+                  'Unexpected Android release versionName: '
+                  + str(root.attrib.get(f'{{{android_ns}}}versionName'))
+              )
+
           application = root.find('application')
           if application is None:
               raise SystemExit('Android application element was not found.')
