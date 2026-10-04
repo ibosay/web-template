@@ -290,6 +290,7 @@ jobs:
           INFO_PLIST='ios/App/App/Info.plist'
           plutil -lint "$INFO_PLIST"
           test "$(plutil -extract ITSAppUsesNonExemptEncryption raw "$INFO_PLIST")" = 'false'
+          test "$(plutil -extract UIRequiredDeviceCapabilities.0 raw "$INFO_PLIST")" = 'arm64'
           PRIVACY_MANIFEST='ios/App/App/PrivacyInfo.xcprivacy'
           test -f "$PRIVACY_MANIFEST"
           grep -q 'PrivacyInfo.xcprivacy in Resources' ios/App/App.xcodeproj/project.pbxproj
