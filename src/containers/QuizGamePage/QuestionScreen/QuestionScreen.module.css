@@ -11,6 +11,24 @@
   }
 }
 
+.roundProgress {
+  height: 6px;
+  margin-bottom: 18px;
+  border-radius: 3px;
+  background-color: var(--colorGrey50);
+  overflow: hidden;
+
+  @media (--viewportMedium) {
+    margin-bottom: 24px;
+  }
+}
+
+.roundProgressBar {
+  height: 100%;
+  background-color: var(--colorGrey300);
+  transition: width var(--transitionStyleButton);
+}
+
 .statusRow {
   display: flex;
   align-items: baseline;
@@ -187,5 +205,23 @@
 
   @media (--viewportMedium) {
     margin-top: 16px;
+  }
+}
+
+.quitButton {
+  margin-top: 18px;
+  color: var(--colorGrey700);
+
+  @media (--viewportMedium) {
+    margin-top: 24px;
+  }
+}
+
+/* The countdown and the progress bar animate their width. Respect the setting of players who
+   prefer as little motion as possible. */
+@media (prefers-reduced-motion: reduce) {
+  .timerBar,
+  .roundProgressBar {
+    transition: none;
   }
 }

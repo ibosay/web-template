@@ -7,7 +7,7 @@ import { QUESTIONS_PER_ROUND, QUIZ_QUESTIONS, questionOptionId } from './quizQue
 import { SECONDS_PER_QUESTION } from './quizScoring';
 import { QuizGamePageComponent } from './QuizGamePage';
 
-const { fireEvent, screen, userEvent } = testingLibrary;
+const { fireEvent, screen, userEvent, waitFor } = testingLibrary;
 
 // By default, the test setup renders translation keys as such. Here we add real messages for the
 // ones that take values, so that the tests can check the formatted content.
@@ -19,6 +19,8 @@ const messages = {
   'QuizGamePage.resultCorrectCount': '{correctCount} of {totalQuestions} correct',
   'QuizGamePage.highScore': 'Best score {points}',
   'QuizGamePage.newHighScore': 'New best score in {category}',
+  'QuizGamePage.summaryCorrectAnswer': 'Correct: {answer}',
+  'QuizGamePage.summaryYourAnswer': 'Your answer: {answer}',
 };
 
 const renderQuizGamePage = () =>
@@ -174,6 +176,51 @@ describe('QuizGamePageComponent', () => {
 
     const storedHighScores = JSON.parse(window.localStorage.getItem('quizGameHighScores'));
     expect(storedHighScores.all).toBeGreaterThan(0);
+  });
+
+  it('moves the focus to the continue button after an answer', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    const question = getCurrentQuestion();
+    await userEvent.click(screen.getByRole('button', { name: correctOptionName(question) }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'QuizGamePage.nextQuestion' })).toHaveFocus();
+    });
+  });
+
+  it('gives up the round and returns to the start screen', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.quitRound' }));
+
+    expect(screen.getByText('QuizGamePage.startHeading')).toBeInTheDocument();
+    expect(window.localStorage.getItem('quizGameHighScores')).toBeNull();
+  });
+
+  it('lists the correct answer of every wrong answer on the result screen', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+    await startGame();
+
+    const playedQuestions = [];
+    for (let i = 0; i < QUESTIONS_PER_ROUND; i++) {
+      playedQuestions.push(getCurrentQuestion());
+      await answerAndContinue(i === QUESTIONS_PER_ROUND - 1, false);
+    }
+
+    playedQuestions.forEach(question => {
+      expect(
+        screen.getByText(`Correct: ${correctOptionName(question)}`, { exact: false })
+      ).toBeInTheDocument();
+    });
   });
 
   it('returns to the start screen from the result screen', async () => {

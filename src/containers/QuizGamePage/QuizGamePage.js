@@ -92,7 +92,10 @@ export const QuizGamePageComponent = props => {
     setSelectedOptionIndex(optionIndex);
     setStreak(newStreak);
     setLastPoints(points);
-    setAnswers([...answers, { questionId: currentQuestion.id, isCorrect, points }]);
+    setAnswers([
+      ...answers,
+      { questionId: currentQuestion.id, selectedOptionIndex: optionIndex, isCorrect, points },
+    ]);
   };
 
   const handleTimeout = () => {
@@ -102,7 +105,10 @@ export const QuizGamePageComponent = props => {
     setIsTimedOut(true);
     setStreak(0);
     setLastPoints(0);
-    setAnswers([...answers, { questionId: currentQuestion.id, isCorrect: false, points: 0 }]);
+    setAnswers([
+      ...answers,
+      { questionId: currentQuestion.id, selectedOptionIndex: null, isCorrect: false, points: 0 },
+    ]);
   };
 
   const finishRound = () => {
@@ -121,6 +127,10 @@ export const QuizGamePageComponent = props => {
     setSelectedOptionIndex(null);
     setIsTimedOut(false);
     setLastPoints(0);
+  };
+
+  const handleBackToStart = () => {
+    setScreen(SCREEN_START);
   };
 
   const handleSelectCategory = newCategoryId => {
@@ -149,6 +159,7 @@ export const QuizGamePageComponent = props => {
         onAnswer={handleAnswer}
         onTimeout={handleTimeout}
         onNext={handleNextQuestion}
+        onQuitRound={handleBackToStart}
       />
     ) : screen === SCREEN_RESULT ? (
       <ResultScreen
@@ -158,7 +169,7 @@ export const QuizGamePageComponent = props => {
         highScore={highScores[categoryId]}
         isNewHighScore={isNewHighScore}
         onPlayAgain={startRound}
-        onBackToStart={() => setScreen(SCREEN_START)}
+        onBackToStart={handleBackToStart}
       />
     ) : (
       <StartScreen

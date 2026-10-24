@@ -7,7 +7,12 @@ import { useIntl } from '../../../util/reactIntl';
 import { H2, PrimaryButton, SecondaryButton } from '../../../components';
 
 // Modules from parent directory
-import { categoryLabelId, questionTextId } from '../quizQuestions';
+import {
+  QUIZ_QUESTIONS,
+  categoryLabelId,
+  questionOptionId,
+  questionTextId,
+} from '../quizQuestions';
 
 // Modules from the same directory
 import css from './ResultScreen.module.css';
@@ -30,6 +35,18 @@ const resultFeedbackId = (correctCount, totalQuestions) => {
     : ratio >= GOOD_RESULT_THRESHOLD
     ? 'QuizGamePage.resultFeedbackGood'
     : 'QuizGamePage.resultFeedbackTryAgain';
+};
+
+/**
+ * Returns the text of the correct option of a question.
+ *
+ * @param {Object} intl - The react-intl object
+ * @param {string} questionId - The id of the question
+ * @returns {string} the correct answer
+ */
+const correctAnswerText = (intl, questionId) => {
+  const question = QUIZ_QUESTIONS.find(item => item.id === questionId);
+  return intl.formatMessage({ id: questionOptionId(questionId, question.correctOptionIndex) });
 };
 
 /**
@@ -101,8 +118,28 @@ const ResultScreen = props => {
                   : 'QuizGamePage.summaryIncorrect',
               })}
             </span>
-            <span className={css.summaryQuestion}>
-              {intl.formatMessage({ id: questionTextId(answer.questionId) })}
+            <span className={css.summaryTexts}>
+              <span className={css.summaryQuestion}>
+                {intl.formatMessage({ id: questionTextId(answer.questionId) })}
+              </span>
+              {answer.isCorrect ? null : (
+                <span className={css.summaryAnswers}>
+                  {intl.formatMessage(
+                    { id: 'QuizGamePage.summaryCorrectAnswer' },
+                    { answer: correctAnswerText(intl, answer.questionId) }
+                  )}
+                  {typeof answer.selectedOptionIndex === 'number'
+                    ? ` · ${intl.formatMessage(
+                        { id: 'QuizGamePage.summaryYourAnswer' },
+                        {
+                          answer: intl.formatMessage({
+                            id: questionOptionId(answer.questionId, answer.selectedOptionIndex),
+                          }),
+                        }
+                      )}`
+                    : ` · ${intl.formatMessage({ id: 'QuizGamePage.summaryNoAnswer' })}`}
+                </span>
+              )}
             </span>
           </li>
         ))}

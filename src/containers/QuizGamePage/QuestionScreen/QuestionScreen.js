@@ -5,7 +5,7 @@ import classNames from 'classnames';
 import { useIntl } from '../../../util/reactIntl';
 
 // Shared components
-import { H2, IconCheckmark, IconClose, PrimaryButton } from '../../../components';
+import { H2, IconCheckmark, IconClose, InlineTextButton, PrimaryButton } from '../../../components';
 
 // Modules from parent directory
 import { OPTIONS_PER_QUESTION, questionOptionId, questionTextId } from '../quizQuestions';
@@ -16,6 +16,10 @@ import css from './QuestionScreen.module.css';
 
 // When fewer seconds than this are left, the countdown is highlighted.
 const LOW_TIME_SECONDS = 5;
+
+// Marks the continue button, so that the focus can be moved to it once a question is answered.
+const NEXT_BUTTON_ATTRIBUTE = 'data-next-button';
+const NEXT_BUTTON_SELECTOR = `[${NEXT_BUTTON_ATTRIBUTE}]`;
 
 /**
  * A single answer option. After the player has answered, the correct option is always highlighted
@@ -82,6 +86,7 @@ const AnswerOption = props => {
  * @param {Function} props.onAnswer - Called with the picked option index and the remaining seconds
  * @param {Function} props.onTimeout - Called when the time runs out
  * @param {Function} props.onNext - Called when the player moves on
+ * @param {Function} props.onQuitRound - Called when the player gives up the round
  * @returns {JSX.Element} question screen
  */
 const QuestionScreen = props => {
@@ -99,6 +104,7 @@ const QuestionScreen = props => {
     onAnswer,
     onTimeout,
     onNext,
+    onQuitRound,
   } = props;
 
   const [secondsLeft, setSecondsLeft] = useState(SECONDS_PER_QUESTION);
@@ -112,6 +118,30 @@ const QuestionScreen = props => {
   useEffect(() => {
     callbacksRef.current = { onAnswer, onTimeout, onNext };
   });
+
+  // Answering disables the picked option, which drops the focus. Move it to the continue button, so
+  // that the round stays playable from the keyboard.
+  const rootRef = useRef(null);
+  useEffect(() => {
+    if (!hasAnswered) {
+      return undefined;
+    }
+    const focusNextButton = () => {
+      const nextButton = rootRef.current && rootRef.current.querySelector(NEXT_BUTTON_SELECTOR);
+      if (nextButton && !nextButton.disabled) {
+        nextButton.focus();
+        return true;
+      }
+      return false;
+    };
+    if (focusNextButton()) {
+      return undefined;
+    }
+    // The shared Button component is disabled until it has mounted itself, so try again after that
+    // render.
+    const timeoutId = setTimeout(focusNextButton, 0);
+    return () => clearTimeout(timeoutId);
+  }, [hasAnswered]);
 
   // Countdown: tick once a second until the question is answered or the time runs out.
   useEffect(() => {
@@ -164,8 +194,24 @@ const QuestionScreen = props => {
   const timeLeftRatio = Math.max(0, secondsLeft) / SECONDS_PER_QUESTION;
   const isLowOnTime = !hasAnswered && secondsLeft <= LOW_TIME_SECONDS;
 
+  const answeredQuestions = hasAnswered ? questionNumber : questionNumber - 1;
+
   return (
-    <section className={css.root}>
+    <section className={css.root} ref={rootRef}>
+      <div
+        className={css.roundProgress}
+        role="progressbar"
+        aria-label={intl.formatMessage({ id: 'QuizGamePage.roundProgress' })}
+        aria-valuemin={0}
+        aria-valuemax={totalQuestions}
+        aria-valuenow={answeredQuestions}
+      >
+        <div
+          className={css.roundProgressBar}
+          style={{ width: `${(answeredQuestions / totalQuestions) * 100}%` }}
+        />
+      </div>
+
       <div className={css.statusRow}>
         <span className={css.progress}>
           {intl.formatMessage(
@@ -217,12 +263,21 @@ const QuestionScreen = props => {
       </div>
 
       {hasAnswered ? (
-        <PrimaryButton className={css.nextButton} type="button" onClick={onNext}>
+        <PrimaryButton
+          className={css.nextButton}
+          type="button"
+          onClick={onNext}
+          {...{ [NEXT_BUTTON_ATTRIBUTE]: true }}
+        >
           {isLastQuestion
             ? intl.formatMessage({ id: 'QuizGamePage.showResult' })
             : intl.formatMessage({ id: 'QuizGamePage.nextQuestion' })}
         </PrimaryButton>
       ) : null}
+
+      <InlineTextButton className={css.quitButton} type="button" onClick={onQuitRound}>
+        {intl.formatMessage({ id: 'QuizGamePage.quitRound' })}
+      </InlineTextButton>
     </section>
   );
 };
