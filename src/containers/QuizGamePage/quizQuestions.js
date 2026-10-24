@@ -18,6 +18,7 @@ export const CATEGORY_GEOGRAPHY = 'geography';
 export const CATEGORY_SCIENCE = 'science';
 export const CATEGORY_CULTURE = 'culture';
 export const CATEGORY_HISTORY = 'history';
+export const CATEGORY_ISLAM = 'islam';
 
 export const QUIZ_CATEGORIES = [
   CATEGORY_ALL,
@@ -25,7 +26,14 @@ export const QUIZ_CATEGORIES = [
   CATEGORY_SCIENCE,
   CATEGORY_CULTURE,
   CATEGORY_HISTORY,
+  CATEGORY_ISLAM,
 ];
+
+/**
+ * Categories whose questions are shown together with a note, e.g. an honorific that belongs with
+ * the people the questions are about. The note is shown on the start screen.
+ */
+export const CATEGORIES_WITH_NOTE = [CATEGORY_ISLAM];
 
 // Every question has this many answer options.
 export const OPTIONS_PER_QUESTION = 4;
@@ -69,6 +77,18 @@ export const QUIZ_QUESTIONS = [
   { id: 'printingPress', category: CATEGORY_HISTORY, correctOptionIndex: 0 },
   { id: 'frenchRevolution', category: CATEGORY_HISTORY, correctOptionIndex: 1 },
   { id: 'gizaPyramids', category: CATEGORY_HISTORY, correctOptionIndex: 2 },
+
+  // Islam: the Mothers of the Believers, the wives of the Prophet Muhammad, peace and blessings of
+  // Allah be upon him
+  { id: 'firstBeliever', category: CATEGORY_ISLAM, correctOptionIndex: 1 },
+  { id: 'hadithNarrator', category: CATEGORY_ISLAM, correctOptionIndex: 0 },
+  { id: 'daughterOfUmar', category: CATEGORY_ISLAM, correctOptionIndex: 2 },
+  { id: 'banuMustaliq', category: CATEGORY_ISLAM, correctOptionIndex: 0 },
+  { id: 'abyssiniaEmigration', category: CATEGORY_ISLAM, correctOptionIndex: 1 },
+  { id: 'lastMarriage', category: CATEGORY_ISLAM, correctOptionIndex: 0 },
+  { id: 'sewingAndLeather', category: CATEGORY_ISLAM, correctOptionIndex: 2 },
+  { id: 'wiseCounsel', category: CATEGORY_ISLAM, correctOptionIndex: 0 },
+  { id: 'descendantOfIsrael', category: CATEGORY_ISLAM, correctOptionIndex: 3 },
 ];
 
 /**
@@ -78,6 +98,22 @@ export const QUIZ_QUESTIONS = [
  * @returns {string} translation key
  */
 export const categoryLabelId = categoryId => `QuizGamePage.category.${categoryId}`;
+
+/**
+ * Translation key for the note of a category.
+ *
+ * @param {string} categoryId - The id of the category
+ * @returns {string} translation key
+ */
+export const categoryNoteId = categoryId => `QuizGamePage.categoryNote.${categoryId}`;
+
+/**
+ * Whether the given category is shown with a note.
+ *
+ * @param {string} categoryId - The id of the category
+ * @returns {boolean} true when the category has a note
+ */
+export const hasCategoryNote = categoryId => CATEGORIES_WITH_NOTE.includes(categoryId);
 
 /**
  * Translation key for the text of a question.

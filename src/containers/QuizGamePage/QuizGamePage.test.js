@@ -3,7 +3,12 @@ import '@testing-library/jest-dom';
 
 import { renderWithProviders as render, testingLibrary } from '../../util/testHelpers';
 
-import { QUESTIONS_PER_ROUND, QUIZ_QUESTIONS, questionOptionId } from './quizQuestions';
+import {
+  CATEGORY_ISLAM,
+  QUESTIONS_PER_ROUND,
+  QUIZ_QUESTIONS,
+  questionOptionId,
+} from './quizQuestions';
 import { SECONDS_PER_QUESTION } from './quizScoring';
 import { QuizGamePageComponent } from './QuizGamePage';
 
@@ -190,6 +195,22 @@ describe('QuizGamePageComponent', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'QuizGamePage.nextQuestion' })).toHaveFocus();
     });
+  });
+
+  it('shows the note of a category and plays its questions', async () => {
+    await act(async () => {
+      renderQuizGamePage();
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'QuizGamePage.category.islam' }));
+    expect(screen.getByText('QuizGamePage.categoryNote.islam')).toBeInTheDocument();
+
+    await startGame();
+
+    const islamQuestionIds = QUIZ_QUESTIONS.filter(
+      question => question.category === CATEGORY_ISLAM
+    ).map(question => question.id);
+    expect(islamQuestionIds).toContain(getCurrentQuestion().id);
   });
 
   it('gives up the round and returns to the start screen', async () => {

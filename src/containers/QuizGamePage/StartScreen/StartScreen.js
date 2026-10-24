@@ -8,7 +8,13 @@ import { useIntl } from '../../../util/reactIntl';
 import { H2, PrimaryButton } from '../../../components';
 
 // Modules from parent directory
-import { categoryLabelId, QUESTIONS_PER_ROUND, QUIZ_CATEGORIES } from '../quizQuestions';
+import {
+  categoryLabelId,
+  categoryNoteId,
+  hasCategoryNote,
+  QUESTIONS_PER_ROUND,
+  QUIZ_CATEGORIES,
+} from '../quizQuestions';
 import { SECONDS_PER_QUESTION } from '../quizScoring';
 
 // Modules from the same directory
@@ -60,6 +66,10 @@ const StartScreen = props => {
           ))}
         </div>
       </fieldset>
+
+      {hasCategoryNote(categoryId) ? (
+        <p className={css.categoryNote}>{intl.formatMessage({ id: categoryNoteId(categoryId) })}</p>
+      ) : null}
 
       {highScore ? (
         <p className={css.highScore}>

@@ -1,6 +1,7 @@
 import enMessages from '../../translations/en.json';
 
 import {
+  CATEGORIES_WITH_NOTE,
   CATEGORY_ALL,
   CATEGORY_GEOGRAPHY,
   OPTIONS_PER_QUESTION,
@@ -8,6 +9,7 @@ import {
   QUIZ_CATEGORIES,
   QUIZ_QUESTIONS,
   categoryLabelId,
+  categoryNoteId,
   drawQuestions,
   questionOptionId,
   questionTextId,
@@ -37,6 +39,13 @@ describe('quizQuestions', () => {
       for (let optionIndex = 0; optionIndex < OPTIONS_PER_QUESTION; optionIndex++) {
         expect(enMessages[questionOptionId(question.id, optionIndex)]).toBeDefined();
       }
+    });
+  });
+
+  it('has a default translation for the note of every category that has one', () => {
+    CATEGORIES_WITH_NOTE.forEach(category => {
+      expect(QUIZ_CATEGORIES).toContain(category);
+      expect(enMessages[categoryNoteId(category)]).toBeDefined();
     });
   });
 

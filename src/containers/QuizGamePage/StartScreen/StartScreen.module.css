@@ -88,6 +88,19 @@
   }
 }
 
+.categoryNote {
+  composes: marketplaceDefaultFontStyles from global;
+  margin: 18px 0 0 0;
+  padding: 12px 18px;
+  border-left: solid 2px var(--colorGrey200);
+  color: var(--colorGrey700);
+
+  @media (--viewportMedium) {
+    margin: 24px 0 0 0;
+    padding: 16px 24px;
+  }
+}
+
 .highScore {
   composes: marketplaceTinyFontStyles from global;
   margin: 18px 0 0 0;

@@ -26,6 +26,10 @@ functions that build the translation keys and draw the questions of a round. The
 questions are translation keys in the translation files, so they can be translated and overridden
 with hosted translations.
 
+The categories are geography, science, art & culture, history, and Islam, next to the "all
+categories" option. The questions of the Islam category are about the Mothers of the Believers, the
+wives of the Prophet Muhammad, peace and blessings of Allah be upon him.
+
 To add a question:
 
 1. add an entry to `QUIZ_QUESTIONS` in `quizQuestions.js` with an id, a category, and the index of
@@ -36,6 +40,14 @@ To add a question:
 `quizQuestions.test.js` checks that every question has a valid category, a valid correct option, and
 a default translation for the question and all of its options, so a missing translation fails the
 test suite.
+
+### Category notes
+
+A category can carry a note that is shown with it on the start screen, for example an honorific that
+belongs with the people its questions are about. A category gets one by being listed in
+`CATEGORIES_WITH_NOTE` in `quizQuestions.js` and by having a
+`QuizGamePage.categoryNote.{categoryId}` key in the translation files. The Islam category uses this
+for the honorific of the Mothers of the Believers.
 
 A round draws `QUESTIONS_PER_ROUND` questions at random. The drawing happens when the player starts
 a round, never during the initial render, so the randomness does not break server-side rendering.
